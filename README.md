@@ -8,7 +8,7 @@ repo for codered orion 2026
 | Path | Owner | Status |
 |---|---|---|
 | `contracts/` | everyone (change only together) | v1 schema + fixtures, validated |
-| `ml/` → `fitness_ml` | Chase | types, config, stage interfaces; **no pose pipeline or model yet** |
+| `ml/` → `fitness_ml` | Chase | MediaPipe pipeline, rep counting, form checks, training CLI ([`ml/README.md`](ml/README.md)); **not yet run on real video, no trained model** |
 | `backend/` → `gymai_backend` | Tyler | session state machine, REST, WebSocket, fixture simulator; minimal coaching |
 | `ios/` | Bryan | `GymAndAIKit` Swift package (contract + networking); **Xcode app project not created yet** → [`ios/README.md`](ios/README.md) |
 | `firmware/` | Taher | serial protocol + README; **no drivers** until hardware is identified |
@@ -27,7 +27,7 @@ python3.11 -m venv .venv
 .venv/bin/pip install -e backend -e ml
 ```
 
-Add MediaPipe/OpenCV when working on vision: `.venv/bin/pip install -e 'ml[pose]'`.
+Vision + training extras: `.venv/bin/pip install -e 'ml[train,dev]'`, then `.venv/bin/fitness-ml download-model`. GPU training runbook: [`docs/VULTR_TRAINING.md`](docs/VULTR_TRAINING.md).
 
 ## Verify everything
 

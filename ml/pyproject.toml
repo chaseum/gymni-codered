@@ -1,16 +1,22 @@
 [project]
 name = "fitness-ml"
-version = "0.1.0"
+version = "0.2.0"
 description = "Gym&AI vision: MediaPipe pose -> features -> reps/form -> contract observations (Chase)"
-requires-python = ">=3.11,<3.13"  # MediaPipe wheels lag CPython; 3.11/3.12 are safe
-dependencies = []
+requires-python = ">=3.11"  # verified on CPython 3.11 / macOS arm64 with the pins below
+dependencies = [
+    "mediapipe==1.1.0",                  # Tasks PoseLandmarker; pulls opencv-contrib-python
+    "opencv-contrib-python==5.0.0.93",   # do NOT also install opencv-python: both own the cv2 module
+    "numpy>=1.26,<3",
+]
 
 [project.optional-dependencies]
-pose = ["mediapipe>=0.10.14", "opencv-python>=4.9", "numpy>=1.26"]
-train = ["scikit-learn>=1.5", "pandas>=2.2", "numpy>=1.26"]
+train = ["scikit-learn==1.9.1", "joblib==1.6.0"]
+gru = ["torch>=2.4"]                     # on CUDA hosts install the matching wheel from pytorch.org first
+dev = ["pytest>=8"]
 
 [project.scripts]
 fitness-ml = "fitness_ml.__main__:main"
+fitness-train = "fitness_ml.training.cli:main"
 
 [build-system]
 requires = ["setuptools>=69"]
@@ -18,3 +24,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

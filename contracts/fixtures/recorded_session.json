@@ -1,0 +1,153 @@
+{
+  "description": "Prerecorded squat clip (labeled RECORDED, video_pts time base, timestamps restart at 0 and are not epoch). Two reps then the user ends the set.",
+  "session_id": "fx-recorded-squat",
+  "steps": [
+    {
+      "kind": "command",
+      "data": {
+        "command_id": "c-1",
+        "session_id": "fx-recorded-squat",
+        "intent": "start",
+        "origin": "simulator",
+        "args": {
+          "exercise": "squat",
+          "target_reps": 5,
+          "source": "recorded"
+        }
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00001",
+        "session_id": "fx-recorded-squat",
+        "set_id": null,
+        "source": "recorded",
+        "clip_id": "squat_side_01",
+        "time_base": "video_pts",
+        "source_timestamp_ms": 0,
+        "exercise": "squat",
+        "exercise_confidence": 0.91,
+        "tracking_status": "ready",
+        "phase": "raised",
+        "completed_rep": null,
+        "measurement_basis": "image_2d",
+        "measurements": {
+          "knee_angle_deg": 172.0,
+          "hip_angle_deg": 170.0
+        },
+        "issues": [],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00002",
+        "session_id": "fx-recorded-squat",
+        "set_id": null,
+        "source": "recorded",
+        "clip_id": "squat_side_01",
+        "time_base": "video_pts",
+        "source_timestamp_ms": 1200,
+        "exercise": "squat",
+        "exercise_confidence": 0.93,
+        "tracking_status": "ready",
+        "phase": "lowered",
+        "completed_rep": null,
+        "measurement_basis": "image_2d",
+        "measurements": {
+          "knee_angle_deg": 82.0,
+          "hip_angle_deg": 75.0
+        },
+        "issues": [],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00003",
+        "session_id": "fx-recorded-squat",
+        "set_id": null,
+        "source": "recorded",
+        "clip_id": "squat_side_01",
+        "time_base": "video_pts",
+        "source_timestamp_ms": 2400,
+        "exercise": "squat",
+        "exercise_confidence": 0.94,
+        "tracking_status": "ready",
+        "phase": "raised",
+        "completed_rep": {
+          "rep_index": 1,
+          "duration_ms": 2400
+        },
+        "measurement_basis": "image_2d",
+        "measurements": {
+          "knee_angle_deg": 170.0
+        },
+        "issues": [],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00004",
+        "session_id": "fx-recorded-squat",
+        "set_id": null,
+        "source": "recorded",
+        "clip_id": "squat_side_01",
+        "time_base": "video_pts",
+        "source_timestamp_ms": 4900,
+        "exercise": "squat",
+        "exercise_confidence": 0.92,
+        "tracking_status": "ready",
+        "phase": "raised",
+        "completed_rep": {
+          "rep_index": 2,
+          "duration_ms": 2500
+        },
+        "measurement_basis": "image_2d",
+        "measurements": {
+          "knee_angle_deg": 171.0
+        },
+        "issues": [],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "command",
+      "data": {
+        "command_id": "c-2",
+        "session_id": "fx-recorded-squat",
+        "intent": "end",
+        "origin": "simulator"
+      }
+    }
+  ],
+  "expect_events": [
+    "session.state",
+    "exercise.changed",
+    "coach.state",
+    "tracking.status",
+    "rep.completed",
+    "rep.completed",
+    "set.completed",
+    "session.state",
+    "coach.state"
+  ],
+  "expect_snapshot": {
+    "state": "complete",
+    "rep_count": 2,
+    "source": "recorded"
+  }
+}

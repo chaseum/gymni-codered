@@ -1,0 +1,20 @@
+[project]
+name = "fitness-ml"
+version = "0.1.0"
+description = "Gym&AI vision: MediaPipe pose -> features -> reps/form -> contract observations (Chase)"
+requires-python = ">=3.11,<3.13"  # MediaPipe wheels lag CPython; 3.11/3.12 are safe
+dependencies = []
+
+[project.optional-dependencies]
+pose = ["mediapipe>=0.10.14", "opencv-python>=4.9", "numpy>=1.26"]
+train = ["scikit-learn>=1.5", "pandas>=2.2", "numpy>=1.26"]
+
+[project.scripts]
+fitness-ml = "fitness_ml.__main__:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

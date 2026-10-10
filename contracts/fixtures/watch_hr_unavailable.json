@@ -1,0 +1,60 @@
+{
+  "description": "No Watch is paired: the snapshot reports heart rate unavailable (bpm null). A late-arriving old sample is shown as stale, never as live.",
+  "session_id": "fx-watch-unavailable",
+  "steps": [
+    {
+      "kind": "command",
+      "data": {
+        "command_id": "c-1",
+        "session_id": "fx-watch-unavailable",
+        "intent": "start",
+        "origin": "simulator",
+        "args": {
+          "exercise": "curl",
+          "target_reps": 8,
+          "source": "live"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 9,
+        "session_id": "fx-watch-unavailable",
+        "timestamp_ms": 1791640800000,
+        "type": "heart_rate.updated",
+        "payload": {
+          "status": "unavailable",
+          "bpm": null,
+          "sample_id": null,
+          "sample_timestamp_ms": null,
+          "source": null
+        }
+      }
+    },
+    {
+      "kind": "heart_rate",
+      "data": {
+        "sample_id": "hr-0001",
+        "session_id": "fx-watch-unavailable",
+        "participant_id": "p-chase",
+        "bpm": 118,
+        "sample_timestamp_ms": 1767225600000,
+        "source": "apple_watch"
+      }
+    }
+  ],
+  "expect_events": [
+    "session.state",
+    "exercise.changed",
+    "coach.state",
+    "heart_rate.updated"
+  ],
+  "expect_snapshot": {
+    "heart_rate": {
+      "status": "stale",
+      "bpm": 118
+    }
+  }
+}

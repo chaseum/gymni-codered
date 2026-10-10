@@ -1,0 +1,103 @@
+// Single source of UI state: mirrors the backend session. Never increments reps locally.
+import Foundation
+import Observation
+
+@MainActor @Observable
+public final class WorkoutStore {
+    public enum Connection: Equatable, Sendable { case disconnected, connecting, connected, failed(String) }
+
+    public private(set) var connection: Connection = .disconnected
+    public private(set) var snapshot: Snapshot?
+    public private(set) var coach: CoachState = .idle
+    public private(set) var lastFeedback: FeedbackIssued?
+    public private(set) var lastEventId = -1
+    /// Hook for cue playback (AVAudioPlayer on assets/audio/<cueId>.m4a) and haptics.
+    public var onEvent: ((WorkoutEvent) -> Void)?
+
+    public let baseURL: URL          // e.g. http://192.168.1.20:8000 — user-configured, never hardcoded
+    public let sessionId: String
+    private let token: String?
+    private var task: Task<Void, Never>?
+
+    public init(baseURL: URL, sessionId: String, token: String? = nil) {
+        self.baseURL = baseURL; self.sessionId = sessionId; self.token = token
+    }
+
+    public func connect() {
+        task?.cancel()
+        task = Task { [weak self] in
+            var delay: UInt64 = 500_000_000
+            while !Task.isCancelled, let self {
+                await self.listenOnce()
+                if Task.isCancelled { break }
+                try? await Task.sleep(nanoseconds: delay)   // reconnect; backend resends a snapshot
+                delay = min(delay * 2, 8_000_000_000)
+            }
+        }
+    }
+
+    public func disconnect() { task?.cancel(); task = nil; connection = .disconnected }
+
+    private func listenOnce() async {
+        var comps = URLComponents(url: baseURL.appending(path: "ws/workout"), resolvingAgainstBaseURL: false)!
+        comps.scheme = baseURL.scheme == "https" ? "wss" : "ws"
+        comps.queryItems = [URLQueryItem(name: "session_id", value: sessionId)] + (token.map { [URLQueryItem(name: "token", value: $0)] } ?? [])
+        let ws = URLSession.shared.webSocketTask(with: comps.url!)
+        connection = .connecting
+        ws.resume()
+        defer { ws.cancel(with: .goingAway, reason: nil) }
+        do {
+            while !Task.isCancelled {
+                let msg = try await ws.receive()
+                connection = .connected
+                guard case .string(let text) = msg else { continue }
+                apply(try Contracts.decoder.decode(WorkoutEvent.self, from: Data(text.utf8)))
+            }
+        } catch {
+            connection = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Public so previews/tests can feed fixture events.
+    public func apply(_ event: WorkoutEvent) {
+        if case .snapshot(let snap) = event.payload {   // snapshot always wins, then resets the dedupe cursor
+            snapshot = snap; lastEventId = event.eventId
+            onEvent?(event); return
+        }
+        guard event.eventId > lastEventId else { return }  // duplicate/replayed
+        lastEventId = event.eventId
+        guard var s = snapshot else { return }
+        switch event.payload {
+        case .sessionState(let p): s.state = p.state
+        case .exerciseChanged(let p): s.exercise = p.exercise; s.setId = p.setId; s.targetReps = p.targetReps; s.repCount = 0; s.activeIssues = []
+        case .tracking(let p): s.trackingStatus = p.status
+        case .repCompleted(let p): s.repCount = p.repCount
+        case .coach(let p): coach = p.coach
+        case .feedbackIssued(let p): lastFeedback = p; s.activeIssues.append(p.issueCode)
+        case .feedbackImproved(let p): s.activeIssues.removeAll { $0 == p.issueCode }
+        case .heartRate(let hr): s.heartRate = hr
+        case .rest(let r): s.rest = r.status == .resting ? r : nil
+        default: break
+        }
+        snapshot = s
+        onEvent?(event)
+    }
+
+    @discardableResult
+    public func send(_ intent: Intent, args: CommandArgs? = nil) async throws -> CommandAck {
+        try await post("commands", Command(sessionId: sessionId, intent: intent, args: args))
+    }
+
+    public func post<Body: Encodable, Response: Decodable>(_ route: String, _ body: Body) async throws -> Response {
+        var req = URLRequest(url: baseURL.appending(path: "api/sessions/\(sessionId)/\(route)"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        req.httpBody = try Contracts.encoder.encode(body)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: String(decoding: data, as: UTF8.self)])
+        }
+        return try Contracts.decoder.decode(Response.self, from: data)
+    }
+}

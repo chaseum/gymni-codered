@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gymai.local/contracts/v1",
+  "title": "Gym&AI contracts v1",
+  "description": "Authoritative wire contracts. See protocol.md. Unknown fields are allowed everywhere; receivers must ignore them.",
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "exercise": {"enum": ["curl", "squat", "deadlift"]},
+    "recognized_exercise": {"enum": ["curl", "squat", "deadlift", "other", "unknown"]},
+    "session_state": {"enum": ["ready", "active", "paused", "complete"]},
+    "input_source": {"enum": ["live", "recorded"]},
+    "tracking_status": {"enum": ["ready", "low_visibility", "lost", "unassessable"]},
+    "phase": {"enum": ["unknown", "lowered", "raising", "raised", "lowering"]},
+    "issue_code": {"type": "string", "pattern": "^(curl|squat|deadlift)\\.[a-z_]+$"},
+    "epoch_ms": {"type": "integer", "minimum": 1000000000000},
+    "load": {
+      "type": ["object", "null"],
+      "required": ["value", "unit"],
+      "properties": {"value": {"type": "number", "minimum": 0}, "unit": {"enum": ["lb", "kg"]}}
+    },
+
+    "observation": {
+      "type": "object",
+      "required": ["schema_version", "observation_id", "session_id", "source", "time_base",
+                   "source_timestamp_ms", "exercise", "tracking_status", "phase",
+                   "completed_rep", "measurements", "issues", "inference_provenance"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "observation_id": {"$ref": "#/$defs/id"},
+        "session_id": {"$ref": "#/$defs/id"},
+        "set_id": {"type": ["string", "null"]},
+        "source": {"$ref": "#/$defs/input_source"},
+        "clip_id": {"type": ["string", "null"]},
+        "time_base": {"enum": ["capture_monotonic", "video_pts"]},
+        "source_timestamp_ms": {"type": "number", "minimum": 0},
+        "exercise": {"$ref": "#/$defs/recognized_exercise"},
+        "exercise_confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "tracking_status": {"$ref": "#/$defs/tracking_status"},
+        "phase": {"$ref": "#/$defs/phase"},
+        "completed_rep": {
+          "type": ["object", "null"],
+          "required": ["rep_index"],
+          "properties": {
+            "rep_index": {"type": "integer", "minimum": 1},
+            "duration_ms": {"type": ["number", "null"], "minimum": 0}
+          }
+        },
+        "measurement_basis": {"enum": ["image_2d", "world_3d"]},
+        "measurements": {"type": "object", "additionalProperties": {"type": ["number", "null"]}},
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code"],
+            "properties": {
+              "code": {"$ref": "#/$defs/issue_code"},
+              "evidence": {"type": "object", "additionalProperties": {"type": ["number", "string", "null"]}}
+            }
+          }
+        },
+        "inference_provenance": {"enum": ["reviewed_rules", "trained_model", "fixture"]},
+        "model_version": {"type": ["string", "null"]}
+      }
+    },
+
+    "command": {
+      "type": "object",
+      "required": ["command_id", "session_id", "intent"],
+      "properties": {
+        "command_id": {"$ref": "#/$defs/id"},
+        "session_id": {"$ref": "#/$defs/id"},
+        "intent": {"enum": ["start", "pause", "resume", "end", "rest", "extend_rest", "next_exercise"]},
+        "origin": {"enum": ["phone", "watch", "voice", "pico", "simulator"]},
+        "args": {
+          "type": "object",
+          "properties": {
+            "exercise": {"$ref": "#/$defs/exercise"},
+            "target_reps": {"type": ["integer", "null"], "minimum": 1},
+            "source": {"$ref": "#/$defs/input_source"},
+            "rest_seconds": {"type": "integer", "minimum": 1, "maximum": 1800},
+            "load": {"$ref": "#/$defs/load"}
+          }
+        }
+      }
+    },
+    "command_ack": {
+      "type": "object",
+      "required": ["command_id", "accepted", "duplicate", "state"],
+      "properties": {
+        "command_id": {"$ref": "#/$defs/id"},
+        "accepted": {"type": "boolean"},
+        "duplicate": {"type": "boolean"},
+        "state": {"$ref": "#/$defs/session_state"},
+        "error": {"type": ["string", "null"]}
+      }
+    },
+
+    "heart_rate_sample": {
+      "type": "object",
+      "required": ["sample_id", "session_id", "participant_id", "bpm", "sample_timestamp_ms", "source"],
+      "properties": {
+        "sample_id": {"$ref": "#/$defs/id"},
+        "session_id": {"$ref": "#/$defs/id"},
+        "participant_id": {"$ref": "#/$defs/id"},
+        "bpm": {"type": "number", "minimum": 20, "maximum": 250},
+        "sample_timestamp_ms": {"$ref": "#/$defs/epoch_ms"},
+        "source": {"const": "apple_watch"}
+      }
+    },
+    "heart_rate_view": {
+      "type": "object",
+      "required": ["status", "bpm", "sample_timestamp_ms"],
+      "properties": {
+        "status": {"enum": ["live", "stale", "unavailable"]},
+        "bpm": {"type": ["number", "null"]},
+        "sample_id": {"type": ["string", "null"]},
+        "sample_timestamp_ms": {"type": ["integer", "null"]},
+        "source": {"type": ["string", "null"]}
+      },
+      "if": {"properties": {"status": {"const": "unavailable"}}},
+      "then": {"properties": {"bpm": {"const": null}}}
+    },
+    "rest_view": {
+      "type": "object",
+      "required": ["status", "ends_at_ms"],
+      "properties": {
+        "status": {"enum": ["resting", "ended"]},
+        "ends_at_ms": {"type": ["integer", "null"]}
+      }
+    },
+
+    "pico_in": {
+      "type": "object",
+      "required": ["event"],
+      "properties": {"event": {"enum": ["button_pressed", "hello"]}, "button": {"type": "string"}, "fw": {"type": "string"}}
+    },
+    "pico_out": {
+      "type": "object",
+      "required": ["state", "reps"],
+      "properties": {
+        "state": {"$ref": "#/$defs/session_state"},
+        "exercise": {"type": ["string", "null"]},
+        "reps": {"type": "integer", "minimum": 0}
+      }
+    },
+
+    "event": {
+      "type": "object",
+      "required": ["schema_version", "event_id", "session_id", "timestamp_ms", "type", "payload"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "event_id": {"type": "integer", "minimum": 0},
+        "session_id": {"$ref": "#/$defs/id"},
+        "timestamp_ms": {"$ref": "#/$defs/epoch_ms"},
+        "type": {"type": "string"},
+        "payload": {"type": "object"}
+      },
+      "allOf": [
+        {"if": {"properties": {"type": {"const": "session.snapshot"}}}, "then": {"properties": {"payload": {
+          "required": ["state", "source", "exercise", "set_id", "rep_count", "target_reps", "tracking_status", "heart_rate", "rest", "active_issues"],
+          "properties": {
+            "state": {"$ref": "#/$defs/session_state"},
+            "source": {"oneOf": [{"$ref": "#/$defs/input_source"}, {"type": "null"}]},
+            "exercise": {"oneOf": [{"$ref": "#/$defs/exercise"}, {"type": "null"}]},
+            "set_id": {"type": ["string", "null"]},
+            "rep_count": {"type": "integer", "minimum": 0},
+            "target_reps": {"type": ["integer", "null"]},
+            "tracking_status": {"oneOf": [{"$ref": "#/$defs/tracking_status"}, {"type": "null"}]},
+            "heart_rate": {"$ref": "#/$defs/heart_rate_view"},
+            "rest": {"oneOf": [{"$ref": "#/$defs/rest_view"}, {"type": "null"}]},
+            "active_issues": {"type": "array", "items": {"$ref": "#/$defs/issue_code"}}
+          }}}}},
+        {"if": {"properties": {"type": {"const": "session.state"}}}, "then": {"properties": {"payload": {
+          "required": ["state"],
+          "properties": {"state": {"$ref": "#/$defs/session_state"}, "command_id": {"type": ["string", "null"]}}}}}},
+        {"if": {"properties": {"type": {"const": "exercise.changed"}}}, "then": {"properties": {"payload": {
+          "required": ["exercise", "set_id", "target_reps"],
+          "properties": {"exercise": {"$ref": "#/$defs/exercise"}, "set_id": {"type": "string"}, "target_reps": {"type": ["integer", "null"]}}}}}},
+        {"if": {"properties": {"type": {"const": "tracking.status"}}}, "then": {"properties": {"payload": {
+          "required": ["status", "source"],
+          "properties": {"status": {"$ref": "#/$defs/tracking_status"}, "source": {"$ref": "#/$defs/input_source"}}}}}},
+        {"if": {"properties": {"type": {"const": "rep.completed"}}}, "then": {"properties": {"payload": {
+          "required": ["exercise", "set_id", "rep_count", "target_reps", "duration_ms"],
+          "properties": {"exercise": {"$ref": "#/$defs/exercise"}, "set_id": {"type": "string"},
+                         "rep_count": {"type": "integer", "minimum": 1}, "target_reps": {"type": ["integer", "null"]},
+                         "duration_ms": {"type": ["number", "null"]}}}}}},
+        {"if": {"properties": {"type": {"const": "coach.state"}}}, "then": {"properties": {"payload": {
+          "required": ["coach"],
+          "properties": {"coach": {"enum": ["idle", "observing", "correcting", "encouraging", "resting"]}}}}}},
+        {"if": {"properties": {"type": {"const": "feedback.issued"}}}, "then": {"properties": {"payload": {
+          "required": ["feedback_id", "issue_code", "cue_id", "text", "set_id", "rep_count"],
+          "properties": {"feedback_id": {"type": "string"}, "issue_code": {"$ref": "#/$defs/issue_code"},
+                         "cue_id": {"type": ["string", "null"]}, "text": {"type": "string"},
+                         "set_id": {"type": "string"}, "rep_count": {"type": "integer"}}}}}},
+        {"if": {"properties": {"type": {"const": "feedback.improved"}}}, "then": {"properties": {"payload": {
+          "required": ["feedback_id", "issue_code", "set_id", "rep_count"],
+          "properties": {"feedback_id": {"type": "string"}, "issue_code": {"$ref": "#/$defs/issue_code"},
+                         "set_id": {"type": "string"}, "rep_count": {"type": "integer"}}}}}},
+        {"if": {"properties": {"type": {"const": "heart_rate.updated"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/heart_rate_view"}}}},
+        {"if": {"properties": {"type": {"const": "user_feedback.acknowledged"}}}, "then": {"properties": {"payload": {
+          "required": ["input_id", "kind"],
+          "properties": {"input_id": {"type": "string"}, "kind": {"enum": ["effort", "rest_request", "water", "pain"]},
+                         "value": {"type": ["string", "null"]}}}}}},
+        {"if": {"properties": {"type": {"const": "rest.updated"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/rest_view"}}}},
+        {"if": {"properties": {"type": {"const": "set.completed"}}}, "then": {"properties": {"payload": {
+          "required": ["set_id", "exercise", "rep_count", "load"],
+          "properties": {"set_id": {"type": "string"}, "exercise": {"$ref": "#/$defs/exercise"},
+                         "rep_count": {"type": "integer", "minimum": 0}, "load": {"$ref": "#/$defs/load"}}}}}},
+        {"if": {"properties": {"type": {"const": "history.pr_achieved"}}}, "then": {"properties": {"payload": {
+          "required": ["exercise", "metric", "value", "previous_best", "load"],
+          "properties": {"exercise": {"$ref": "#/$defs/exercise"}, "metric": {"enum": ["reps_at_load", "max_load"]},
+                         "value": {"type": "number"}, "previous_best": {"type": ["number", "null"]}, "load": {"$ref": "#/$defs/load"}}}}}},
+        {"if": {"properties": {"type": {"const": "device.status"}}}, "then": {"properties": {"payload": {
+          "required": ["device", "status"],
+          "properties": {"device": {"enum": ["camera", "watch", "pico", "phone"]},
+                         "status": {"enum": ["connected", "disconnected", "unavailable"]}}}}}}
+      ]
+    }
+  }
+}

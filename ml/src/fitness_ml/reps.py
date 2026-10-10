@@ -38,6 +38,7 @@ class RepCounter:
     def reset(self) -> None:
         """Forget any rep in progress (pause, source switch, replay). Wait for the start position again."""
         self.state = "waiting"
+        self.event: str | None = None   # what just happened, for the operator ("not counted: ...")
         self._smoothed: float | None = None
         self._last_seen_ms: float | None = None
         self._left_start_ms = 0.0
@@ -55,6 +56,7 @@ class RepCounter:
 
     def update(self, value: float | None, t_ms: float) -> Cycle | None:
         """Feed one frame (value None/NaN = joints not trackable). Returns a Cycle only on the completing frame."""
+        self.event = None
         if value is None or math.isnan(value):
             self._on_missing(t_ms)
             return None
@@ -64,11 +66,17 @@ class RepCounter:
         depth = self._depth(self._smoothed)
         return self._step(depth, t_ms)
 
+    @property
+    def signal(self) -> float | None:
+        """Smoothed counting angle, for display."""
+        return self._smoothed
+
     def _step(self, depth: float, t_ms: float) -> Cycle | None:
         cfg = self.cfg
         if self.state == "waiting":
             if depth <= 0:
                 self.state = "start"
+                self.event = f"ready: start position ({self._describe_start()})"
             return None
         if self.state == "start":
             if depth > cfg.hysteresis_deg:
@@ -78,11 +86,14 @@ class RepCounter:
         self._deepest = max(self._deepest, depth)
         if t_ms - self._left_start_ms > cfg.max_rep_ms:
             self.state = "waiting"
+            self.event = f"not counted: rep took over {cfg.max_rep_ms / 1000:.0f} s"
         elif self.state == "away":
             if depth >= self._span:
                 self.state = "turn"
             elif depth <= 0:
                 self.state = "start"
+                self.event = (f"not counted: came back before reaching {cfg.turn_deg:.0f}° "
+                              f"(got to {self._signal_at(self._deepest):.0f}°)")
         elif self.state == "turn":
             if depth < self._span - cfg.hysteresis_deg:
                 self.state = "back"
@@ -93,13 +104,19 @@ class RepCounter:
                 self.state = "start"
                 cycle = Cycle(self._left_start_ms, t_ms, self._signal_at(self._deepest))
                 if cycle.duration_ms >= cfg.min_rep_ms:
+                    self.event = f"rep counted ({cycle.duration_ms / 1000:.1f} s, reached {cycle.extreme_deg:.0f}°)"
                     return cycle
+                self.event = f"not counted: too fast ({cycle.duration_ms:.0f} ms < {cfg.min_rep_ms:.0f} ms)"
         return None
 
     def _on_missing(self, t_ms: float) -> None:
         mid_rep = self.state in ("away", "turn", "back")
         if mid_rep and self._last_seen_ms is not None and t_ms - self._last_seen_ms > self.cfg.max_gap_ms:
             self.reset()
+            self.event = f"not counted: lost tracking for over {self.cfg.max_gap_ms:.0f} ms mid-rep"
+
+    def _describe_start(self) -> str:
+        return f"{'≥' if self._toward_smaller else '≤'}{self.cfg.start_deg:.0f}°"
 
     def _depth(self, signal: float) -> float:
         d = self.cfg.start_deg - signal

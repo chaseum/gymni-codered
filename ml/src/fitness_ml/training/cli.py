@@ -1,21 +1,20 @@
 """fitness-train: ingest -> extract -> split -> train -> evaluate. Same commands on a laptop or a GPU box.
 
-    fitness-train ingest mydeadlift --root ml/data/raw/mydeadlift --out ml/data/manifest_mydeadlift.csv
-    fitness-train ingest multiview  --root "ml/data/raw/multiview/Dataset Subject-wise" --out ml/data/manifest_multiview.csv
-    fitness-train merge ml/data/manifest_*.csv --out ml/data/manifest.csv
-    fitness-train extract --manifest ml/data/manifest.csv
-    fitness-train split --manifest ml/data/manifest.csv --test-participants mydeadlift-S04,mydeadlift-S07
+    fitness-train ingest multiview --root ml/data/raw/multiview --out ml/data/manifest.csv
+    fitness-train extract
+    fitness-train split
     fitness-train train --task recognition --model rf
-    fitness-train train --task form_issue --exercise deadlift --model rf
-    fitness-train train --task recognition --model gru --device auto
+    fitness-train train --task form_binary --exercise push_up --model rf
     fitness-train evaluate --artifact ml/models/<model_version>
+    fitness-train deadlift-angles --csv ml/data/raw/mydeadlift/Extracted_keypoints.csv
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
-from ..config import Config
+from ..config import EXERCISES, Config
 
 DATA = Config().models_dir.parent / "data"
 DEFAULTS = {"manifest": DATA / "manifest.csv", "cache": DATA / "cache", "split": DATA / "splits.json"}
@@ -38,7 +37,7 @@ def main() -> int:
         from .manifest import read
         model = model_path(Config().models_dir, args.pose_model) if args.pose_model in VARIANTS else Path(args.pose_model)
         rows = read(Path(args.manifest))
-        extract(rows[: args.limit] if args.limit else rows, Path(args.cache), model, args.every, args.force)
+        extract(rows[: args.limit] if args.limit else rows, Path(args.cache), model, args.every, args.force, args.workers)
     elif args.cmd == "split":
         from .dataset import make_split
         from .manifest import read
@@ -49,7 +48,11 @@ def main() -> int:
     elif args.cmd == "train":
         from .train import train
         train(Path(args.manifest), Path(args.cache), Path(args.split), args.task, args.exercise, args.model,
-              Path(args.out_dir), args.window_ms, args.stride_ms, args.seed, args.device, args.epochs, args.patience)
+              Path(args.out_dir), args.window_ms, args.stride_ms, args.seed, args.device, args.epochs, args.patience,
+              tuple(x for x in (args.exclude_labels or "").split(",") if x))
+    elif args.cmd == "deadlift-angles":
+        from .deadlift_angles import train_deadlift_angles
+        train_deadlift_angles(Path(args.csv), Path(args.out_dir), args.model, args.seed)
     elif args.cmd == "evaluate":
         from .evaluate import evaluate
         evaluate(Path(args.artifact), Path(args.manifest), Path(args.cache), args.split_name)
@@ -74,7 +77,7 @@ def _parser() -> argparse.ArgumentParser:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     ing = sub.add_parser("ingest", help="build a manifest CSV from a dataset folder")
-    ing.add_argument("dataset", choices=["mydeadlift", "multiview", "csv"])
+    ing.add_argument("dataset", choices=["multiview", "csv"], help="csv = your own clips (columns in manifest.Row)")
     ing.add_argument("--root", required=True, help="dataset folder (or your CSV for 'csv')")
     ing.add_argument("--out", required=True)
     ing.add_argument("--allow-skips", action="store_true")
@@ -90,6 +93,8 @@ def _parser() -> argparse.ArgumentParser:
     ext.add_argument("--every", type=int, default=1, help="keep every Nth frame")
     ext.add_argument("--limit", type=int, help="first N videos only (smoke test)")
     ext.add_argument("--force", action="store_true")
+    ext.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
+                     help="parallel videos (default: CPU cores - 2)")
 
     spl = sub.add_parser("split", help="participant-disjoint train/val/test split")
     spl.add_argument("--manifest", default=str(DEFAULTS["manifest"]))
@@ -101,7 +106,8 @@ def _parser() -> argparse.ArgumentParser:
 
     tr = sub.add_parser("train", help="train one artifact into ml/models/<model_version>/")
     tr.add_argument("--task", choices=["recognition", "form_binary", "form_issue"], required=True)
-    tr.add_argument("--exercise", choices=["curl", "squat", "deadlift"], help="required for form tasks")
+    tr.add_argument("--exercise", choices=list(EXERCISES), help="required for form tasks")
+    tr.add_argument("--exclude-labels", help="comma list kept out of training to measure rejection, e.g. push_up")
     tr.add_argument("--model", choices=["rf", "knn", "gru"], default="rf")
     tr.add_argument("--manifest", default=str(DEFAULTS["manifest"]))
     tr.add_argument("--cache", default=str(DEFAULTS["cache"]))
@@ -113,6 +119,12 @@ def _parser() -> argparse.ArgumentParser:
     tr.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="GRU only")
     tr.add_argument("--epochs", type=int, default=100, help="GRU only")
     tr.add_argument("--patience", type=int, default=10, help="GRU early stopping")
+
+    dl = sub.add_parser("deadlift-angles", help="deadlift form model from MyDeadlift's angle CSV (train + test)")
+    dl.add_argument("--csv", default=str(DATA / "raw" / "mydeadlift" / "Extracted_keypoints.csv"))
+    dl.add_argument("--model", choices=["rf", "knn"], default="rf")
+    dl.add_argument("--out-dir", default=str(Config().models_dir))
+    dl.add_argument("--seed", type=int, default=13)
 
     ev = sub.add_parser("evaluate", help="metrics on the artifact's held-out participants")
     ev.add_argument("--artifact", required=True)

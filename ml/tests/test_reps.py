@@ -39,7 +39,7 @@ def test_long_tracking_gap_mid_rep_voids_the_rep_short_gap_does_not():
     frames = curl_frames(1)
     mid = len(frames) // 2
     short = [(t, None if mid <= i < mid + 3 else v) for i, (t, v) in enumerate(frames)]   # ~100 ms
-    long = [(t, None if mid - 10 <= i < mid + 10 else v) for i, (t, v) in enumerate(frames)]  # ~660 ms
+    long = [(t, None if mid - 15 <= i < mid + 15 else v) for i, (t, v) in enumerate(frames)]  # ~1 s
     assert len(count(short)) == 1
     assert count(long) == []
 
@@ -63,3 +63,13 @@ def test_squat_and_deadlift_directions():
     assert len(count(squat, EXERCISES["squat"].rep)) == 1
     assert len(count(dead, EXERCISES["deadlift"].rep)) == 1
     assert math.isclose(count(squat, RepConfig("knee", "raised", 160, 120, smoothing=1.0))[0].extreme_deg, 91, abs_tol=1)
+
+
+def test_dropped_reps_say_why():
+    counter, events = RepCounter(CURL), []
+    for t, v in curl_frames(1, high=100) + [(t + 3000, v) for t, v in curl_frames(1, rep_s=0.3)]:
+        counter.update(v, t)
+        events.append(counter.event)
+    said = [e for e in events if e and e.startswith("not counted")]
+    assert said[0].startswith(f"not counted: came back before reaching {CURL.turn_deg:.0f}")
+    assert said[1].startswith("not counted: too fast")

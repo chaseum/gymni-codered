@@ -3,7 +3,8 @@ from pathlib import Path
 import numpy as np
 
 from fitness_ml.training.dataset import make_split, window_bounds
-from fitness_ml.training.manifest import Row, multiview, mydeadlift
+from fitness_ml.training.deadlift_angles import load as load_angles
+from fitness_ml.training.manifest import Row, multiview
 
 
 def touch(root: Path, rel: str, size: int = 10) -> None:
@@ -12,26 +13,29 @@ def touch(root: Path, rel: str, size: int = 10) -> None:
     p.write_bytes(b"x" * size)
 
 
-def test_mydeadlift_filenames_map_to_participant_and_labels(tmp_path):
-    for name in ("GB_S01_R01.mp4", "PB_S04_R02.mp4", "LLK_S07_R03.MP4", "notes.mp4"):
-        touch(tmp_path, f"videos/{name}")
-    rows, skipped = mydeadlift(tmp_path)
-    got = {(r.participant_id, r.form_label, r.issue_label) for r in rows}
-    assert got == {("mydeadlift-S01", "good", "none"), ("mydeadlift-S04", "bad", "rounded_back"),
-                   ("mydeadlift-S07", "bad", "knees_past_toes")}
-    assert len(skipped) == 1 and skipped[0].endswith("notes.mp4")
+def test_mydeadlift_angle_csv_uses_semicolons_decimal_commas_and_filename_labels(tmp_path):
+    csv = tmp_path / "Extracted_keypoints.csv"
+    csv.write_text("Split;Label;Video;Frame;Sudut_Lutut;Sudut_Pinggul;Sudut_Punggung_Vertikal\n"
+                   "training;gerakan_benar;GB_S01_R01.mp4;2;113,47;61,82;68,06\n"
+                   "training;gerakan_benar;GB_S01_R01.mp4;1;110,34;61,39;68,72\n"
+                   "testing;punggung_bungkuk;PB_S04_R02.mp4;1;100,5;55;70,25\n")
+    clips = load_angles(csv)
+    assert [(c.subject, c.split, c.label) for c in clips] == [("mydeadlift-S01", "training", "none"),
+                                                              ("mydeadlift-S04", "testing", "rounded_back")]
+    assert clips[0].angles[0].tolist() == [110.34, 61.39, 68.72]  # frames re-sorted
+    assert clips[0].ts.tolist() == [0.0, 1000 / 30]
 
 
-def test_multiview_parses_folders_dedupes_layouts_and_side_bend_is_not_side_view(tmp_path):
-    touch(tmp_path, "Dataset Subject-wise/Subject 03/Standing Dumbbell Side Bend/Good/Front/a.mp4", 11)
-    touch(tmp_path, "Dataset Exercise-wise/Standing Dumbbell Side Bend/Good/Front/Subject 03/a.mp4", 11)
-    touch(tmp_path, "Dataset Subject-wise/Subject 03/Alternating Dumbbell Bicep Curl/Bad/Side/b.mp4", 12)
-    touch(tmp_path, "Dataset Subject-wise/Subject 03/Mystery/Good/Front/c.mp4", 13)
+def test_multiview_uses_documented_names_and_dedupes_layouts(tmp_path):
+    touch(tmp_path, "Dataset Subject-wise/subject_003/abs/good/side/subject_003_abs_good_side.mp4")
+    touch(tmp_path, "Dataset Exercise-wise/abs/good/side/subject_003_abs_good_side.mp4")
+    touch(tmp_path, "Dataset Subject-wise/subject_003/bicep_curl/bad/front/subject_003_bicep_curl_bad_front.mp4")
+    touch(tmp_path, "Dataset Subject-wise/subject_003/misc/clip.mp4")
     rows, skipped = multiview(tmp_path)
     got = sorted((r.exercise, r.variation, r.camera_view, r.form_label, r.participant_id) for r in rows)
-    assert got == [("curl", "standing_dumbbell_alternating", "side", "bad", "multiview-03"),
-                   ("other", "standing_dumbbell_side_bend", "front", "good", "multiview-03")]
-    assert len(skipped) == 1 and "c.mp4" in skipped[0]
+    assert got == [("curl", "standing_dumbbell_alternating", "front", "bad", "multiview-003"),
+                   ("side_bend", "standing_dumbbell", "side", "good", "multiview-003")]
+    assert len(skipped) == 1 and skipped[0].endswith("clip.mp4")
 
 
 def row(dataset, person):

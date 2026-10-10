@@ -64,13 +64,17 @@ class VideoFile:
         if not cap.isOpened():
             raise RuntimeError(f"cannot decode {self.path}")
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        recorded_times = _sidecar_times(self.path)
         last, i = -1.0, 0
         try:
             while True:
                 ok, image = cap.read()
                 if not ok:
                     return
-                last = recorded_timestamp(cap.get(cv2.CAP_PROP_POS_MSEC), i, fps, last)
+                if i < len(recorded_times):  # a `fitness-ml run --record` capture: use the true capture times
+                    last = max(recorded_times[i], last + 1)
+                else:
+                    last = recorded_timestamp(cap.get(cv2.CAP_PROP_POS_MSEC), i, fps, last)
                 yield Frame(image, last, i)
                 i += 1
         finally:
@@ -81,6 +85,13 @@ def recorded_timestamp(pts_ms: float, index: int, fps: float, last_ms: float) ->
     """PTS when it advances; otherwise the nominal frame time; never <= the previous timestamp."""
     t = pts_ms if pts_ms > last_ms else index * 1000.0 / fps
     return max(t, last_ms + 1)
+
+
+def _sidecar_times(video: Path) -> list[float]:
+    sidecar = video.with_suffix(".timestamps.csv")
+    if not sidecar.is_file():
+        return []
+    return [float(line.split(",")[1]) for line in sidecar.read_text().splitlines()[1:] if line]
 
 
 def open_source(kind: str, video: str | None = None, camera: int = 0):

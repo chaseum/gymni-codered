@@ -7,12 +7,16 @@ import numpy as np
 
 from .features import FEATURE_NAMES, aggregate, resample
 
+# Models trained on MyDeadlift's published angles (no videos) see only these three, from the tracked side.
+ANGLE_FEATURES = ("knee_angle_deg", "hip_angle_deg", "trunk_lean_deg")
+
 
 class Artifact:
     def __init__(self, directory: str | Path):
         self.dir = Path(directory)
         self.meta = json.loads((self.dir / "metadata.json").read_text())
-        if self.meta["feature_names"] != FEATURE_NAMES:
+        self.angle_model = self.meta.get("feature_set") == "side_angles"
+        if not self.angle_model and self.meta["feature_names"] != FEATURE_NAMES:
             raise ValueError(f"{self.dir}: feature schema differs from this code; retrain or check out "
                              f"code revision {self.meta.get('code_revision')}")
         self.labels: list[str] = self.meta["labels"]
@@ -24,8 +28,11 @@ class Artifact:
             self._est = joblib.load(self.dir / "model.joblib")
             self._order = [list(self._est.classes_).index(label) for label in self.labels]
 
-    def predict_proba(self, matrix: np.ndarray, timestamps_ms: np.ndarray) -> np.ndarray:
-        """(T, F) frame features of one window -> probability per label, in `self.labels` order."""
+    def predict_proba(self, matrix: np.ndarray, timestamps_ms: np.ndarray, side: str | None = None) -> np.ndarray:
+        """(T, F) frame features of one window -> probability per label, in `self.labels` order.
+        Angle models need the tracked `side` to pick their three columns."""
+        if self.angle_model:
+            matrix = side_angles(matrix, side or "left")
         if self.meta["model"] == "gru":
             return self._gru_proba(matrix, timestamps_ms)
         return self._est.predict_proba(aggregate(matrix, timestamps_ms)[None])[0][self._order]
@@ -45,6 +52,11 @@ class Artifact:
         with torch.no_grad():
             logits = self._net(torch.tensor(seq[None], dtype=torch.float32))
         return torch.softmax(logits, -1)[0].numpy()
+
+
+def side_angles(matrix: np.ndarray, side: str) -> np.ndarray:
+    names = [f"{side}_knee_angle_deg", f"{side}_hip_angle_deg", "trunk_lean_deg"]
+    return matrix[:, [FEATURE_NAMES.index(n) for n in names]]
 
 
 def build_gru(n_features: int, n_labels: int, hidden: int):

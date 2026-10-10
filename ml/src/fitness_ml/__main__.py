@@ -17,7 +17,7 @@ from pathlib import Path
 
 from .analyzer import Analyzer
 from .artifacts import Artifact
-from .config import Config
+from .config import EXERCISES, Config
 from .pipeline import process
 from .pose import VARIANTS, PoseEstimator, download_model, model_path
 from .recognition import Recognizer
@@ -39,6 +39,8 @@ def main() -> int:
     elif args.cmd == "validate":
         validate_clips(Path(args.annotations), Path(args.out), _pose_model(args.pose_model, cfg), cfg)
     else:
+        if args.min_visibility is not None:
+            cfg.min_visibility = args.min_visibility
         return Runner(args, cfg).run()
     return 0
 
@@ -59,6 +61,8 @@ class Runner:
         self.stats = ClipStats()
         self.window = not args.no_window
         self.frames_seen = 0
+        self.last_event: str | None = None
+        self.recorder = Recorder(args.record) if args.record else None
 
     def run(self) -> int:
         try:
@@ -102,7 +106,7 @@ class Runner:
 
     def _overlay(self, step, fps: float, paused: bool):
         from .debug import draw
-        return draw(step.frame.image, step, fps, list(self.analyzer.exercise_cfg.required), paused)
+        return draw(step.frame.image, step, fps, self.analyzer.exercise_cfg.rep, self.last_event, paused)
 
     def _wait_while_paused(self, step, fps: float) -> str | None:
         """Freeze on the current frame. Resuming discards any half-done rep so it can't complete after the pause."""
@@ -118,6 +122,11 @@ class Runner:
     def _emit(self, step) -> None:
         obs = step.result.observation
         self.stats.add(step)
+        if self.recorder and step.result.observation.source == "live":
+            self.recorder.write(step.frame)
+        for event in step.result.events:
+            self.last_event = event
+            print(f"[{obs.source_timestamp_ms / 1000:7.1f}s] {event}")
         if self.observations:
             self.observations.write(obs.to_dict())
         if self.poster:
@@ -127,10 +136,11 @@ class Runner:
                 "observation_id": obs.observation_id, "t_ms": obs.source_timestamp_ms, "frame": step.frame.index,
                 "tracking": obs.tracking_status, "phase": obs.phase, "side": step.result.side, "view": step.result.view,
                 "local_reps": step.result.local_rep_count, "latency_ms": round(step.latency_ms, 1),
+                "signal_deg": step.result.signal_deg, "events": step.result.events,
                 "candidates": [vars(a) for a in step.result.candidates], "features": step.result.features}))
         if obs.completed_rep:
-            print(f"rep {step.result.local_rep_count} ({obs.completed_rep.duration_ms} ms) "
-                  f"checks: {[(a.code, a.status) for a in step.result.candidates]}")
+            print(f"          rep {step.result.local_rep_count} form checks: "
+                  f"{[(a.code, a.status, a.evidence) for a in step.result.candidates]}")
 
     def _show(self, image, wait_ms: int = 1) -> int:
         import cv2
@@ -151,6 +161,8 @@ class Runner:
         return None
 
     def _close(self) -> None:
+        if self.recorder:
+            print(f"recorded {self.recorder.close()} (replay: --source recorded --video {self.args.record})")
         for out in (self.observations, self.debug_log):
             if out:
                 out.close()
@@ -166,6 +178,32 @@ class Runner:
         print(json.dumps(row))
         if self.args.summary_csv:
             append_rows(Path(self.args.summary_csv), [row])
+
+
+class Recorder:
+    """Saves live frames plus their true capture times (<name>.timestamps.csv), so a webcam session can be
+    replayed through `--source recorded` with identical timing to tune thresholds offline."""
+
+    def __init__(self, path: str):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._writer = None
+        self._times = open(self.path.with_suffix(".timestamps.csv"), "w")
+        self._times.write("frame,timestamp_ms\n")
+
+    def write(self, frame) -> None:
+        import cv2
+        if self._writer is None:
+            h, w = frame.image.shape[:2]
+            self._writer = cv2.VideoWriter(str(self.path), cv2.VideoWriter_fourcc(*"mp4v"), 30, (w, h))
+        self._writer.write(frame.image)
+        self._times.write(f"{frame.index},{frame.timestamp_ms:.1f}\n")
+
+    def close(self) -> Path:
+        if self._writer:
+            self._writer.release()
+        self._times.close()
+        return self.path
 
 
 def _pose_model(value: str, cfg: Config) -> Path:
@@ -201,7 +239,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--source", choices=["live", "recorded"], required=True)
     run.add_argument("--video", help="MP4 path (required for recorded; enables 's' source switch for live)")
     run.add_argument("--camera", type=int, default=Config().camera_index)
-    run.add_argument("--exercise", choices=["curl", "squat", "deadlift"], required=True, help="planned exercise")
+    run.add_argument("--exercise", choices=list(EXERCISES), required=True, help="planned exercise")
     run.add_argument("--variation", help="e.g. standing_dumbbell_alternating, bodyweight, goblet, conventional")
     run.add_argument("--session", default=Config().session_id)
     run.add_argument("--set-id")
@@ -215,6 +253,8 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--realtime", action="store_true", help="pace recorded video at its own speed")
     run.add_argument("--loop", action="store_true", help="replay recorded video when it ends")
     run.add_argument("--max-frames", type=int)
+    run.add_argument("--record", help="save the live camera to this .mp4 (+ .timestamps.csv) for offline replay")
+    run.add_argument("--min-visibility", type=float, help=f"joint visibility needed to count (default {Config().min_visibility})")
     run.add_argument("--summary-csv", help="append a validation row at exit")
     run.add_argument("--actual-reps", type=int, help="human-annotated count for --summary-csv")
 

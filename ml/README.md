@@ -26,6 +26,26 @@ A recorded clip through the same pipeline, posting to the backend at the clip's 
 .venv/bin/fitness-ml run --source recorded --video demo/clips/squat_side_01.mp4 --exercise squat --variation bodyweight --post --session demo --realtime
 ```
 
+The window shows:
+- a big rep count
+- tracking state in plain words ("arm hidden", "step back")
+- the counting angle on a bar marked with the **start** and **turn** thresholds
+- the last counter message, e.g. `not counted: came back before reaching 85° (got to 97°)`
+
+The same messages print in the terminal with timestamps.
+
+**Tuning loop.** Record once:
+
+```bash
+.venv/bin/fitness-ml run --source live --exercise curl --record demo/clips/me_curl.mp4
+```
+
+Then replay that exact session as often as you like with true timing (`me_curl.timestamps.csv` is read automatically), changing thresholds in `config.py` or `--min-visibility` between runs:
+
+```bash
+.venv/bin/fitness-ml run --source recorded --video demo/clips/me_curl.mp4 --exercise curl
+```
+
 Keys: `q` quit, `p` pause/resume (a half-done rep is discarded on resume), `r` replay the clip / reset live, `s` switch between live and `--video`. Each source run gets a fresh landmarker, because VIDEO mode needs strictly increasing timestamps. `rep_index` keeps rising across all of these.
 
 macOS asks for Camera permission for your terminal the first time.
@@ -40,11 +60,17 @@ macOS asks for Camera permission for your terminal the first time.
 | curl | elbow angle, estimated 3D (webcam faces you) | lowered ≥145° → raised ≤85° → lowered | `curl.partial_range`: rep's smallest elbow angle > 60° | elbow visible |
 | squat | knee angle, 2D | standing ≥160° → bottom ≤120° → standing | `squat.shallow_depth`: smallest knee angle > 95° | **side view**, else `unassessable` |
 | deadlift | hip angle, 2D | setup ≤120° → lockout ≥160° → setup | `deadlift.hips_rise_early`: in the first 30% of the lift, hips rise ≥2× shoulders | **side view**, else `unassessable` |
+| shoulder_press | elbow, 2D | ≤105° → ≥150° → ≤105° | trained good/bad model only | arms visible |
+| triceps_extension | elbow, 3D | ≤90° → ≥145° → ≤90° | trained good/bad model only | arms visible |
+| row | elbow, 3D | ≥145° → ≤100° → ≥145° | trained good/bad model only | arms visible |
+| push_up | elbow, 2D | ≥150° → ≤105° → ≥150° | trained good/bad model only | side view |
+| side_bend | trunk lean, 2D | ≤8° → ≥20° → ≤8° | trained good/bad model only | front view |
 
 - A rep counts only after a full cycle, longer than `min_rep_ms`, with hysteresis on both thresholds.
-- A tracking gap over 400 ms mid-rep voids that rep. A clip starting mid-rep waits for the start position.
+- A tracking gap over 800 ms mid-rep voids that rep (and says so). A clip starting mid-rep waits for the start position.
+- A frame counts when MediaPipe's visibility of the arm/leg joints is ≥ 0.4 (`--min-visibility`). If the tracked arm drops out, the other arm takes over at once.
 - Reported but never flagged: curl upper-arm drift, trunk lean, rep duration.
-- Tracking is `lost` (no person), `unassessable` (required joint outside the frame) or `low_visibility` (occluded).
+- When a frame can't count, tracking says why: `lost` (no person), `unassessable` (joint off-frame and not visible) or `low_visibility` (occluded, e.g. a baggy jacket sleeve).
 - All thresholds are **uncalibrated starting guesses**.
 
 **Review gate:** a criterion's issue reaches the backend only after its code is added to `reviewed` for that exercise in `config.py`. Until then it is a debug "candidate" only. To review: record demonstration clips of correct and faulty reps, run them with `--debug-log`, check each rep's printed `checks:` line against what a person sees, tune the threshold, then add the code to `reviewed`.
@@ -86,4 +112,5 @@ No real video is tested here; real clips go through `validate`.
 1. **"Improved" after an unassessable rep.** The backend marks an issue improved when a completed rep doesn't carry it. A rep that was *unassessable* (wrong view, joint lost) also doesn't carry it, so it would count as a false "improved". Suggested fix: only resolve on reps that carry a measurement for that criterion (e.g. `rep_min_knee_angle_deg` is not null), or have ML send an explicit per-criterion status.
 2. **`rep_index` across ML restarts.** The backend commits only `rep_index > max seen`. The analyzer starts its index at `int(time.time() * 2)`, so a restarted process still counts. A backend-issued start index would be cleaner.
 3. **Provenance names.** The contract enum is `reviewed_rules | trained_model | fixture`. The prompt's `model_prediction` maps to `trained_model`, and per-issue `evidence.provenance` says which rule or model produced each issue. No contract change was made.
-4. **Exercise mismatch.** With a recognizer loaded, `exercise` is what the model saw (possibly `unknown`/`other`), and the backend then won't commit that rep. Without a recognizer it is the planned exercise with `exercise_confidence: null`.
+4. **Contract v2 needed for 5 new exercises.** `shoulder_press`, `triceps_extension`, `row`, `push_up` and `side_bend` are sent as `exercise: "other"` plus `exercise_detail: "<id>"`. The v1 schema allows unknown fields, so nothing breaks, but the backend can't commit their reps until the exercise enum (and the phone's `Exercise` enum) gains these ids.
+5. **Exercise mismatch.** With a recognizer loaded, `exercise` is what the model saw (possibly `unknown`/`other`), and the backend then won't commit that rep. Without a recognizer it is the planned exercise with `exercise_confidence: null`.

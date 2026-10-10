@@ -20,7 +20,7 @@ Pose extraction runs locally, and only the landmark cache travels. The cache hol
 ```
 
 ```bash
-.venv/bin/fitness-train split --manifest ml/data/manifest.csv --test-participants mydeadlift-S04,mydeadlift-S07
+.venv/bin/fitness-train split --manifest ml/data/manifest.csv
 ```
 
 ```bash
@@ -120,6 +120,6 @@ Then, in the Vultr dashboard, **destroy** the instance. A stopped instance still
 Compare the RF / k-NN baseline and the GRU on the **identical** held-out split (`metrics_test.json`: macro-F1, per-class support, confusion matrix, per-view F1, rejection sweep). Ship whichever is better **on those numbers**. If neither beats the rules-only pipeline credibly, ship without a recognizer and say so. Report only measured numbers.
 
 Known limitations to state with any result:
-- **Deadlift class confound.** All deadlift training clips come from MyDeadlift (7 people, one gym, side view), and every other class comes from a different dataset. A recognizer can learn "this background/camera" instead of "deadlift". Add your own deadlift clips before trusting cross-dataset recognition.
+- **No deadlift video.** MyDeadlift publishes angles only, so the recognizer has no deadlift class until you add your own clips. If you do, film them in more than one place: a class that comes from a single location teaches the model the room instead of the movement.
 - **Curl variation.** Multi-View curls are alternating dumbbell curls, while the live demo may be simultaneous curls.
 - **Label scope.** MyDeadlift labels (rounded back, knees past toes) are whole-clip labels from that dataset's annotators. A model trained on them predicts *those labels*, not spinal safety.

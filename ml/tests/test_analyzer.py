@@ -27,7 +27,7 @@ def test_live_curls_emit_one_completed_rep_each_and_validate_against_contract():
 
 
 def test_partial_flexion_is_a_candidate_issue_but_not_sent_until_reviewed():
-    results = run(Analyzer("curl", "s-1", "live"), curl_frames(1, high=75))
+    results = run(Analyzer("curl", "s-1", "live"), curl_frames(1, high=68))  # passes the 75° turn, misses 60° flexion
     done = [r for r in results if r.observation.completed_rep]
     assert len(done) == 1
     assert [(a.code, a.status) for a in done[0].candidates] == [("curl.partial_range", "issue")]
@@ -78,4 +78,57 @@ def test_unsure_recognizer_reports_unknown_exercise_with_confidence():
     obs = run(analyzer, curl_frames(1))[-1].observation
     assert obs.exercise == "unknown" and obs.exercise_confidence == 0.4
     assert obs.inference_provenance == "trained_model" and obs.model_version == "fake-1"
+    assert errors("observation", json.loads(json.dumps(obs.to_dict()))) == []
+
+
+def test_single_arm_set_counts_even_when_the_still_arm_is_more_visible():
+    from fitness_ml.pose import INDEX
+    analyzer, results = Analyzer("curl", "s-1", "live"), []
+    for t, v in curl_frames(3):
+        pose = make_pose(elbow_deg=165)            # both arms hanging...
+        moving = make_pose(elbow_deg=v)
+        for j in ("shoulder", "elbow", "wrist"):   # ...except the right arm curls
+            pose.image[INDEX[f"right_{j}"]] = moving.image[INDEX[f"right_{j}"]]
+        pose.image[INDEX["right_wrist"], 3] = 0.7  # and is less visible than the still left arm
+        results.append(analyzer.analyze_frame(pose, t))
+    assert sum(1 for r in results if r.observation.completed_rep) == 3
+
+
+def test_both_arms_together_count_once():
+    results = run(Analyzer("curl", "s-1", "live"), curl_frames(3))  # make_pose moves both arms
+    assert sum(1 for r in results if r.observation.completed_rep) == 3
+    assert any("same rep as the other side" in e for r in results for e in r.events)
+
+
+def test_hidden_arm_falls_back_to_the_other_arm():
+    analyzer = Analyzer("curl", "s-1", "live")
+    pose = make_pose(elbow_deg=160)
+    analyzer.analyze_frame(pose, 0.0)
+    tracked = analyzer._side
+    other = "left" if tracked == "right" else "right"
+    hidden = make_pose(elbow_deg=160)
+    from fitness_ml.pose import INDEX
+    hidden.image[INDEX[f"{tracked}_wrist"], 3] = 0.1
+    result = analyzer.analyze_frame(hidden, 33.0)
+    assert result.side == other and result.observation.tracking_status == "ready"
+
+
+def test_wrist_just_below_frame_still_counts_when_visible():
+    frames = curl_frames(2)
+    analyzer = Analyzer("curl", "s-1", "live")
+    results = []
+    for t, v in frames:
+        pose = make_pose(elbow_deg=v)
+        pose.image[:, 1] += 0.35  # push everything down so lowered wrists sit past the bottom edge
+        results.append(analyzer.analyze_frame(pose, t))
+    assert sum(1 for r in results if r.observation.completed_rep) == 2
+
+
+def test_new_exercises_travel_as_other_with_detail_and_stay_contract_valid():
+    frames = [(i * 50.0, v) for i, v in enumerate([170] * 10 + list(range(170, 95, -5)) + list(range(95, 171, 5)) + [170] * 10)]
+    analyzer = Analyzer("push_up", "s-1", "recorded")
+    results = [analyzer.analyze_frame(make_pose(elbow_deg=v), t) for t, v in frames]
+    obs = results[-1].observation
+    assert obs.exercise == "other" and obs.exercise_detail == "push_up"
+    assert sum(1 for r in results if r.observation.completed_rep) == 1
     assert errors("observation", json.loads(json.dumps(obs.to_dict()))) == []

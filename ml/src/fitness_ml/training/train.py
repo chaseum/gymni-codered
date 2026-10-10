@@ -23,19 +23,24 @@ GRU_STEPS, GRU_HIDDEN = 48, 64
 
 def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: str | None, model: str,
           out_root: Path, window_ms: float, stride_ms: float, seed: int, device: str = "auto",
-          epochs: int = 100, patience: int = 10) -> Path:
+          epochs: int = 100, patience: int = 10, exclude_labels: tuple[str, ...] = ()) -> Path:
+    """`exclude_labels` keeps those classes out of training only; evaluate still sees them in test, which
+    measures whether the model rejects movement it never learned instead of forcing a known label."""
     if task != "recognition" and not exercise:
         raise ValueError("form tasks need --exercise")
     rows, split = read(manifest), load_split(split_path)
     if split["manifest_sha256"] != sha256(manifest):
         raise ValueError("manifest changed since the split was made; re-run `fitness-train split`")
-    train_w = windows_for(rows, set(split["train"]), cache, task, exercise, window_ms, stride_ms)
-    val_w = windows_for(rows, set(split["val"]), cache, task, exercise, window_ms, stride_ms)
+    train_w = [w for w in windows_for(rows, set(split["train"]), cache, task, exercise, window_ms, stride_ms)
+               if w.label not in exclude_labels]
+    val_w = [w for w in windows_for(rows, set(split["val"]), cache, task, exercise, window_ms, stride_ms)
+             if w.label not in exclude_labels]
     if not train_w:
         raise ValueError("no training windows: check task/exercise labels in the manifest")
     labels = sorted({w.label for w in train_w})
-    if task == "recognition" and "other" not in labels:
-        print("WARNING: no 'other' class in training data; rejection of unsupported movement will be weak")
+    if task == "recognition" and not exclude_labels:
+        print("note: no class held out, so `evaluate` can't measure rejection of unseen movement "
+              "(train a second model with --exclude-labels push_up to measure it)")
 
     meta = _metadata(manifest, split_path, split, task, exercise, model, labels, window_ms, stride_ms, seed, train_w, val_w)
     out = Path(out_root) / meta["model_version"]
@@ -44,6 +49,7 @@ def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: st
         meta |= _train_gru(train_w, val_w, labels, out, seed, device, epochs, patience)
     else:
         _train_sklearn(train_w, model, seed, out)
+    meta["excluded_labels"] = list(exclude_labels)
     (out / "metadata.json").write_text(json.dumps(meta, indent=2))
     print(f"saved {out}")
     return out
@@ -126,8 +132,8 @@ def _train_gru(train_w, val_w, labels, out, seed, device, epochs, patience) -> d
 
 
 def _metadata(manifest, split_path, split, task, exercise, model, labels, window_ms, stride_ms, seed, train_w, val_w) -> dict:
-    revision = _git("rev-parse", "HEAD")
-    dirty = bool(_git("status", "--porcelain", "--", "ml/src"))
+    revision = git("rev-parse", "HEAD")
+    dirty = bool(git("status", "--porcelain", "--", "ml/src"))
     stamp = time.strftime("%Y%m%d-%H%M%S")
     return {
         "model_version": f"{task}-{exercise or 'all'}-{model}-{stamp}-{(revision or 'norev')[:7]}",
@@ -138,19 +144,19 @@ def _metadata(manifest, split_path, split, task, exercise, model, labels, window
         "manifest": str(manifest), "manifest_sha256": split["manifest_sha256"],
         "train_windows": dict(Counter(w.label for w in train_w)), "val_windows": dict(Counter(w.label for w in val_w)),
         "code_revision": revision, "code_dirty": dirty, "python": platform.python_version(),
-        "packages": {p: _version(p) for p in ("numpy", "scikit-learn", "mediapipe", "torch")},
+        "packages": {p: package_version(p) for p in ("numpy", "scikit-learn", "mediapipe", "torch")},
         "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
 
 
-def _git(*args) -> str | None:
+def git(*args) -> str | None:
     try:
         return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return None
 
 
-def _version(package: str) -> str | None:
+def package_version(package: str) -> str | None:
     try:
         return metadata.version(package)
     except metadata.PackageNotFoundError:

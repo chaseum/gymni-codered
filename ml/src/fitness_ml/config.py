@@ -15,14 +15,14 @@ REPO = Path(__file__).resolve().parents[3]
 @dataclass(frozen=True)
 class RepConfig:
     """One rep = leave `start_deg`, pass `turn_deg`, come back to `start_deg`."""
-    signal: str                         # joint angle driving the cycle: "elbow", "knee" or "hip"
+    signal: str                         # "elbow" | "knee" | "hip" (per side) or a whole-body feature name
     start_phase: Literal["lowered", "raised"]
     start_deg: float
     turn_deg: float
     hysteresis_deg: float = 8.0
     min_rep_ms: float = 600.0
     max_rep_ms: float = 10_000.0
-    max_gap_ms: float = 400.0           # tracking loss longer than this mid-rep voids that rep
+    max_gap_ms: float = 800.0           # tracking loss longer than this mid-rep voids that rep
     smoothing: float = 0.5              # EMA weight of the newest sample (1.0 = no smoothing)
 
 
@@ -37,11 +37,13 @@ class ExerciseConfig:
 
 
 EXERCISES: dict[str, ExerciseConfig] = {
-    # Webcam faces the user, so the 2D elbow angle is foreshortened; the estimated 3D angle is steadier.
+    # Tuned on a real front-facing laptop-webcam session (demo/clips/me_curl.mp4, 2026-10-10): the estimated 3D
+    # elbow angle flattened every curl to ~85-90°, while the 2D angle dipped cleanly to 5-25°. Counts were stable
+    # (28-29) for turn thresholds 70-85°, so 75° sits mid-plateau.
     "curl": ExerciseConfig(
-        variation="standing_dumbbell_simultaneous",  # or "standing_dumbbell_alternating": one counter per arm
-        basis="world_3d",
-        rep=RepConfig("elbow", start_phase="lowered", start_deg=145, turn_deg=85),
+        variation="standing_dumbbell",  # simultaneous, alternating and single-arm all work: one counter per arm
+        basis="image_2d",
+        rep=RepConfig("elbow", start_phase="lowered", start_deg=140, turn_deg=75),
         required=("shoulder", "elbow", "wrist"),
         thresholds={"full_flexion_max_deg": 60},
     ),
@@ -61,7 +63,35 @@ EXERCISES: dict[str, ExerciseConfig] = {
         required=("shoulder", "hip", "knee"),
         thresholds={"early_window_frac": 0.3, "hip_shoulder_rise_ratio": 2.0, "min_hip_rise": 0.05},
     ),
+    # The five below come from the Multi-View dataset. No form *rules* yet: their form signal is the trained
+    # good/bad model. Counting thresholds are starting guesses; tune with `run --record` + replay.
+    "shoulder_press": ExerciseConfig(
+        variation="standing_dumbbell", basis="image_2d",
+        rep=RepConfig("elbow", start_phase="lowered", start_deg=105, turn_deg=150),
+        required=("shoulder", "elbow", "wrist"), thresholds={},
+    ),
+    "triceps_extension": ExerciseConfig(
+        variation="overhead_dumbbell", basis="world_3d",
+        rep=RepConfig("elbow", start_phase="lowered", start_deg=90, turn_deg=145),
+        required=("shoulder", "elbow", "wrist"), thresholds={},
+    ),
+    "row": ExerciseConfig(
+        variation="bent_over_dumbbell", basis="world_3d",
+        rep=RepConfig("elbow", start_phase="lowered", start_deg=145, turn_deg=100),
+        required=("shoulder", "elbow", "wrist"), thresholds={},
+    ),
+    "push_up": ExerciseConfig(
+        variation="standard", basis="image_2d",  # side view
+        rep=RepConfig("elbow", start_phase="raised", start_deg=150, turn_deg=105),
+        required=("shoulder", "elbow", "wrist"), thresholds={},
+    ),
+    "side_bend": ExerciseConfig(
+        variation="standing_dumbbell", basis="image_2d",  # front view: lean is measured in the image plane
+        rep=RepConfig("trunk_lean_deg", start_phase="raised", start_deg=8, turn_deg=20, hysteresis_deg=3),
+        required=("shoulder", "hip"), thresholds={},
+    ),
 }
+CONTRACT_EXERCISES = ("curl", "squat", "deadlift")  # v1 contract ids; the rest travel as "other" + exercise_detail
 
 
 @dataclass
@@ -70,7 +100,7 @@ class Config:
     session_id: str = os.environ.get("GYMAI_SESSION_ID", "session-001")
     camera_index: int = int(os.environ.get("GYMAI_CAMERA", "0"))
     models_dir: Path = REPO / "ml" / "models"
-    min_visibility: float = 0.5
+    min_visibility: float = 0.4         # MediaPipe per-joint visibility needed to count; jackets/dumbbells lower it
     side_switch_margin: float = 0.2     # visibility gain needed before the tracked side changes
     side_view_max_ratio: float = 0.30   # shoulder width / torso length below this = side view
     front_view_min_ratio: float = 0.55  # above this = front view; in between = diagonal

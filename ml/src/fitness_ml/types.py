@@ -40,6 +40,7 @@ class Observation:
     set_id: str | None = None
     clip_id: str | None = None
     model_version: str | None = None
+    exercise_detail: str | None = None  # specific id when `exercise` is "other" (contract v1 has 3 ids); ignored by v1 readers
     schema_version: int = 1
 
     @property

@@ -6,10 +6,12 @@ Adapters never guess: a file whose labels can't be parsed is skipped and reporte
 Verified from the dataset pages (2026-10-10):
 - MyDeadlift (CC BY 4.0): files "<CLASS>_S<subject>_R<rep>.mp4"; GB = correct, PB = rounded back,
   LLK = knees beyond toes; 7 subjects, side view, one repetition per video. Official test subjects: S04, S07.
-- Multi-View Fitness (CC BY 4.0): 26 subjects, front/side/diagonal, good/bad quality; the same videos are
-  shipped in three folder layouts, so files are de-duplicated. File naming is NOT documented: the adapter
-  reads subject/exercise/quality/view from folder and file names; check the skipped list on first run.
+- Multi-View Fitness (CC BY 4.0): 26 subjects, front/side/diagonal, good/bad quality, files named
+  subject_<ID>_<exercise>_<quality>_<view>.mp4 (README). Shipped as three 3.1 GB zips with the same videos
+  in different folder layouts: download one; files are de-duplicated by name anyway.
   Its curl is the *alternating* dumbbell curl and its squat is *bodyweight*. It has no deadlift.
+- MyDeadlift's public release contains NO videos, only Extracted_keypoints.csv (per-frame knee, hip and
+  back-to-vertical angles). It can't go through this video manifest; see training/deadlift_angles.py.
 """
 import csv
 import re
@@ -18,7 +20,9 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
 VIDEO_SUFFIXES = {".mp4", ".mov", ".avi", ".mkv", ".m4v"}
-EXERCISES = ("curl", "squat", "deadlift", "other")
+from ..config import EXERCISES as _CONFIGURED
+
+EXERCISES = (*_CONFIGURED, "other")  # "other" = movement we have no analyzer for
 
 
 @dataclass
@@ -28,7 +32,7 @@ class Row:
     dataset: str
     participant_id: str
     camera_view: str        # front | side | diagonal | unknown
-    exercise: str           # curl | squat | deadlift | other
+    exercise: str           # an id from config.EXERCISES, or "other"
     variation: str
     form_label: str = ""    # good | bad | "" (unlabelled)
     issue_label: str = ""   # none | <specific labelled error> | ""
@@ -67,67 +71,43 @@ def _videos(root: Path):
     return sorted(p for p in root.rglob("*") if p.suffix.lower() in VIDEO_SUFFIXES and p.is_file())
 
 
-# --- MyDeadlift ---------------------------------------------------------------------------------
+# --- MyDeadlift (names only: the release has no videos; training/deadlift_angles.py uses its CSV) ---
 MYDEADLIFT_NAME = re.compile(r"^(GB|PB|LLK)_S(\d+)_R(\d+)$", re.IGNORECASE)
 MYDEADLIFT_ISSUE = {"GB": "none", "PB": "rounded_back", "LLK": "knees_past_toes"}
 
 
-def mydeadlift(root: Path) -> tuple[list[Row], list[str]]:
-    rows, skipped = [], []
-    for p in _videos(root):
-        m = MYDEADLIFT_NAME.match(p.stem)
-        if not m:
-            skipped.append(str(p))
-            continue
-        cls, subject = m.group(1).upper(), int(m.group(2))
-        rows.append(Row(
-            video_id=f"mydeadlift:{p.relative_to(root)}", path=str(p), dataset="mydeadlift",
-            participant_id=f"mydeadlift-S{subject:02d}", camera_view="side", exercise="deadlift",
-            variation="unspecified",  # page doesn't say conventional vs sumo: check the videos before relying on it
-            form_label="good" if cls == "GB" else "bad", issue_label=MYDEADLIFT_ISSUE[cls], license="CC-BY-4.0"))
-    return rows, skipped
-
-
 # --- Multi-View Fitness -------------------------------------------------------------------------
-# (pattern on the lower-cased relative path, exercise id, variation). Each video must match exactly one.
-MULTIVIEW_EXERCISES = [
-    (r"curl", "curl", "standing_dumbbell_alternating"),
-    (r"squat", "squat", "bodyweight"),
-    (r"tricep", "other", "overhead_dumbbell_triceps_extension"),
-    (r"shoulder[ _-]?press|\bpress\b", "other", "standing_dumbbell_shoulder_press"),
-    (r"push[ _-]?up|pushup", "other", "push_up"),
-    (r"\brow\b|bent[ _-]?over", "other", "bent_over_dumbbell_row"),
-    (r"side[ _-]?bend|\bbend\b", "other", "standing_dumbbell_side_bend"),
-]
-QUALITY = {"good": "good", "correct": "good", "bad": "bad", "incorrect": "bad", "wrong": "bad"}
-VIEWS = {"front": "front", "side": "side", "diagonal": "diagonal", "diag": "diagonal"}
-SUBJECT = re.compile(r"^(?:subject|sub|participant|person|s|p)[ _-]?0*(\d{1,3})$", re.IGNORECASE)
+# README (v3): every video is named subject_<ID>_<exercise>_<quality>_<view>.mp4 in all three layouts.
+# One published file says "bicep" instead of "bicep_curl" (subject_003_bicep_good_side.mp4, in bicep_curl/good/side/).
+MULTIVIEW_NAME = re.compile(r"^subject_(\d+)_(abs|back|bicep(?:_curl)?|push_up|shoulder|squat|tricep)_(good|bad)_(front|side|diagonal)$",
+                            re.IGNORECASE)
+MULTIVIEW_EXERCISE = {  # dataset class -> (our id, variation per the dataset description)
+    "bicep_curl": ("curl", "standing_dumbbell_alternating"),
+    "squat": ("squat", "bodyweight"),
+    "abs": ("side_bend", "standing_dumbbell"),
+    "back": ("row", "bent_over_dumbbell"),
+    "push_up": ("push_up", "standard"),
+    "shoulder": ("shoulder_press", "standing_dumbbell"),
+    "tricep": ("triceps_extension", "overhead_dumbbell"),
+}
 
 
 def multiview(root: Path) -> tuple[list[Row], list[str]]:
     rows, skipped, seen = [], [], set()
     for p in _videos(root):
-        key = (p.name, p.stat().st_size)  # the three layouts contain the same files
-        if key in seen:
+        m = MULTIVIEW_NAME.match(p.stem)
+        if not m:
+            skipped.append(str(p))
             continue
-        seen.add(key)
-        rel = str(p.relative_to(root)).lower()
-        exercise = [(pattern, ex, var) for pattern, ex, var in MULTIVIEW_EXERCISES if re.search(pattern, rel)]
-        # Strip the exercise name first: "side bend" must not read as the "side" camera view.
-        rest = re.sub(exercise[0][0], " ", rel) if len(exercise) == 1 else rel
-        tokens = [t for t in re.split(r"[^a-z0-9]+", rest) if t]
-        quality = {QUALITY[t] for t in tokens if t in QUALITY}
-        view = {VIEWS[t] for t in tokens if t in VIEWS}
-        joined = [a + b for a, b in zip(tokens, tokens[1:]) if b.isdigit()]  # "subject 01" -> "subject01"
-        subject = {int(m.group(1)) for t in tokens + joined if (m := SUBJECT.match(t))}
-        if len(exercise) != 1 or len(quality) != 1 or len(view) != 1 or len(subject) != 1:
-            skipped.append(f"{p}  (exercise={[e[1:] for e in exercise]} quality={quality} view={view} subject={subject})")
+        if p.name.lower() in seen:  # the same file appears in each of the three layouts
             continue
-        (_, ex, var), = exercise
+        seen.add(p.name.lower())
+        subject, dataset_class, quality, view = int(m.group(1)), *(g.lower() for g in m.groups()[1:])
+        exercise, variation = MULTIVIEW_EXERCISE["bicep_curl" if dataset_class == "bicep" else dataset_class]
         rows.append(Row(
-            video_id=f"multiview:{p.relative_to(root)}", path=str(p), dataset="multiview",
-            participant_id=f"multiview-{subject.pop():02d}", camera_view=view.pop(), exercise=ex, variation=var,
-            form_label=quality.pop(), issue_label="", license="CC-BY-4.0"))
+            video_id=f"multiview:{p.name.lower()}", path=str(p), dataset="multiview",
+            participant_id=f"multiview-{subject:03d}", camera_view=view, exercise=exercise, variation=variation,
+            form_label=quality, issue_label="", license="CC-BY-4.0"))
     return rows, skipped
 
 
@@ -143,4 +123,4 @@ def own_csv(path: Path) -> tuple[list[Row], list[str]]:
     return [r for r in rows if Path(r.path).is_file()], missing
 
 
-ADAPTERS = {"mydeadlift": mydeadlift, "multiview": multiview, "csv": own_csv}
+ADAPTERS = {"multiview": multiview, "csv": own_csv}

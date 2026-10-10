@@ -25,7 +25,14 @@ class RepReview:
 
 
 def review_rep(exercise: str, cfg: ExerciseConfig, trace: list[tuple[float, dict]], side: str, view: str) -> RepReview:
-    return REVIEWERS[exercise](cfg, trace, side, view)
+    return REVIEWERS.get(exercise, _no_rules)(cfg, trace, side, view)
+
+
+def _no_rules(cfg, trace, side, view):
+    """Exercises without a reviewed rule: report the counting signal's range only."""
+    name = f"{side}_{cfg.rep.signal}_angle{'_3d' if cfg.basis == 'world_3d' else ''}_deg" if cfg.rep.signal in ("elbow", "knee", "hip") else cfg.rep.signal
+    values = _series(trace, name)
+    return RepReview([], {"rep_min_signal_deg": _nan_extreme(values, np.min), "rep_max_signal_deg": _nan_extreme(values, np.max)})
 
 
 def _series(trace, name):

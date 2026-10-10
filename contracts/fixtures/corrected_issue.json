@@ -1,0 +1,152 @@
+{
+  "description": "Curl elbow drift on rep 1 issues ONE cue; it persists on rep 2 (no repeat cue); rep 3 is clean so feedback.improved fires.",
+  "session_id": "fx-corrected-issue",
+  "steps": [
+    {
+      "kind": "command",
+      "data": {
+        "command_id": "c-1",
+        "session_id": "fx-corrected-issue",
+        "intent": "start",
+        "origin": "simulator",
+        "args": {
+          "exercise": "curl",
+          "target_reps": 8,
+          "source": "live"
+        }
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00001",
+        "session_id": "fx-corrected-issue",
+        "set_id": null,
+        "source": "live",
+        "clip_id": null,
+        "time_base": "capture_monotonic",
+        "source_timestamp_ms": 500,
+        "exercise": "curl",
+        "exercise_confidence": null,
+        "tracking_status": "ready",
+        "phase": "lowered",
+        "completed_rep": null,
+        "measurement_basis": "image_2d",
+        "measurements": {},
+        "issues": [],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00002",
+        "session_id": "fx-corrected-issue",
+        "set_id": null,
+        "source": "live",
+        "clip_id": null,
+        "time_base": "capture_monotonic",
+        "source_timestamp_ms": 2400,
+        "exercise": "curl",
+        "exercise_confidence": null,
+        "tracking_status": "ready",
+        "phase": "lowered",
+        "completed_rep": {
+          "rep_index": 1,
+          "duration_ms": 1900
+        },
+        "measurement_basis": "image_2d",
+        "measurements": {},
+        "issues": [
+          {
+            "code": "curl.elbow_drift",
+            "evidence": {
+              "elbow_forward_ratio": 0.31,
+              "threshold": 0.2
+            }
+          }
+        ],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00003",
+        "session_id": "fx-corrected-issue",
+        "set_id": null,
+        "source": "live",
+        "clip_id": null,
+        "time_base": "capture_monotonic",
+        "source_timestamp_ms": 4300,
+        "exercise": "curl",
+        "exercise_confidence": null,
+        "tracking_status": "ready",
+        "phase": "lowered",
+        "completed_rep": {
+          "rep_index": 2,
+          "duration_ms": 1900
+        },
+        "measurement_basis": "image_2d",
+        "measurements": {},
+        "issues": [
+          {
+            "code": "curl.elbow_drift",
+            "evidence": {
+              "elbow_forward_ratio": 0.27,
+              "threshold": 0.2
+            }
+          }
+        ],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    },
+    {
+      "kind": "observation",
+      "data": {
+        "schema_version": 1,
+        "observation_id": "ml-00004",
+        "session_id": "fx-corrected-issue",
+        "set_id": null,
+        "source": "live",
+        "clip_id": null,
+        "time_base": "capture_monotonic",
+        "source_timestamp_ms": 6200,
+        "exercise": "curl",
+        "exercise_confidence": null,
+        "tracking_status": "ready",
+        "phase": "lowered",
+        "completed_rep": {
+          "rep_index": 3,
+          "duration_ms": 1900
+        },
+        "measurement_basis": "image_2d",
+        "measurements": {},
+        "issues": [],
+        "inference_provenance": "fixture",
+        "model_version": null
+      }
+    }
+  ],
+  "expect_events": [
+    "session.state",
+    "exercise.changed",
+    "coach.state",
+    "tracking.status",
+    "rep.completed",
+    "feedback.issued",
+    "rep.completed",
+    "rep.completed",
+    "feedback.improved"
+  ],
+  "expect_snapshot": {
+    "rep_count": 3,
+    "active_issues": []
+  }
+}

@@ -1,0 +1,288 @@
+"""Authoritative workout session server. Contracts: ../../contracts/protocol.md
+
+Run: uvicorn gymai_backend.app:app --host 0.0.0.0 --port 8000
+All handlers are `async def`, so they run on one event loop thread and need no locks.
+"""
+import asyncio
+import itertools
+import json
+import os
+import time
+from pathlib import Path
+
+from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from jsonschema import Draft202012Validator
+
+SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "contracts" / "gymai.schema.json").read_text())
+VALIDATORS = {k: Draft202012Validator({**SCHEMA, "$ref": f"#/$defs/{k}"})
+              for k in ("observation", "command", "heart_rate_sample", "event")}
+TOKEN = os.environ.get("GYMAI_TOKEN")  # optional shared LAN secret; unset = open (trusted hotspot only)
+HR_STALE_MS = 10_000
+
+# Only issue codes listed here may be spoken. cue_id == audio file stem in assets/audio/.
+# ponytail: one cue per issue per set, no priority queue yet; Tyler replaces with the coaching policy.
+CUES = {
+    "curl.elbow_drift": "Keep your elbows pinned to your sides.",
+    "curl.partial_range": "Let the weight come all the way down.",
+    "squat.shallow_depth": "Sit a little deeper if it feels comfortable.",
+    "deadlift.hips_rise_early": "Push the floor away; let your hips and chest rise together.",
+}
+
+
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def check(kind: str, data: dict) -> dict:
+    errs = [f"{'/'.join(map(str, e.path)) or '<root>'}: {e.message}" for e in VALIDATORS[kind].iter_errors(data)]
+    if errs:
+        raise HTTPException(422, {"contract": kind, "errors": errs})
+    return data
+
+
+class Session:
+    def __init__(self, session_id: str, participant_id: str | None):
+        self.id, self.participant_id = session_id, participant_id
+        self.state, self.source, self.exercise = "ready", None, None
+        self.set_n, self.rep_count, self.target_reps, self.load = 0, 0, None, None
+        self.tracking = None
+        self.hr = None  # last real sample dict, never synthesized
+        self.rest_ends_at = None
+        self.active_issues: dict[str, str] = {}  # issue_code -> feedback_id
+        self.events: list[dict] = []
+        self.subscribers: set[asyncio.Queue] = set()
+        self.acks: dict[str, dict] = {}
+        self.seen_obs: set[str] = set()
+        self.seen_hr: set[str] = set()
+        self.max_rep_index = 0
+        self.feedback_ids = itertools.count(1)
+
+    @property
+    def set_id(self):
+        return f"set-{self.set_n:03d}" if self.set_n else None
+
+    def emit(self, type_: str, payload: dict) -> dict:
+        ev = {"schema_version": 1, "event_id": len(self.events) + 1, "session_id": self.id,
+              "timestamp_ms": now_ms(), "type": type_, "payload": payload}
+        self.events.append(ev)
+        for q in self.subscribers:
+            q.put_nowait(ev)
+        return ev
+
+    def hr_view(self) -> dict:
+        if not self.hr:
+            return {"status": "unavailable", "bpm": None, "sample_id": None, "sample_timestamp_ms": None, "source": None}
+        stale = self.hr["received_ms"] - self.hr["sample_timestamp_ms"] > HR_STALE_MS \
+            or now_ms() - self.hr["received_ms"] > HR_STALE_MS
+        return {"status": "stale" if stale else "live", "bpm": self.hr["bpm"], "sample_id": self.hr["sample_id"],
+                "sample_timestamp_ms": self.hr["sample_timestamp_ms"], "source": self.hr["source"]}
+
+    def rest_view(self):
+        return {"status": "resting", "ends_at_ms": self.rest_ends_at} if self.rest_ends_at else None
+
+    def snapshot(self) -> dict:
+        return {"schema_version": 1, "event_id": len(self.events), "session_id": self.id, "timestamp_ms": now_ms(),
+                "type": "session.snapshot", "payload": {
+                    "state": self.state, "source": self.source, "exercise": self.exercise, "set_id": self.set_id,
+                    "rep_count": self.rep_count, "target_reps": self.target_reps, "tracking_status": self.tracking,
+                    "heart_rate": self.hr_view(), "rest": self.rest_view(), "active_issues": list(self.active_issues)}}
+
+    # --- commands -------------------------------------------------------------------------------
+    def command(self, cmd: dict) -> dict:
+        if cmd["command_id"] in self.acks:
+            return {**self.acks[cmd["command_id"]], "duplicate": True}
+        error = self._apply(cmd["intent"], cmd.get("args", {}), cmd["command_id"])
+        ack = {"command_id": cmd["command_id"], "accepted": error is None, "duplicate": False,
+               "state": self.state, "error": error}
+        self.acks[cmd["command_id"]] = ack
+        return ack
+
+    def _apply(self, intent: str, args: dict, cid: str):
+        allowed = {"start": {"ready"}, "pause": {"active"}, "rest": {"active", "paused"},
+                   "extend_rest": {"paused"}, "resume": {"paused"}, "next_exercise": {"active", "paused"},
+                   "end": {"ready", "active", "paused"}}
+        if self.state not in allowed[intent]:
+            return f"invalid_transition:{self.state}->{intent}"
+        if intent == "extend_rest" and not self.rest_ends_at:
+            return "not_resting"
+        if intent == "start":
+            self.source = args.get("source", "live")
+            self._set_state("active", cid)
+            self._new_set(args)
+            self.emit("coach.state", {"coach": "observing"})
+        elif intent in ("pause", "rest"):
+            if self.state != "paused":
+                self._set_state("paused", cid)
+            if intent == "rest":
+                self.rest_ends_at = now_ms() + 1000 * args.get("rest_seconds", 60)
+                self.emit("rest.updated", self.rest_view())
+                self.emit("coach.state", {"coach": "resting"})
+        elif intent == "extend_rest":
+            self.rest_ends_at += 1000 * args.get("rest_seconds", 30)
+            self.emit("rest.updated", self.rest_view())
+        elif intent == "resume":  # only explicit resume leaves rest; timer expiry never does
+            self._set_state("active", cid)
+            if self.rest_ends_at:
+                self.rest_ends_at = None
+                self.emit("rest.updated", {"status": "ended", "ends_at_ms": None})
+            self.emit("coach.state", {"coach": "observing"})
+        elif intent == "next_exercise":
+            self._finish_set()
+            self._new_set(args)
+        elif intent == "end":
+            self._finish_set()
+            self.rest_ends_at = None
+            self._set_state("complete", cid)
+            self.emit("coach.state", {"coach": "idle"})
+
+    def _set_state(self, state: str, cid: str):
+        self.state = state
+        self.emit("session.state", {"state": state, "command_id": cid})
+
+    def _new_set(self, args: dict):
+        self.set_n += 1
+        self.exercise = args.get("exercise", self.exercise or "curl")
+        self.target_reps, self.load = args.get("target_reps"), args.get("load")
+        self.rep_count, self.active_issues = 0, {}
+        self.emit("exercise.changed", {"exercise": self.exercise, "set_id": self.set_id, "target_reps": self.target_reps})
+
+    def _finish_set(self):
+        if self.set_n and self.rep_count:
+            self.emit("set.completed", {"set_id": self.set_id, "exercise": self.exercise,
+                                        "rep_count": self.rep_count, "load": self.load})
+
+    # --- ML observations ------------------------------------------------------------------------
+    def observe(self, obs: dict) -> dict:
+        if obs["observation_id"] in self.seen_obs:
+            return {"accepted": True, "duplicate": True}
+        self.seen_obs.add(obs["observation_id"])
+        if self.state != "active":
+            # Still consume rep indices so reps done while paused never count after resume.
+            if obs["completed_rep"]:
+                self.max_rep_index = max(self.max_rep_index, obs["completed_rep"]["rep_index"])
+            return {"accepted": True, "duplicate": False, "ignored": "not_active"}
+        if obs["tracking_status"] != self.tracking:
+            self.tracking = obs["tracking_status"]
+            self.emit("tracking.status", {"status": self.tracking, "source": obs["source"]})
+        rep = obs["completed_rep"]
+        if not rep or rep["rep_index"] <= self.max_rep_index:
+            return {"accepted": True, "duplicate": False}
+        self.max_rep_index = rep["rep_index"]
+        if self.tracking != "ready" or obs["exercise"] != self.exercise:
+            return {"accepted": True, "duplicate": False, "ignored": "rep_not_trusted"}
+        # Backend is the only place a rep is committed.
+        self.rep_count += 1
+        self.emit("rep.completed", {"exercise": self.exercise, "set_id": self.set_id, "rep_count": self.rep_count,
+                                    "target_reps": self.target_reps, "duration_ms": rep.get("duration_ms")})
+        codes = [i["code"] for i in obs["issues"] if i["code"] in CUES]
+        for code in codes:
+            if code not in self.active_issues:
+                fid = f"fb-{next(self.feedback_ids)}"
+                self.active_issues[code] = fid
+                self.emit("feedback.issued", {"feedback_id": fid, "issue_code": code, "cue_id": code, "text": CUES[code],
+                                              "set_id": self.set_id, "rep_count": self.rep_count})
+        for code in [c for c in self.active_issues if c not in codes]:
+            self.emit("feedback.improved", {"feedback_id": self.active_issues.pop(code), "issue_code": code,
+                                            "set_id": self.set_id, "rep_count": self.rep_count})
+        return {"accepted": True, "duplicate": False}
+
+    def heart_rate(self, sample: dict) -> dict:
+        if sample["sample_id"] in self.seen_hr:
+            return {"accepted": True, "duplicate": True}
+        received = now_ms()
+        if sample["sample_timestamp_ms"] > received + 5_000:
+            raise HTTPException(422, "sample_timestamp_ms is in the future; check the Watch clock")
+        self.seen_hr.add(sample["sample_id"])
+        if self.hr and sample["sample_timestamp_ms"] <= self.hr["sample_timestamp_ms"]:
+            return {"accepted": True, "duplicate": False, "ignored": "older_than_current"}
+        self.hr = {**sample, "received_ms": received}
+        self.emit("heart_rate.updated", self.hr_view())
+        return {"accepted": True, "duplicate": False}
+
+
+app = FastAPI(title="Gym&AI backend")
+sessions: dict[str, Session] = {}  # ponytail: in-memory, lost on restart; add SQLite when history/PRs land
+
+
+def auth(request: Request):
+    if TOKEN and request.headers.get("authorization") != f"Bearer {TOKEN}":
+        raise HTTPException(401, "missing or wrong bearer token")
+
+
+def get(session_id: str) -> Session:
+    if session_id not in sessions:
+        raise HTTPException(404, f"unknown session {session_id}")
+    return sessions[session_id]
+
+
+def same_session(s: Session, body: dict):
+    if body["session_id"] != s.id:
+        raise HTTPException(422, "body session_id does not match URL")
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "schema_version": 1, "sessions": len(sessions)}
+
+
+@app.post("/api/sessions", status_code=201, dependencies=[Depends(auth)])
+async def create_session(body: dict = Body(default={})):
+    sid = body.get("session_id") or f"session-{len(sessions) + 1:03d}-{now_ms() % 100000}"
+    if sid in sessions:
+        raise HTTPException(409, f"session {sid} exists")
+    sessions[sid] = Session(sid, body.get("participant_id"))
+    return sessions[sid].snapshot()
+
+
+@app.get("/api/sessions/{session_id}", dependencies=[Depends(auth)])
+async def snapshot(session_id: str):
+    return get(session_id).snapshot()
+
+
+@app.get("/api/sessions/{session_id}/events", dependencies=[Depends(auth)])
+async def events(session_id: str, after: int = 0):
+    return get(session_id).events[after:]
+
+
+@app.post("/api/sessions/{session_id}/commands", dependencies=[Depends(auth)])
+async def command(session_id: str, body: dict = Body(...)):
+    s = get(session_id)
+    same_session(s, check("command", body))
+    return s.command(body)
+
+
+@app.post("/api/sessions/{session_id}/observations", dependencies=[Depends(auth)])
+async def observation(session_id: str, body: dict = Body(...)):
+    s = get(session_id)
+    same_session(s, check("observation", body))
+    return s.observe(body)
+
+
+@app.post("/api/sessions/{session_id}/heart_rate", dependencies=[Depends(auth)])
+async def heart_rate(session_id: str, body: dict = Body(...)):
+    s = get(session_id)
+    same_session(s, check("heart_rate_sample", body))
+    return s.heart_rate(body)
+
+
+@app.websocket("/ws/workout")
+async def workout_ws(ws: WebSocket, session_id: str, token: str | None = None):
+    """Sends session.snapshot first, then every later event. Reconnect = new snapshot; no replay needed."""
+    if TOKEN and token != TOKEN:
+        await ws.close(code=4401)
+        return
+    if session_id not in sessions:
+        await ws.close(code=4404)
+        return
+    s = sessions[session_id]
+    await ws.accept()
+    q: asyncio.Queue = asyncio.Queue()
+    s.subscribers.add(q)  # subscribe and snapshot in the same tick: no gap, no overlap
+    try:
+        await ws.send_json(s.snapshot())
+        while True:
+            await ws.send_json(await q.get())
+    except WebSocketDisconnect:
+        pass
+    finally:
+        s.subscribers.discard(q)

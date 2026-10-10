@@ -1,0 +1,291 @@
+{
+  "description": "One example of every message kind and event type, including an unknown future event type and unknown field that clients must ignore. Not replayed.",
+  "session_id": "session-001",
+  "steps": [
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 0,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800001,
+        "type": "session.snapshot",
+        "payload": {
+          "state": "active",
+          "source": "live",
+          "exercise": "curl",
+          "set_id": "set-001",
+          "rep_count": 3,
+          "target_reps": 8,
+          "tracking_status": "ready",
+          "heart_rate": {
+            "status": "unavailable",
+            "bpm": null,
+            "sample_id": null,
+            "sample_timestamp_ms": null,
+            "source": null
+          },
+          "rest": null,
+          "active_issues": [
+            "curl.elbow_drift"
+          ]
+        },
+        "extra_field_from_v2": "ignored"
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 2,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800002,
+        "type": "session.state",
+        "payload": {
+          "state": "paused",
+          "command_id": "c-0007"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 3,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800003,
+        "type": "exercise.changed",
+        "payload": {
+          "exercise": "deadlift",
+          "set_id": "set-002",
+          "target_reps": 5
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 4,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800004,
+        "type": "tracking.status",
+        "payload": {
+          "status": "low_visibility",
+          "source": "live"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 5,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800005,
+        "type": "rep.completed",
+        "payload": {
+          "exercise": "curl",
+          "set_id": "set-001",
+          "rep_count": 3,
+          "target_reps": 8,
+          "duration_ms": 1850
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 6,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800006,
+        "type": "coach.state",
+        "payload": {
+          "coach": "correcting"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 7,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800007,
+        "type": "feedback.issued",
+        "payload": {
+          "feedback_id": "fb-1",
+          "issue_code": "curl.elbow_drift",
+          "cue_id": "curl.elbow_drift",
+          "text": "Keep your elbows pinned to your sides.",
+          "set_id": "set-001",
+          "rep_count": 3
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 8,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800008,
+        "type": "feedback.improved",
+        "payload": {
+          "feedback_id": "fb-1",
+          "issue_code": "curl.elbow_drift",
+          "set_id": "set-001",
+          "rep_count": 5
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 9,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800009,
+        "type": "heart_rate.updated",
+        "payload": {
+          "status": "live",
+          "bpm": 121,
+          "sample_id": "hr-0042",
+          "sample_timestamp_ms": 1791640798500,
+          "source": "apple_watch"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 10,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800010,
+        "type": "user_feedback.acknowledged",
+        "payload": {
+          "input_id": "in-0003",
+          "kind": "effort",
+          "value": "hard"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 11,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800011,
+        "type": "rest.updated",
+        "payload": {
+          "status": "resting",
+          "ends_at_ms": 1791640860000
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 12,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800012,
+        "type": "set.completed",
+        "payload": {
+          "set_id": "set-001",
+          "exercise": "curl",
+          "rep_count": 8,
+          "load": {
+            "value": 25,
+            "unit": "lb"
+          }
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 13,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800013,
+        "type": "history.pr_achieved",
+        "payload": {
+          "exercise": "curl",
+          "metric": "reps_at_load",
+          "value": 9,
+          "previous_best": 8,
+          "load": {
+            "value": 25,
+            "unit": "lb"
+          }
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 14,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800014,
+        "type": "device.status",
+        "payload": {
+          "device": "pico",
+          "status": "disconnected"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "data": {
+        "schema_version": 1,
+        "event_id": 15,
+        "session_id": "session-001",
+        "timestamp_ms": 1791640800015,
+        "type": "some.future_type",
+        "payload": {
+          "anything": true
+        }
+      }
+    },
+    {
+      "kind": "command_ack",
+      "data": {
+        "command_id": "c-0007",
+        "accepted": true,
+        "duplicate": false,
+        "state": "paused",
+        "error": null
+      }
+    },
+    {
+      "kind": "command_ack",
+      "data": {
+        "command_id": "c-0007",
+        "accepted": true,
+        "duplicate": true,
+        "state": "paused",
+        "error": null
+      }
+    },
+    {
+      "kind": "pico_in",
+      "data": {
+        "event": "button_pressed",
+        "button": "a"
+      }
+    },
+    {
+      "kind": "pico_out",
+      "data": {
+        "state": "active",
+        "exercise": "curl",
+        "reps": 3
+      }
+    }
+  ]
+}

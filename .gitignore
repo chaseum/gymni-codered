@@ -1,4 +1,46 @@
+# Secrets / env
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.mobileprovision
+secrets/
+
+# Python
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ML data and artifacts (Chase) — never commit raw video, datasets or weights
+ml/data/
+ml/models/
+*.task
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.joblib
+*.pkl
+*.parquet
+
+# Private clips / health data
+demo/clips/
+*.mp4
+*.mov
+*.MOV
+health_export*/
+*.healthkit.json
+
+# Xcode / SwiftPM
+.build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+
+# OS
+.DS_Store

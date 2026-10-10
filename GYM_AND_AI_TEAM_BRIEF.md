@@ -2,7 +2,7 @@
 
 **Team:** Chase, Bryan, Tyler, Taher  
 **Purpose:** Give everyone a shared definition of the product, their responsibilities, the interfaces between their work, and the minimum demonstration we will deliver.  
-**Confirmed exercise scope:** Three required analyzers: squat, biceps curl, and deadlift. Recorded demonstrations cover all three; biceps curls are the live judges demo. Pushups are optional. Bench press is deferred.  
+**Confirmed exercise scope:** Three required analyzers: squat, biceps curl, and deadlift. Recorded demonstrations cover all three; biceps curls are the live judges demo. Pushups are optional. Bench press is a stretch goal.  
 **Confirmed roles:** Chase — movement analysis; Bryan — UI; Tyler — backend, audio, and integration; Taher — hardware and enclosure.  
 **Confirmed available hardware:** Raspberry Pi Pico/RP2040, webcam, Grove button, Grove 3-axis digital accelerometer, ultrasonic distance sensor, and a Grove LED/7-segment display. The Pico is the board; RP2040 is its microcontroller chip. Exact sensor/display variants remain to be identified.  
 **Proposed software:** React + TypeScript and Python + FastAPI, with MediaPipe for pose estimation.  

@@ -1,5 +1,7 @@
 # Gym&AI — 24-Hour Hackathon Team Brief
 
+**Architecture and ownership update:** [The revised brief](GYM_AND_AI_TEAM_BRIEF_REVISED.md) supersedes this document for architecture, ownership, ML training, and the iPhone experience. This file retains the detailed planning and validation reference.
+
 **Team:** Chase, Bryan, Tyler, Taher  
 **Purpose:** Give everyone a shared definition of the product, their responsibilities, the interfaces between their work, and the minimum demonstration we will deliver.  
 **Confirmed exercise scope:** Three required analyzers: squat, biceps curl, and deadlift. Recorded demonstrations cover all three; biceps curls are the live judges demo. Pushups are optional. Bench press is a stretch goal.  
@@ -7,6 +9,8 @@
 **Confirmed available hardware:** Raspberry Pi Pico/RP2040, webcam, Grove button, Grove 3-axis digital accelerometer, ultrasonic distance sensor, and a Grove LED/7-segment display. The Pico is the board; RP2040 is its microcontroller chip. Exact sensor/display variants remain to be identified.  
 **Proposed software:** React + TypeScript and Python + FastAPI, with MediaPipe for pose estimation.  
 **Confirmed coaching additions:** Apple Watch heart-rate input, voice feedback through its paired iPhone, encouragement, rest suggestions, and optional water-break reminders. A paired iPhone and Mac with Xcode are available. Native watchOS/iOS integration is now part of the prototype plan.  
+**Confirmed planning addition:** Gather the user's goals and constraints, then assemble an editable personalized workout from a reviewed exercise catalog and bounded planning rules. An AI goal interview can translate natural language into the structured profile.
+
 **Outstanding setup details:** Exact sensor/display model numbers, laptop configuration, and the dumbbell or suitable curl equipment for the live judges demo. Recording arrangements for squats/deadlifts are handled before rehearsal. Use laptop speakers for audio because a separate speaker was not included in the confirmed inventory.
 
 ## 1. Product and demonstration
@@ -57,13 +61,14 @@ The proposed visual identity combines Wii Fit's friendly encouragement with a si
 - The paired Watch/iPhone supplies timestamped heart-rate updates to the backend and exposes missing/stale data honestly.
 - A spoken phone request for a break or pause changes the session and receives an acknowledgement.
 - Encouragement, form correction, and rest suggestions are selected by a shared coaching policy rather than independent competing audio loops.
+- Onboarding produces an editable profile and a personalized, feasible plan whose differences can be explained from the user's answers.
 
 ## 2. Scope and priorities
 
 ### Required for the demo
 
-1. A short onboarding flow: goal, experience, equipment, and session length.
-2. A predefined workout selected from those answers.
+1. A short goal interview/onboarding flow: goal, experience, equipment, available days, session length, preferences, and relevant movement restrictions.
+2. An editable personalized session assembled from reviewed workout blocks, with an explanation of how the user's answers affected it.
 3. Camera capture and MediaPipe pose estimation on a laptop.
 4. Exercise-specific repetition phases and movement checks for squat, biceps curl, and deadlift, with live curl support.
 5. Tracking confidence and camera-position guidance.
@@ -107,9 +112,37 @@ Each exercise must expose its own required landmarks, initialization phase, phas
 
 **Demonstration equipment:** Squat and deadlift footage can be captured where appropriate equipment is available before the presentation. The live judges demo requires the webcam, a usable camera position, and suitable curl equipment. The team is not relying on a bench or barbell at the judging table. Identify recorded input clearly on screen; validate live curls separately in the venue.
 
+### Personalized planning: from goals to a workout
+
+Add a planning component alongside the movement analyzer and live coach. MediaPipe supplies body landmarks; the planner collects goals and creates the workout that the analyzer will follow. Use an existing language model for a short goal interview and structured goal extraction, with a Python planner/validator controlling the actual exercise selection and parameters. Custom model training is unnecessary for this feature.
+
+**Onboarding inputs:** Ask the primary goal (strength, muscle gain, or consistency/general fitness), experience level, available equipment, days per week, minutes per session, exercise preferences, and movements the user needs to avoid. Offer optional recent training/load information when relevant. Do not require weight, a body photo, or a long medical history for the demo. Unanswered fields remain unknown and trigger a focused follow-up when needed. Voice can reuse the phone transcript path; structured form inputs provide a reliable alternative.
+
+Example input: "I want to build muscle, I'm new, I have dumbbells, and I can work out three days a week for twenty minutes." Extract the goal, experience, equipment, frequency, and duration; ask about missing movement restrictions and preferences, then show the interpreted profile for correction. Do not assume barbell access or infer a load from the user's appearance.
+
+**Planning pipeline:**
+
+1. Collect answers and normalize them into a versioned profile.
+2. Ask only the missing questions needed to produce a feasible plan; let the user edit the profile.
+3. Filter a reviewed catalog by equipment, experience, restrictions, and exercise variation.
+4. Select workout blocks and goal-specific parameter presets within reviewed limits; assemble order, sets, rep targets, rest, and any warm-up/cool-down blocks. Initial load remains user-confirmed rather than guessed.
+5. Validate estimated duration including work, rest, and transitions. If the constraints cannot be met, explain the conflict and offer a shorter session or changed constraints instead of silently violating them.
+6. Return a structured draft plus a short explanation tied to the actual answers. Show it for user acceptance/editing before starting the session.
+7. Execute the accepted plan through the existing session/analyzer/coach path; log completed work separately from planned work.
+
+The language model can extract answers, propose catalog selections, and explain a validated result. Its output is schema-checked and validated by the backend. It cannot introduce unknown exercise IDs, unreviewed loads, unsupported form analysis, or a schedule outside the user's availability. On timeout/invalid output, retain the entered profile and use the same deterministic planner through the form. Service credentials stay on the backend.
+
+**What makes the result personalized:** Equipment changes eligible exercises; experience changes eligible variations and reviewed starting-volume presets; goal changes the approved emphasis/presets; time changes session size; weekly availability changes the proposed schedule; dislikes/restrictions change selections. Two compatible profiles should produce explainably different plans where their constraints differ. Avoid changing only a title or greeting while serving an identical workout.
+
+**Hackathon boundary:** Deliver a personalized, editable demo session first. The three analyzed exercises alone do not establish a balanced full-body weekly program. Every catalog entry declares `analysis_supported`; untracked exercises are manual/instruction-only and must be labeled that way. Bench press stays deferred. If the reviewed catalog cannot cover a requested weekly program, return a clearly scoped demo session and explain the missing coverage. A complete weekly planner requires a broader reviewed catalog, including the intended movement/muscle-group coverage. General guidance calls for strengthening all major muscle groups; resistance-training design should consider goals and training experience. [HHS guidelines](https://health.gov/paguidelines/second-edition/pdf/Physical_Activity_Guidelines_2nd_edition.pdf), [ACSM resistance-training position stand](https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/).
+
+Movement restrictions filter the plan; the prototype does not create rehabilitation or condition-specific programs. If a reported limitation has no suitable reviewed option, explain that the catalog cannot meet it and leave the incompatible movement out. Collect only the information needed for planning.
+
+**Demonstration:** Enter two profiles with different equipment or time constraints, show the resulting eligible exercises/session sizes and explanations, accept one plan, and launch its live curl set. A curl-only judging set is explicitly a shortened demonstration of the accepted plan.
+
 ### Adaptive coaching: how Gym&AI acts like a trainer
 
-The vision model observes movement. A separate backend coaching policy combines those observations with Watch samples, voice input, the workout plan, and recent coaching history. Start with explicit, testable rules and approved cue templates. A language model is not required for the demo. If richer phrasing is added later, it must not override the policy's pause/rest decisions or invent sensor readings.
+The vision model observes movement. A separate backend coaching policy combines those observations with Watch samples, voice input, the workout plan, and recent coaching history. Start with explicit, testable rules and approved cue templates. Live coaching does not need a language-model call, even when onboarding uses one. If richer phrasing is added later, it must not override the policy's pause/rest decisions or invent sensor readings.
 
 | Input | Information available | Interpretation limit |
 |---|---|---|
@@ -173,6 +206,8 @@ flowchart LR
     Phone <-->|Network events and command acknowledgements| Backend
     Backend --> Coach[Coaching policy]
     Backend <-->|WebSocket events and commands| UI[React interface]
+    UI -->|Goals and constraints| Planner[Personalized planner and validator]
+    Planner -->|Accepted plan| Backend
     Coach --> Audio[Audio player]
     Audio --> Speaker[Laptop speakers]
     Backend <-->|USB serial| Pico[Raspberry Pi Pico]
@@ -202,6 +237,7 @@ If a Pi 4/5 unexpectedly becomes available, moving processing onto it is optiona
 | Movement features | NumPy and exercise-specific Python logic | Chase |
 | Session API | Python + FastAPI | Tyler |
 | Coaching decisions | Python rules/state machine with approved cues | Tyler; Chase defines movement observations |
+| Personalized planning | Reviewed catalog/presets + Python planner and schema validation; hosted language model for goal extraction/explanation | Tyler; Bryan owns interview and plan review UI; Chase confirms analysis coverage |
 | Watch heart rate | Swift/SwiftUI + HealthKit workout session and live builder | Tyler; Taher helps device setup/testing |
 | Phone bridge/voice | Swift/SwiftUI + Apple Speech/AVAudioEngine + networking | Tyler; Bryan helps minimal phone UI |
 | Live UI events | WebSockets | Tyler and Bryan |
@@ -281,13 +317,14 @@ Bryan owns onboarding, workout presentation, companion animations, and the recap
 
 | Screen | Required behavior |
 |---|---|
-| Onboarding | Collect a few answers and select a suitable predefined demo workout |
+| Onboarding | Short goal interview or form; editable structured profile; focused questions for missing constraints |
+| Plan review | Personalized exercise order, sets/rep targets/rest, estimated duration, explanation, supported-analysis labels, edit/accept actions |
 | Positioning | Show camera preview/overlay if available and a clear tracking-ready indicator |
 | Workout | Exercise selector, target, completed reps, session/coach state, current feedback, Watch BPM with source and freshness, last acknowledged effort report, and start/pause/end controls |
 | Rest | Reason for the pause, optional elapsed/countdown timer, encouragement, optional water reminder, and explicit resume/end controls |
 | Recap | Actual completed reps, supported observations, and one useful next-session focus |
 
-The initial goal choices can be strength, muscle gain, and consistency. These select reviewed templates; they do not imply that the prototype has generated a personalized training prescription.
+The initial goal choices are strength, muscle gain, and consistency/general fitness. The backend assembles an individualized draft using reviewed blocks and the user's constraints. Present the actual basis for personalization and its demo-session scope. Changing equipment/time/restrictions requests regeneration; the old accepted plan remains unchanged until a new version is accepted.
 
 Companion states: ready, positioning, tracking, correction, improved, checking in, encouraging, resting, and complete. Use text alongside colors so states remain understandable. Show a connection-lost message when backend updates stop. Do not keep displaying stale tracking or heart rate as live.
 
@@ -306,18 +343,20 @@ Provide explicit live-webcam and recorded-clip modes. Recorded mode needs playba
 - A recap derived from real completed-session records.
 - Consistent exercise selection, positioning instructions, and feedback presentation for all three required exercise IDs.
 - No numerical form score unless its definition and calculation are explicitly implemented and validated.
+- Two contrasting profiles produce feasible, explainably different drafts; the user can edit answers and accept a plan before the workout starts.
 - Actual Watch samples, unavailable/stale states, effort acknowledgements, and rest transitions are visible and correctly labeled.
 
 ## 7. Tyler — backend, audio, and integration
 
 ### Ownership
 
-Tyler owns the shared session state, coaching policy, audio scheduler, Watch/iPhone bridge, and phone voice commands. Start/pause commands from the screen, phone, and Pico use the same backend path. Bryan helps keep the phone UI small; Taher helps deploy and test on the paired devices. Native app development is a substantial additional task: Xcode availability is confirmed, but the team must prove device deployment and data flow early.
+Tyler owns the shared session state, personalized planner/validator, coaching policy, audio scheduler, Watch/iPhone bridge, and phone voice commands. Start/pause commands from the screen, phone, and Pico use the same backend path. Bryan helps keep the phone UI small; Taher helps deploy and test on the paired devices. Native app development is a substantial additional task: Xcode availability is confirmed, but the team must prove device deployment and data flow early. Keep the initial planner small and catalog-based to protect integration time.
 
 ### Build sequence
 
 1. Define and publish event examples before the other components are ready.
 2. Bring up FastAPI and a WebSocket connection to Bryan's interface.
+   Define the profile/plan schemas and reviewed catalog with Bryan and Chase. Implement plan generation/validation and one short AI goal interview; use the form/planner path while the language service is unavailable.
 3. Deploy the smallest Watch/iPhone app and prove one actual heart-rate sample and one phone voice command reaching the server.
 4. Run clearly labeled simulated workout events through UI, audio, and device paths while real inputs are integrated.
 5. Implement the coaching policy and normalized effort/control intents; use approved templates for correction, encouragement, rest, and water reminders.
@@ -330,7 +369,7 @@ Add exercise changes and input-source metadata to the session model. Exercise ch
 
 Provide a source adapter for webcam and saved files. A recorded-file session uses clip time for movement durations and coordinates pause/replay with analysis, queued audio, the UI, and the device count. Do not rush a file through inference and play all its feedback afterward. Ignore live-room positioning telemetry for recorded-file analysis. Support switching back to the webcam without restarting the whole app.
 
-Suggested API surface: `POST /api/sessions`, `POST /api/sessions/{id}/commands`, `GET /api/sessions/{id}`, and `WS /ws/workout`. Onboarding/workout selection can initially use local templates. The backend is the authority for session state and committed repetition counts.
+Suggested API surface: `POST /api/sessions`, `POST /api/sessions/{id}/commands`, `GET /api/sessions/{id}`, and `WS /ws/workout`, plus the planning endpoints below. Sessions reference an accepted plan version. The backend is the authority for session state and committed repetition counts.
 
 Add `POST /api/sessions/{id}/heart-rate` for normalized phone-forwarded samples and `POST /api/sessions/{id}/feedback` for effort reports. Control intents such as pause/stop/resume go through the common command endpoint. Use explicit session/participant pairing and a session-scoped connection token so another phone cannot accidentally control the judging session. Reject mismatched, duplicate, malformed, or out-of-order inputs as appropriate; a delayed resume command must not override a newer stop.
 
@@ -363,6 +402,7 @@ Track sample time and receipt time separately, agree on a configurable freshness
 - Timestamped samples from the actual Watch reach the backend; permission failure, stale data, and disconnects produce honest status.
 - Phone commands update the authoritative session once, with visible acknowledgement; stop/pause take effect without waiting for a generated voice response.
 - Supported movement observations, effort reports, and available HR context produce the documented coaching transitions without contradictory queued cues.
+- Planner rejects unsupported catalog IDs, unavailable equipment, excluded movements, invalid parameters, and infeasible duration; explanation reflects the validated plan.
 
 ## 8. Taher — hardware and enclosure
 
@@ -403,6 +443,21 @@ Prioritize a mount that gives a clear live curl view in the judging space. Rehea
 Sensor enhancements have separate acceptance checks: the ultrasonic reading must be valid and useful in the demonstration space; an enclosure bump should trigger repositioning without falsely accusing the user of poor form. If either enhancement is unreliable, keep its telemetry in diagnostics and document the limitation. These features must not destabilize the three required exercise analyzers.
 
 ## 9. Shared interfaces — agree before implementation
+
+### Onboarding → planner → workout session
+
+Use explicit versioned schemas and stable IDs:
+
+| Object | Required information |
+|---|---|
+| Profile | profile_id/version, goal, experience, equipment, days_per_week, session_minutes, preferences, avoid_movements; unknown answers remain explicit |
+| Catalog entry | exercise/variation ID, equipment, movement groups, eligibility, reviewed parameter bounds/presets, analysis_supported, instructions |
+| Plan | plan_id/version, profile_version, scope (demo_session or reviewed weekly_plan), ordered session blocks, estimated_duration_minutes, rationale, validation status |
+| Exercise block | catalog ID, sets, rep/time target as applicable, rest, user-confirmed load when supplied, analysis_supported |
+
+Suggested endpoints: `POST /api/onboarding/messages` returns the interpreted profile and next question; `PUT /api/profiles/{id}` accepts edits; `POST /api/plans` creates a validated draft from the profile version; `POST /api/plans/{id}/accept` accepts that exact version. Start a session with its accepted plan ID/version, and expose a clearly labeled shorter demo-set option. The planner returns `needs_input` or `no_feasible_plan` instead of inventing missing constraints. Keep generation separate from session control so an onboarding conversation cannot issue workout commands.
+
+Profile edits create a new draft; they do not silently rewrite an active workout. Recorded analyzer tests remain selectable outside plan execution. Explanations are generated from the final validated plan, not an earlier rejected model proposal.
 
 ### Analyzer → backend
 
@@ -506,7 +561,7 @@ Tyler translates shared session events into the Pico's small command vocabulary.
 
 For the demonstration, store goal selections and actual session results: exercise, repetitions, set duration, supported issue occurrences, normalized reported effort, rests, and coach actions with their evidence. Keep heart-rate retention minimal; the live policy can operate on a short in-memory window. Raw video and phone audio do not need to be saved for the app to work. Keep test recordings separate and obtain the participants' agreement before retaining them.
 
-Workout adaptation can initially be a transparent rule applied to several sessions, with user confirmation. A lower rep count late in a workout has multiple possible causes; do not infer that exercise order caused it from video alone. User-entered load and perceived difficulty provide additional context.
+Initial personalization uses the confirmed profile and reviewed catalog even before workout history exists. Later adaptation uses completion, repeated supported observations, user-entered load, and reported effort across comparable sessions to propose a revised plan, with an explanation and user acceptance. Do not automatically increase intensity from a low heart rate, one successful set, or tracking-confidence scores. A lower rep count late in a workout has multiple possible causes; do not infer that exercise order caused it from video alone. This longitudinal learning remains a stretch goal; the initial personalized planner is required.
 
 Later training should distinguish exercise recognition from movement-quality assessment. Use short landmark sequences, exercise-specific issue labels, and training/test splits separated by person. Adjacent frames or clips from one person must not leak across splits. Research datasets such as Fit3D/AIFit and FLEX are starting points to evaluate, not a guarantee that their annotations match our intended feedback.
 
@@ -516,14 +571,14 @@ Times are relative to the start of the hackathon. Roles can progress concurrentl
 
 | Time | Chase | Bryan | Tyler | Taher | Shared checkpoint |
 |---|---|---|---|---|---|
-| 0–2 h | Live curl skeleton; clips and three configurations | Layout and mocked states; minimal phone UI support | Event contract/server; deploy Watch/phone skeleton and prove inputs | Identify parts/USB; help paired-device setup | Actual Watch sample and voice command received, or integration blocker explicitly identified |
-| 2–6 h | Shared phase engine/live curl; start squat and timing observations | Onboarding, source/HR labels, coach/rest states | Complete minimal native bridge, voice intents, cached cues, WebSocket | Button/display; network and microphone tests | Real HR and voice inputs drive the shared session; simulated vision clearly labeled |
+| 0–2 h | Live curl skeleton; clips and three configurations; catalog analysis flags | Goal/profile and plan-review layouts; minimal phone UI support | Contracts/server; prove Watch/voice inputs; agree small planning catalog | Identify parts/USB; paired-device setup | Native inputs proved or blocker identified; profile/plan contract agreed |
+| 2–6 h | Shared phase engine/live curl; squat and timing observations | Onboarding, editable plans, source/HR labels, rest states | Minimal native bridge; planner/validator and goal interview; cached cues/WebSocket | Button/display; network/microphone tests | Two profiles yield different feasible plans; real HR/voice reach shared session |
 | 6–12 h | Squat/deadlift clips; first check for each | Connect real observations, effort acknowledgement, rest controls | Integrate analyzer/Pico and coaching rules | Camera mount/housing; optional sensors independently | Three configurations exist; live curl with a spoken break works end to end |
 | 12–18 h | Validate live curls/three recordings and difficulty observations | Recap and companion polish | Test stale HR, commands, cue priority and rest transitions | Stabilize assembly and device setup | Required demos evaluated; real and simulated inputs distinguished |
 | 18–22 h | Fix remaining required behavior; avoid new diagnostics | Finish visual polish | Startup and recovery | Finish physical presentation | Feature freeze and full rehearsal |
 | 22–24 h | Support rehearsal | Prepare presentation | Verify launch and backup | Verify cables and device | Submission, demo video, and presentation ready |
 
-**Scope decision:** If the main end-to-end path is not working by hour 12, pause automatic recognition, optional pushups, extra form criteria, history, sensor enhancements, broad conversation, and native UI polish. Prioritize live curls, three recorded analyzers, real Watch input, the small voice vocabulary, and reliable coaching/rest transitions. Bench press stays deferred. If native integration remains blocked, show labeled simulation only as a policy demonstration and record the unmet live-integration requirement; do not claim full completion. At feature freeze, document failed or unvalidated features honestly.
+**Scope decision:** If the main end-to-end path is not working by hour 12, pause automatic recognition, optional pushups, extra form criteria, history, sensor enhancements, broad conversation, weekly-plan expansion, and native UI polish. Prioritize the small personalized-session planner, live curls, three recorded analyzers, real Watch input, the small voice vocabulary, and reliable coaching/rest transitions. Bench press stays deferred. If native integration remains blocked, show labeled simulation only as a policy demonstration and record the unmet live-integration requirement; do not claim full completion. At feature freeze, document failed or unvalidated features honestly.
 
 Suggested repository layout once implementation starts:
 
@@ -582,6 +637,11 @@ Use actual clips and live trials to check observable behavior, not just whether 
 | Unclear speech or system audio heard by microphone | No guessed resume; visible clarification/listening status |
 | Rest timer ends | Readiness prompt; no automatic resume |
 | Water reminder enabled | Delivered at a pause; no claim that dehydration was detected |
+| Different equipment, goal, or session time | Catalog eligibility/parameters/session size change appropriately; reason is shown |
+| Missing or contradictory onboarding answers | Focused clarification; no silently invented equipment or availability |
+| No feasible catalog selection | Explain the unmet constraint; no unsupported substitute or fabricated full-body coverage |
+| Model returns invalid IDs/parameters or times out | Validation blocks the proposal; entered profile and deterministic form/planner remain usable |
+| Profile edited during an active workout | New draft version; current accepted session plan remains stable |
 
 Try at least two teammates and more than one realistic position or lighting condition where suitable footage/equipment is available. Create a validation log for recorded squat, recorded curl, recorded deadlift, and live curl listing each exercise's variation, input mode, camera view, annotated vs counted reps, tested criterion, tracking failures, and cue delay. Record limitations as results rather than claiming an untested exercise is supported. More landmarks or a convincing overlay do not establish the accuracy of a movement check.
 
@@ -593,7 +653,8 @@ Prepare a clearly labeled recorded backup of the actual working system. Rehearse
 - **Broader exercise support:** Add reviewed movement criteria and labeled examples exercise by exercise.
 - **Bench press:** Deferred from this hackathon; add its configuration, camera/occlusion tests, and reviewed feedback later.
 - **Automatic recognition:** Classify temporal movement sequences with an explicit unknown class.
-- **Adaptive plans:** Combine several sessions, user-entered load, and reported effort to suggest changes.
+- **Planning expansion:** Add a broader reviewed catalog for balanced weekly programs and supported substitutions; initial personalized demo sessions are in hackathon scope.
+- **Adaptive plans:** Combine several sessions, user-entered load, and reported effort to suggest explained changes to the initial personalized plan.
 - **Apple Watch / HealthKit expansion:** Improve the hackathon companion's reliability and supported devices; consider opt-in history sync and reviewed personal context.
 - **Conversational coaching:** Expand beyond the small command vocabulary while preserving deterministic session controls and grounded sensor claims.
 - **AirPods:** Route voice interaction through the companion phone application.
@@ -618,4 +679,6 @@ Prepare a clearly labeled recorded backup of the actual working system. Rehearse
 - [AHA heart-rate ranges and individual context](https://www.heart.org/en/healthy-living/exercise-and-physical-activity/fitness-basics/target-heart-rates)
 - [CDC perceived effort and relative intensity](https://www.cdc.gov/physical-activity-basics/measuring/)
 - [AHA hydration considerations](https://www.heart.org/en/healthy-living/exercise-and-physical-activity/fitness-basics/staying-hydrated-staying-healthy)
+- [HHS physical activity guidelines](https://health.gov/paguidelines/second-edition/pdf/Physical_Activity_Guidelines_2nd_edition.pdf)
+- [ACSM 2026 resistance-training position stand](https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/)
 - [Meta wearable capabilities](https://developers.meta.com/wearables/faq/)

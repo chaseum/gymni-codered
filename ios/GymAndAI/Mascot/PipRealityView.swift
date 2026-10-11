@@ -3,12 +3,13 @@ import SwiftUI
 
 struct PipRealityView: UIViewRepresentable {
     let controller: PipSceneController
+    let companion: CompanionKind
     let state: MascotState
     let reducesMotion: Bool
 
     func makeUIView(context: Context) -> ARView {
         let view = ARView(frame: .zero, cameraMode: .nonAR, automaticallyConfigureSession: false)
-        controller.attach(to: view)
+        controller.attach(to: view, companion: companion)
         controller.configure(state: state, reducesMotion: reducesMotion)
         return view
     }

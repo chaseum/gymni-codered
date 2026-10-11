@@ -12,8 +12,11 @@ final class PipSceneController {
     @ObservationIgnored private var state = MascotState.idle
     @ObservationIgnored private var reducesMotion = false
     @ObservationIgnored private var attachmentID = 0
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
 
-    func attach(to view: ARView) {
+    /// Sets up the studio, then loads the companion. Loading starts here, not in a separate SwiftUI task, so it
+    /// can never run before the attach it belongs to (that race left the scene stuck on the static preview).
+    func attach(to view: ARView, companion: CompanionKind) {
         attachmentID += 1
         self.view = view
         loadState = .loading
@@ -38,9 +41,10 @@ final class PipSceneController {
         fill.look(at: [0, 0.8, 0], from: [3, 2, 4], relativeTo: nil)
         studio.addChild(fill)
         view.scene.addAnchor(studio)
+        loadTask = Task { await load(companion: companion) }
     }
 
-    func load(companion: CompanionKind) async {
+    private func load(companion: CompanionKind) async {
         let attachment = attachmentID
         do {
             #if DEBUG
@@ -49,9 +53,15 @@ final class PipSceneController {
             }
             #endif
             let character = try await PipAssetLibrary.shared.character(companion)
+            let lighting = try? await PipAssetLibrary.shared.lighting()
             guard attachment == attachmentID else { return }
             try Task.checkCancellation()
             guard let view else { return }
+            // Light the studio before the model appears so its first frames aren't flat grey.
+            if let lighting {
+                view.environment.lighting.resource = lighting
+                view.environment.lighting.intensityExponent = 0.65
+            }
             let anchor = AnchorEntity(world: .zero)
             let root = Entity()
             root.name = "PipMotionRoot"
@@ -66,13 +76,6 @@ final class PipSceneController {
             view.scene.addAnchor(anchor)
             motion = try PipMotion(character: character, companion: companion)
             motion?.configure(state: state, reducesMotion: reducesMotion)
-            if let lighting = try? await PipAssetLibrary.shared.lighting() {
-                guard attachment == attachmentID else { return }
-                try Task.checkCancellation()
-                view.environment.lighting.resource = lighting
-                view.environment.lighting.intensityExponent = 0.65
-            }
-            try Task.checkCancellation()
             loadState = .ready
         } catch is CancellationError {
             if attachment == attachmentID { detach() }
@@ -91,6 +94,8 @@ final class PipSceneController {
 
     func detach() {
         attachmentID += 1
+        loadTask?.cancel()
+        loadTask = nil
         motion?.stop()
         motion = nil
         view?.scene.anchors.removeAll()

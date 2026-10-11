@@ -24,9 +24,9 @@ struct CompanionSceneView: View {
                 .resizable().scaledToFit()
                 .opacity(controller.loadState == .ready && rendersScene ? 0 : 1)
             if rendersScene {
-                PipRealityView(controller: controller, state: state, reducesMotion: effectiveReducedMotion)
+                PipRealityView(controller: controller, companion: companion, state: state,
+                               reducesMotion: effectiveReducedMotion)
                     .opacity(controller.loadState == .ready ? 1 : 0)
-                    .task { await controller.load(companion: companion) }
             }
             if isVisible && scenePhase == .active && !effectiveReducedMotion
                 && (state == .celebrate || state == .rest) {

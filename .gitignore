@@ -18,6 +18,7 @@ __pycache__/
 # ML data and artifacts (Chase) — never commit raw video, datasets or weights
 ml/data/
 ml/models/
+gymai-models-*/
 *.task
 *.pt
 *.pth

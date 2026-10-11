@@ -88,6 +88,11 @@ class Runner:
         self.frames_seen = 0
         self.last_event: str | None = None
         self.recorder = Recorder(args.record) if args.record else None
+        self.preview = None
+        if args.preview_port:
+            from .preview import PreviewServer
+            self.preview = PreviewServer(args.preview_port)
+            print(f"camera preview: http://<this-machine-ip>:{args.preview_port}/")
 
     def run(self) -> int:
         try:
@@ -127,8 +132,12 @@ class Runner:
                 self._emit(step)
                 if self.args.realtime and source.source == "recorded":
                     time.sleep(max(0.0, frame.timestamp_ms / 1000 - (now - wall_start)))
+                if self.window or self.preview:
+                    image = self._overlay(step, fps, paused=False)
+                    if self.preview:
+                        self.preview.publish(image)
                 if self.window:
-                    action = self._key_action(self._show(self._overlay(step, fps, paused=False)))
+                    action = self._key_action(self._show(image))
                     if action == "pause":
                         action = self._wait_while_paused(step, fps)
                     if action:
@@ -213,6 +222,8 @@ class Runner:
         return None
 
     def _close(self) -> None:
+        if self.preview:
+            self.preview.close()
         if self.recorder:
             print(f"recorded {self.recorder.close()} (replay: --source recorded --video {self.args.record})")
         for out in (self.observations, self.debug_log):
@@ -305,6 +316,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--form-model", help="form artifact dir for --exercise (default: newest per exercise in ml/models)")
     run.add_argument("--no-models", action="store_true", help="rules only: no recognizer, no form models")
     run.add_argument("--no-window", action="store_true")
+    run.add_argument("--preview-port", type=int, help="serve the annotated camera as MJPEG on this port (phone preview)")
     run.add_argument("--realtime", action="store_true", help="pace recorded video at its own speed")
     run.add_argument("--loop", action="store_true", help="replay recorded video when it ends")
     run.add_argument("--max-frames", type=int)

@@ -20,7 +20,7 @@ final class PipMotion {
 
     init(character: Entity, companion: CompanionKind) throws {
         guard let owner = Self.animationOwner(in: character),
-              let take = owner.availableAnimations.max(by: { $0.duration < $1.duration }),
+              let take = owner.availableAnimations.max(by: { $0.definition.duration < $1.definition.duration }),
               let url = Bundle.main.url(forResource: "CompanionClips", withExtension: "json") else {
             throw CocoaError(.fileReadCorruptFile)
         }
@@ -34,7 +34,7 @@ final class PipMotion {
         var clips: [String: (resource: AnimationResource, definition: CompanionClip)] = [:]
         for clip in entries {
             guard clip.duration > 0, clip.trim_start >= 0,
-                  clip.trim_end > clip.trim_start, clip.trim_end <= take.duration + 0.04,
+                  clip.trim_end > clip.trim_start, clip.trim_end <= take.definition.duration + 0.04,
                   abs(clip.duration - (clip.trim_end - clip.trim_start)) < 0.04,
                   clip.loop == ["idle", "rest"].contains(clip.name) else {
                 throw CocoaError(.fileReadCorruptFile)

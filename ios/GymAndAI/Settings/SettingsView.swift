@@ -49,7 +49,7 @@ struct SettingsView: View {
                 Section("Spoken coaching") {
                     Toggle("Spoken coaching", isOn: $session.audioEnabled)
                         .tint(GymTheme.accent)
-                    Text("Uses the iPhone’s speech voice in this build. Captions remain visible when muted. Voice commands are not connected yet.")
+                    Text("Laptop corrections use ElevenLabs audio when cue files are available; otherwise the iPhone voice is used. Captions remain visible when muted.")
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)

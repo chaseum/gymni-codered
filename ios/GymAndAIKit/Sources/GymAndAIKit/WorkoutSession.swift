@@ -14,6 +14,7 @@ public final class WorkoutSession {
     public var audioEnabled = true
     public var usesAppleWatch = true
     public var presentsWorkout = false
+    public private(set) var shouldAutoStartSimulatorSession = false
     public private(set) var store: WorkoutStore
     public private(set) var isPositioning = false
     public private(set) var isSending = false
@@ -34,6 +35,26 @@ public final class WorkoutSession {
 
     public init() {
         store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: "phone-demo")
+    }
+
+    public func configureSimulatorLaunch(arguments: [String]) {
+        guard arguments.contains("--gymni-laptop"),
+              let backendAddress = Self.argument(after: "--backend-url", in: arguments),
+              let sessionID = Self.argument(after: "--session-id", in: arguments) else { return }
+        self.backendAddress = backendAddress
+        backendSessionId = sessionID
+        mode = .backend
+        if let exerciseID = Self.argument(after: "--exercise", in: arguments),
+           let exercise = Exercise(rawValue: exerciseID) {
+            self.exercise = exercise
+        }
+        shouldAutoStartSimulatorSession = true
+    }
+
+    @discardableResult
+    public func consumeSimulatorAutoStartRequest() -> Bool {
+        defer { shouldAutoStartSimulatorSession = false }
+        return shouldAutoStartSimulatorSession
     }
 
     public var isDemo: Bool { presentsWorkout ? sessionMode == .demo : mode == .demo }
@@ -155,6 +176,11 @@ public final class WorkoutSession {
         guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)),
               ["http", "https"].contains(url.scheme), url.host != nil else { return nil }
         return url
+    }
+
+    private static func argument(after flag: String, in arguments: [String]) -> String? {
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
     }
 
     private func startBackend() async throws {

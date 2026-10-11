@@ -105,7 +105,30 @@ struct WorkoutFlowView: View {
               let feedback = session.store.lastFeedback,
               feedback.setId == session.snapshot?.setId,
               session.snapshot?.activeIssues.contains(feedback.issueCode) == true else { return }
-        audio.speak(feedback.text)
+
+        guard let cueID = feedback.cueId else {
+            audio.speak(feedback.text)
+            return
+        }
+
+        let store = session.store
+        Task {
+            do {
+                let audioData = try await store.fetchCueAudio(cueID: cueID)
+                guard feedbackIsStillActive(feedback) else { return }
+                if !audio.play(audioData) { audio.speak(feedback.text) }
+            } catch {
+                guard feedbackIsStillActive(feedback) else { return }
+                audio.speak(feedback.text)
+            }
+        }
+    }
+
+    private func feedbackIsStillActive(_ feedback: FeedbackIssued) -> Bool {
+        session.audioEnabled && session.snapshot?.state == .active &&
+            session.store.lastFeedback?.feedbackId == feedback.feedbackId &&
+            session.snapshot?.setId == feedback.setId &&
+            session.snapshot?.activeIssues.contains(feedback.issueCode) == true
     }
 
     private func issuesChanged(_ previous: [String]?, _ current: [String]?) {

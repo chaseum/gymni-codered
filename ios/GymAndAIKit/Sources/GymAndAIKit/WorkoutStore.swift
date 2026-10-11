@@ -98,6 +98,28 @@ public final class WorkoutStore {
         try await post("commands", Command(sessionId: sessionId, intent: intent, args: args))
     }
 
+    public func fetchCueAudio(cueID: String) async throws -> Data {
+        let filename: String
+        if cueID.hasPrefix("dynamic/"),
+           let dynamicID = cueID.split(separator: "/").last,
+           dynamicID.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil {
+            filename = "dynamic/\(dynamicID).mp3"
+        } else if cueID.range(of: #"^[a-z_]+\.[a-z_]+$"#, options: .regularExpression) != nil {
+            filename = "\(cueID).mp3"
+        } else {
+            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Invalid generated cue ID."])
+        }
+
+        let audioURL = baseURL.appending(path: "audio/\(filename)")
+        var request = URLRequest(url: audioURL)
+        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "Generated coach audio is unavailable."])
+        }
+        return data
+    }
+
     public func post<Body: Encodable, Response: Decodable>(_ route: String, _ body: Body) async throws -> Response {
         var req = URLRequest(url: baseURL.appending(path: "api/sessions/\(sessionId)/\(route)"))
         req.httpMethod = "POST"

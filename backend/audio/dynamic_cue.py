@@ -1,5 +1,7 @@
 """Turn approved form observations into short Gemini-written ElevenLabs cues."""
 
+import hashlib
+import json
 import os
 from pathlib import Path
 from typing import Literal
@@ -49,6 +51,19 @@ def _check_request(request: CueRequest) -> None:
         raise ValueError("Tracking confidence is too low for a spoken correction.")
 
 
+def cached_cue_id(request: CueRequest) -> str:
+    """Reuse one generated clip per approved action and provider configuration."""
+    identity = {
+        "issue_code": request.issue_code,
+        "recommended_action": request.recommended_action,
+        "gemini_model": os.getenv("GEMINI_MODEL_ID", "gemini-3.5-flash-lite"),
+        "elevenlabs_model": os.getenv("ELEVENLABS_MODEL_ID", "eleven_v4"),
+        "voice_id": os.getenv("ELEVENLABS_VOICE_ID", ""),
+    }
+    encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:24]
+
+
 def generate_spoken_cue(request: CueRequest) -> tuple[str, bytes]:
     """Generate a short cue and return its text plus MP3 bytes.
 
@@ -61,18 +76,11 @@ def generate_spoken_cue(request: CueRequest) -> tuple[str, bytes]:
         http_options=types.HttpOptions(timeout=30_000),
     )
     gemini_model = os.getenv("GEMINI_MODEL_ID", "gemini-3.5-flash-lite")
-    prompt = f"""
-Rewrite the approved coaching action as one brief spoken cue for a supportive
-workout coach. Use 6 to 14 words. Keep it specific, respectful, and easy to
-understand while moving. Do not add advice, diagnoses, praise, claims, or facts
-that are not in the approved action. Evidence is context only; do not infer any
-other form issue. Return only the requested structured output.
-
-Exercise: {request.exercise}
-Issue code: {request.issue_code}
-Observed evidence: {request.evidence}
-Approved action (the only instruction you may express): {request.recommended_action}
-""".strip()
+    prompt = (
+        "Rewrite the approved correction as a natural spoken cue in 6 to 10 words. "
+        "Keep its meaning. Add no advice, praise, diagnosis, or new claim. "
+        f"Approved correction: {request.recommended_action}"
+    )
 
     print("Requesting cue text from Gemini...", flush=True)
     response = gemini.models.generate_content(
@@ -81,13 +89,13 @@ Approved action (the only instruction you may express): {request.recommended_act
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=SpokenCue,
-            max_output_tokens=80,
+            max_output_tokens=24,
         ),
     )
     if not response.text:
         raise RuntimeError("Gemini returned an empty response.")
     cue = SpokenCue.model_validate_json(response.text).spoken_text.strip()
-    if not 1 <= len(cue.split()) <= 18:
+    if not 1 <= len(cue.split()) <= 12:
         raise ValueError("Gemini returned a cue outside the allowed length.")
 
     print("Gemini returned a cue. Requesting audio from ElevenLabs...", flush=True)
@@ -107,7 +115,18 @@ Approved action (the only instruction you may express): {request.recommended_act
 
 def save_spoken_cue(request: CueRequest, output_path: Path) -> str:
     """Generate the cue, save its MP3, and return the spoken text."""
+    text_path = output_path.with_suffix(".txt")
+    if output_path.is_file() and output_path.stat().st_size and text_path.is_file():
+        cached_text = text_path.read_text(encoding="utf-8").strip()
+        if cached_text:
+            return cached_text
+
     spoken_text, audio = generate_spoken_cue(request)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(audio)
+    temporary_audio = output_path.with_suffix(".mp3.tmp")
+    temporary_text = text_path.with_suffix(".txt.tmp")
+    temporary_audio.write_bytes(audio)
+    temporary_text.write_text(spoken_text, encoding="utf-8")
+    temporary_audio.replace(output_path)
+    temporary_text.replace(text_path)
     return spoken_text

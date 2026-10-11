@@ -7,18 +7,16 @@ Shared planner exercise data and healthy-adult prescription notes: [`contracts/e
 
 Model handoff and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](docs/GYM_AND_I_MODEL_HANDOFF.md).
 
-Model handoff and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](docs/GYM_AND_I_MODEL_HANDOFF.md).
-
 ## Who owns what
 
 | Path | Owner | Status |
 |---|---|---|
 | `contracts/` | everyone (change only together) | v1 schema + fixtures, validated |
 | `ml/` → `fitness_ml` | Chase | MediaPipe pipeline, rep counting, form checks, training CLI ([`ml/README.md`](ml/README.md)); local trained artifacts are in ignored `ml/models/`; **not yet evaluated on real video** |
-| `backend/` → `gymai_backend` | Tyler | session state machine, REST, WebSocket, fixture simulator; minimal coaching |
-| `ios/` | Bryan | `GymAndAIKit` Swift package (contract + networking); **Xcode app project not created yet** → [`ios/README.md`](ios/README.md) |
+| `backend/` → `gymai_backend` | Tyler | session state machine, REST, WebSocket, Gemini coach chat, Backboard profile memory; personalized plan API not implemented |
+| `ios/` | Bryan | SwiftUI iPhone app, `GymAndAIKit` contracts/networking, Demo and Laptop workout modes → [`ios/README.md`](ios/README.md) |
 | `firmware/` | Taher | serial protocol + README; **no drivers** until hardware is identified |
-| `assets/audio/` | Tyler | cue naming rules; no audio yet |
+| `assets/audio/` | Tyler | ElevenLabs phrase generation and local MP3 cue playback; correction files can be generated with `python generate_audio.py` |
 | `demo/` | everyone | clip/log rules |
 
 ## Setup (laptop)
@@ -30,7 +28,7 @@ python3.11 -m venv .venv
 ```
 
 ```bash
-.venv/bin/pip install -e backend -e ml
+.venv/bin/pip install -e backend -e 'ml[gru]'
 ```
 
 Vision + training extras: `.venv/bin/pip install -e 'ml[train,dev]'`, then `.venv/bin/fitness-ml download-model`. GPU training runbook: [`docs/VULTR_TRAINING.md`](docs/VULTR_TRAINING.md).

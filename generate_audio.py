@@ -5,6 +5,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
+from backend.gymai_backend.app import CUES as FORM_CUES
 
 
 ROOT = Path(__file__).resolve().parent
@@ -12,7 +13,7 @@ load_dotenv(ROOT / ".env")
 
 API_KEY = os.getenv("ELEVENLABS_API_KEY")
 VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
-MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_flash_v2_5")
+MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_v4")
 
 CUES = {
     "session_start": "Let's begin. Get into position when you're ready.",
@@ -24,6 +25,7 @@ CUES = {
     "resume_ready": "Ready when you are. I'll wait until your position is clear.",
     "water_break": "This is a good moment for a water break if you need one.",
 }
+CUES.update(FORM_CUES)
 
 
 def main() -> None:

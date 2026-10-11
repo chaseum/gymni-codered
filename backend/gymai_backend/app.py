@@ -8,6 +8,7 @@ import itertools
 import json
 import os
 import time
+from collections import defaultdict
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -24,10 +25,10 @@ VALIDATORS = {k: Draft202012Validator({**SCHEMA, "$ref": f"#/$defs/{k}"})
 TOKEN = os.environ.get("GYMAI_TOKEN")  # optional shared LAN secret; unset = open (trusted hotspot only)
 HR_STALE_MS = 10_000
 
-# Only issue codes listed here may be spoken. cue_id == audio file stem in assets/audio/.
-# ponytail: one cue per issue per set, no priority queue yet; Tyler replaces with the coaching policy.
+# Only issue codes listed here may be spoken. cue_id points to an MP3 under assets/audio/.
+# One cue per issue per set; the backend policy selects which approved correction to voice.
 # With GYMAI_DYNAMIC_CUES=1 the text is the approved action that Gemini rephrases (backend/audio/dynamic_cue.py)
-# and ElevenLabs voices; the mp3 is served at /audio/dynamic/<feedback_id>.mp3 (cue_id "dynamic/<feedback_id>").
+# and ElevenLabs voices; a config-keyed cached MP3 is served under /audio/dynamic/.
 CUES = {
     "curl.elbow_drift": "Keep your elbows pinned to your sides.",
     "curl.partial_range": "Let the weight come all the way down.",
@@ -44,6 +45,33 @@ CUES = {
 DYNAMIC_CUES = os.environ.get("GYMAI_DYNAMIC_CUES") == "1"
 AUDIO_DIR = Path(__file__).resolve().parents[2] / "assets" / "audio"
 DYNAMIC_CUE_TIMEOUT_S = 8.0  # slower than this and the fixed text is used instead
+DYNAMIC_CUE_LOCKS: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+DYNAMIC_CUE_TASKS: dict[str, asyncio.Task[str]] = {}
+
+
+async def generate_cached_cue(cache_id: str, request, output_path: Path) -> str:
+    """Share in-flight generation so concurrent workouts cannot duplicate provider calls."""
+    async with DYNAMIC_CUE_LOCKS[cache_id]:
+        task = DYNAMIC_CUE_TASKS.get(cache_id)
+        if task is None:
+            from backend.audio.dynamic_cue import save_spoken_cue
+            task = asyncio.create_task(asyncio.to_thread(save_spoken_cue, request, output_path))
+            DYNAMIC_CUE_TASKS[cache_id] = task
+
+    try:
+        text = await asyncio.wait_for(asyncio.shield(task), DYNAMIC_CUE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        raise
+    except Exception:
+        async with DYNAMIC_CUE_LOCKS[cache_id]:
+            if DYNAMIC_CUE_TASKS.get(cache_id) is task:
+                DYNAMIC_CUE_TASKS.pop(cache_id, None)
+        raise
+
+    async with DYNAMIC_CUE_LOCKS[cache_id]:
+        if DYNAMIC_CUE_TASKS.get(cache_id) is task:
+            DYNAMIC_CUE_TASKS.pop(cache_id, None)
+    return text
 
 
 def now_ms() -> int:
@@ -217,18 +245,17 @@ class Session:
                                       "set_id": set_id, "rep_count": rep_count})
 
     async def _dynamic_cue(self, code: str, evidence: dict, fid: str, set_id: str, rep_count: int):
-        """Gemini rephrases the approved action using the rep's measured evidence; ElevenLabs voices it.
+        """Gemini briefly rephrases an approved action; ElevenLabs voices and caches it.
         Any failure or timeout falls back to the fixed approved text (cue_id = issue code)."""
         text, cue_id = CUES[code], code
         try:
-            from backend.audio.dynamic_cue import CueRequest, save_spoken_cue  # needs uvicorn started at the repo root
-            facts = ", ".join(f"{k}={v}" for k, v in evidence.items() if k not in ("provenance", "model_version"))
-            request = CueRequest(exercise=code.split(".")[0], issue_code=code, evidence=facts[:300] or "none",
+            from backend.audio.dynamic_cue import CueRequest, cached_cue_id
+            request = CueRequest(exercise=code.split(".")[0], issue_code=code, evidence="approved action only",
                                  recommended_action=CUES[code], tracking_status="ready", coach_approved=True,
                                  confidence=evidence.get("probability", 1.0))  # rules are deterministic: 1.0
-            text = await asyncio.wait_for(asyncio.to_thread(save_spoken_cue, request, AUDIO_DIR / "dynamic" / f"{fid}.mp3"),
-                                          DYNAMIC_CUE_TIMEOUT_S)
-            cue_id = f"dynamic/{fid}"
+            cache_id = cached_cue_id(request)
+            cue_id = f"dynamic/{cache_id}"
+            text = await generate_cached_cue(cache_id, request, AUDIO_DIR / "dynamic" / f"{cache_id}.mp3")
         except Exception as exc:  # noqa: BLE001 - a cue outage must never stop the workout
             print(f"dynamic cue for {code} failed ({type(exc).__name__}: {exc}); using the fixed text", flush=True)
         if fid in self.pending_cues:  # still active (not already improved)

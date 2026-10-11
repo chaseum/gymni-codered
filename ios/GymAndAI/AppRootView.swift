@@ -12,10 +12,13 @@ struct AppRootView: View {
 
     init() {
         let workout = WorkoutSession()
-        #if !targetEnvironment(simulator)
+        #if targetEnvironment(simulator)
+        workout.configureSimulatorLaunch(arguments: ProcessInfo.processInfo.arguments)
+        #else
         workout.mode = .phone
         #endif
         _session = State(initialValue: workout)
+        _showsIntro = State(initialValue: !workout.shouldAutoStartSimulatorSession)
     }
 
     var body: some View {
@@ -35,6 +38,10 @@ struct AppRootView: View {
         }
         .onAppear {
             if reduceMotion { showsIntro = false }
+        }
+        .task {
+            guard session.consumeSimulatorAutoStartRequest() else { return }
+            await session.start()
         }
         .tint(GymTheme.accent)
         .sheet(isPresented: $showsSettings) { SettingsView(session: session, healthAccess: healthAccess, watch: watch) }

@@ -7,6 +7,8 @@ final class CoachAudioPlayer: NSObject, AVSpeechSynthesizerDelegate {
     private(set) var isSpeaking = false
     @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
     @ObservationIgnored private var currentUtterance: ObjectIdentifier?
+    @ObservationIgnored private var audioPlayer: AVAudioPlayer?
+    @ObservationIgnored private var audioCompletionTask: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -24,10 +26,50 @@ final class CoachAudioPlayer: NSObject, AVSpeechSynthesizerDelegate {
         synthesizer.speak(utterance)
     }
 
+    @discardableResult
+    func play(_ data: Data) -> Bool {
+        stop()
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .mixWithOthers])
+            try audioSession.setActive(true)
+            let player = try AVAudioPlayer(data: data)
+            player.prepareToPlay()
+            guard player.play() else {
+                try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+                return false
+            }
+
+            audioPlayer = player
+            isSpeaking = true
+            audioCompletionTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(max(player.duration, 0.1) * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                self?.finishAudioPlayback()
+            }
+            return true
+        } catch {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            return false
+        }
+    }
+
     func stop() {
+        audioCompletionTask?.cancel()
+        audioCompletionTask = nil
+        audioPlayer?.stop()
+        audioPlayer = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         currentUtterance = nil
         isSpeaking = false
         synthesizer.stopSpeaking(at: .immediate)
+    }
+
+    private func finishAudioPlayback() {
+        audioCompletionTask = nil
+        audioPlayer = nil
+        isSpeaking = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {

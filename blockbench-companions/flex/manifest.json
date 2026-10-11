@@ -1,0 +1,343 @@
+{
+  "character": "flex",
+  "source": "blender-companions\\flex\\flex.glb",
+  "source_sha256": "a85b495cb0f40123aa04ac80fe06f19416af4277ce7e687ae8dcee206f9f7c3d",
+  "source_triangles": 306440,
+  "triangles": 9780,
+  "bones": 13,
+  "texture_size": [
+    256,
+    33
+  ],
+  "clips": [
+    {
+      "name": "idle",
+      "duration": 4,
+      "loop": true,
+      "context": "Home / ready, quiet presence"
+    },
+    {
+      "name": "float",
+      "duration": 4,
+      "loop": true,
+      "context": "Optional floating showcase"
+    },
+    {
+      "name": "greeting",
+      "duration": 2.4,
+      "loop": false,
+      "context": "Welcome / onboarding"
+    },
+    {
+      "name": "ready",
+      "duration": 1.6,
+      "loop": false,
+      "context": "Camera calibrated, workout ready"
+    },
+    {
+      "name": "listening",
+      "duration": 3,
+      "loop": true,
+      "context": "User speaking / preferences"
+    },
+    {
+      "name": "thinking",
+      "duration": 3,
+      "loop": true,
+      "context": "Plan or coach reply loading"
+    },
+    {
+      "name": "coaching",
+      "duration": 2.4,
+      "loop": true,
+      "context": "Coach speech, explanatory gesture"
+    },
+    {
+      "name": "rep_good",
+      "duration": 1.2,
+      "loop": false,
+      "context": "Backend commits a good rep"
+    },
+    {
+      "name": "form_correct",
+      "duration": 2,
+      "loop": false,
+      "context": "Nonjudgmental form cue"
+    },
+    {
+      "name": "encourage",
+      "duration": 2,
+      "loop": false,
+      "context": "Effort encouragement"
+    },
+    {
+      "name": "countdown",
+      "duration": 3,
+      "loop": false,
+      "context": "Three-second start cue"
+    },
+    {
+      "name": "set_complete",
+      "duration": 2.4,
+      "loop": false,
+      "context": "Set finished"
+    },
+    {
+      "name": "celebrate",
+      "duration": 2.8,
+      "loop": false,
+      "context": "Milestone / Today tap"
+    },
+    {
+      "name": "rest",
+      "duration": 5,
+      "loop": true,
+      "context": "Between sets / rest screen"
+    },
+    {
+      "name": "breathe",
+      "duration": 6,
+      "loop": true,
+      "context": "Slow recovery breathing visual"
+    },
+    {
+      "name": "stretch",
+      "duration": 4,
+      "loop": true,
+      "context": "Warmup / cooldown companion stretch"
+    },
+    {
+      "name": "pause",
+      "duration": 3,
+      "loop": true,
+      "context": "Workout paused"
+    },
+    {
+      "name": "reconnect",
+      "duration": 3,
+      "loop": true,
+      "context": "Connection stale / camera lost"
+    },
+    {
+      "name": "workout_complete",
+      "duration": 3.2,
+      "loop": false,
+      "context": "Recap / workout finished"
+    },
+    {
+      "name": "goodbye",
+      "duration": 2.4,
+      "loop": false,
+      "context": "Finish / leave workout"
+    }
+  ],
+  "native_ios_validation": "pending",
+  "roughness": 0.54,
+  "glb_bytes": 816196,
+  "usdz_bytes": 1112352,
+  "mobile_vertices": 12544,
+  "usd_clip_ranges": [
+    {
+      "name": "idle",
+      "start": 0.0,
+      "end": 4.0,
+      "loop": true
+    },
+    {
+      "name": "float",
+      "start": 4.041666666666667,
+      "end": 8.041666666666666,
+      "loop": true
+    },
+    {
+      "name": "greeting",
+      "start": 8.083333333333334,
+      "end": 10.5,
+      "loop": false
+    },
+    {
+      "name": "ready",
+      "start": 10.541666666666666,
+      "end": 12.166666666666666,
+      "loop": false
+    },
+    {
+      "name": "listening",
+      "start": 12.208333333333334,
+      "end": 15.208333333333334,
+      "loop": true
+    },
+    {
+      "name": "thinking",
+      "start": 15.25,
+      "end": 18.25,
+      "loop": true
+    },
+    {
+      "name": "coaching",
+      "start": 18.291666666666668,
+      "end": 20.708333333333332,
+      "loop": true
+    },
+    {
+      "name": "rep_good",
+      "start": 20.75,
+      "end": 21.958333333333332,
+      "loop": false
+    },
+    {
+      "name": "form_correct",
+      "start": 22.0,
+      "end": 24.0,
+      "loop": false
+    },
+    {
+      "name": "encourage",
+      "start": 24.041666666666668,
+      "end": 26.041666666666668,
+      "loop": false
+    },
+    {
+      "name": "countdown",
+      "start": 26.083333333333332,
+      "end": 29.083333333333332,
+      "loop": false
+    },
+    {
+      "name": "set_complete",
+      "start": 29.125,
+      "end": 31.541666666666668,
+      "loop": false
+    },
+    {
+      "name": "celebrate",
+      "start": 31.583333333333332,
+      "end": 34.416666666666664,
+      "loop": false
+    },
+    {
+      "name": "rest",
+      "start": 34.458333333333336,
+      "end": 39.458333333333336,
+      "loop": true
+    },
+    {
+      "name": "breathe",
+      "start": 39.5,
+      "end": 45.5,
+      "loop": true
+    },
+    {
+      "name": "stretch",
+      "start": 45.541666666666664,
+      "end": 49.541666666666664,
+      "loop": true
+    },
+    {
+      "name": "pause",
+      "start": 49.583333333333336,
+      "end": 52.583333333333336,
+      "loop": true
+    },
+    {
+      "name": "reconnect",
+      "start": 52.625,
+      "end": 55.625,
+      "loop": true
+    },
+    {
+      "name": "workout_complete",
+      "start": 55.666666666666664,
+      "end": 58.875,
+      "loop": false
+    },
+    {
+      "name": "goodbye",
+      "start": 58.916666666666664,
+      "end": 61.333333333333336,
+      "loop": false
+    }
+  ],
+  "usd_validation": [
+    {
+      "name": "idle",
+      "seam": 2.7755575615628914e-17
+    },
+    {
+      "name": "float",
+      "seam": 0.0
+    },
+    {
+      "name": "greeting",
+      "seam": 3.3831708545761785e-09
+    },
+    {
+      "name": "ready",
+      "seam": 6.26876502096696e-10
+    },
+    {
+      "name": "listening",
+      "seam": 1.3078188705606397e-18
+    },
+    {
+      "name": "thinking",
+      "seam": 6.938893903907228e-18
+    },
+    {
+      "name": "coaching",
+      "seam": 1.6353951381382404e-08
+    },
+    {
+      "name": "rep_good",
+      "seam": 2.7387687768164713e-09
+    },
+    {
+      "name": "form_correct",
+      "seam": 8.673617379884035e-19
+    },
+    {
+      "name": "encourage",
+      "seam": 0.0
+    },
+    {
+      "name": "countdown",
+      "seam": 6.938893903907228e-18
+    },
+    {
+      "name": "set_complete",
+      "seam": 2.9085612201324666e-09
+    },
+    {
+      "name": "celebrate",
+      "seam": 0.0
+    },
+    {
+      "name": "rest",
+      "seam": 1.3078188705606397e-18
+    },
+    {
+      "name": "breathe",
+      "seam": 9.825582188149884e-19
+    },
+    {
+      "name": "stretch",
+      "seam": 2.7755575615628914e-17
+    },
+    {
+      "name": "pause",
+      "seam": 6.572975670693371e-19
+    },
+    {
+      "name": "reconnect",
+      "seam": 6.938895558268453e-18
+    },
+    {
+      "name": "workout_complete",
+      "seam": 8.807620188733267e-10
+    },
+    {
+      "name": "goodbye",
+      "seam": 3.4029323803252964e-09
+    }
+  ]
+}

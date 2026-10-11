@@ -1,0 +1,26 @@
+[
+  {
+    "character": "atlas",
+    "clips": 20,
+    "triangles": 32400,
+    "glb_bytes": 2544188,
+    "usdz_bytes": 2497592,
+    "passed": true
+  },
+  {
+    "character": "flex",
+    "clips": 20,
+    "triangles": 9780,
+    "glb_bytes": 816196,
+    "usdz_bytes": 1112352,
+    "passed": true
+  },
+  {
+    "character": "pip",
+    "clips": 20,
+    "triangles": 8800,
+    "glb_bytes": 874408,
+    "usdz_bytes": 853177,
+    "passed": true
+  }
+]

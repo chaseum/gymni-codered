@@ -2,6 +2,17 @@ import SwiftUI
 
 struct PipView: View {
     var state = MascotState.idle
+    @AppStorage("companion") private var companion = CompanionKind.pip
+
+    var body: some View {
+        CompanionSceneView(state: state, companion: companion)
+            .id(companion)
+    }
+}
+
+private struct CompanionSceneView: View {
+    let state: MascotState
+    let companion: CompanionKind
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reducesMotion
     @State private var controller = PipSceneController()
@@ -9,19 +20,24 @@ struct PipView: View {
 
     var body: some View {
         ZStack {
-            Image("PipPreview")
+            Image(companion.preview)
                 .resizable().scaledToFit()
                 .opacity(controller.loadState == .ready && rendersScene ? 0 : 1)
             if rendersScene {
                 PipRealityView(controller: controller, state: state, reducesMotion: effectiveReducedMotion)
                     .opacity(controller.loadState == .ready ? 1 : 0)
-                    .task { await controller.load() }
+                    .task { await controller.load(companion: companion) }
+            }
+            if isVisible && scenePhase == .active && !effectiveReducedMotion
+                && (state == .celebrate || state == .rest) {
+                CompanionEffectsView(state: state)
+                    .id(state)
             }
         }
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Pip, your workout companion")
+        .accessibilityLabel("\(companion.name), your workout companion")
         .accessibilityValue("\(state.rawValue), \(controller.loadState.description)\(effectiveReducedMotion ? ", motion reduced" : "")")
         .accessibilityIdentifier("pip-mascot")
     }

@@ -5,22 +5,22 @@ import RealityKit
 @MainActor
 final class PipAssetLibrary {
     static let shared = PipAssetLibrary()
-    private var assetTask: Task<Entity, Error>?
+    private var assetTasks: [CompanionKind: Task<Entity, Error>] = [:]
     private var lightingTask: Task<EnvironmentResource, Error>?
 
-    func character() async throws -> Entity {
-        if assetTask == nil {
-            assetTask = Task {
+    func character(_ companion: CompanionKind) async throws -> Entity {
+        if assetTasks[companion] == nil {
+            assetTasks[companion] = Task {
                 if #available(iOS 18, *) {
-                    return try await Entity(named: "Pip", in: .main)
+                    return try await Entity(named: companion.resource, in: .main)
                 }
-                for try await entity in Entity.loadAsync(named: "Pip", in: .main).values {
+                for try await entity in Entity.loadAsync(named: companion.resource, in: .main).values {
                     return entity
                 }
                 throw CocoaError(.fileReadCorruptFile)
             }
         }
-        guard let assetTask else { throw CocoaError(.fileNoSuchFile) }
+        guard let assetTask = assetTasks[companion] else { throw CocoaError(.fileNoSuchFile) }
         return try await assetTask.value.clone(recursive: true)
     }
 

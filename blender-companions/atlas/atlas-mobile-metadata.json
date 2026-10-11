@@ -1,0 +1,139 @@
+{
+  "character": "atlas",
+  "root": "AtlasRoot",
+  "animations": 0,
+  "authored_emotes": [],
+  "revision": "2026-10-11 connected surfaces, soft carpet blend and inset V5 eyes",
+  "objects": [
+    {
+      "name": "AtlasDeformRig",
+      "type": "ARMATURE",
+      "parent": "AtlasRoot"
+    },
+    {
+      "name": "BodyCarpetPile",
+      "type": "MESH",
+      "parent": "AtlasDeformRig",
+      "triangles": 210000,
+      "weights": 2
+    },
+    {
+      "name": "BodyMesh",
+      "type": "MESH",
+      "parent": "AtlasDeformRig",
+      "triangles": 26879,
+      "weights": 2
+    },
+    {
+      "name": "LeftArm",
+      "type": "EMPTY",
+      "parent": "AtlasDeformRig"
+    },
+    {
+      "name": "LeftArmCarpetPile",
+      "type": "MESH",
+      "parent": "LeftArm",
+      "triangles": 42000,
+      "weights": 0
+    },
+    {
+      "name": "LeftArmMesh",
+      "type": "MESH",
+      "parent": "LeftArm",
+      "triangles": 2976,
+      "weights": 0
+    },
+    {
+      "name": "LeftEye",
+      "type": "MESH",
+      "parent": "AtlasDeformRig",
+      "triangles": 382,
+      "weights": 2
+    },
+    {
+      "name": "RightArm",
+      "type": "EMPTY",
+      "parent": "AtlasDeformRig"
+    },
+    {
+      "name": "RightArmCarpetPile",
+      "type": "MESH",
+      "parent": "RightArm",
+      "triangles": 42000,
+      "weights": 0
+    },
+    {
+      "name": "RightArmMesh",
+      "type": "MESH",
+      "parent": "RightArm",
+      "triangles": 2976,
+      "weights": 0
+    },
+    {
+      "name": "RightEye",
+      "type": "MESH",
+      "parent": "AtlasDeformRig",
+      "triangles": 382,
+      "weights": 2
+    },
+    {
+      "name": "Smile",
+      "type": "MESH",
+      "parent": "AtlasDeformRig",
+      "triangles": 596,
+      "weights": 2
+    },
+    {
+      "name": "Body",
+      "type": "EMPTY",
+      "parent": "AtlasRoot"
+    },
+    {
+      "name": "Face",
+      "type": "EMPTY",
+      "parent": "Body"
+    },
+    {
+      "name": "LeftFoot",
+      "type": "EMPTY",
+      "parent": "AtlasRoot"
+    },
+    {
+      "name": "LeftFootCarpetPile",
+      "type": "MESH",
+      "parent": "LeftFoot",
+      "triangles": 32256,
+      "weights": 0
+    },
+    {
+      "name": "LeftFootMesh",
+      "type": "MESH",
+      "parent": "LeftFoot",
+      "triangles": 2976,
+      "weights": 0
+    },
+    {
+      "name": "RightFoot",
+      "type": "EMPTY",
+      "parent": "AtlasRoot"
+    },
+    {
+      "name": "RightFootCarpetPile",
+      "type": "MESH",
+      "parent": "RightFoot",
+      "triangles": 32256,
+      "weights": 0
+    },
+    {
+      "name": "RightFootMesh",
+      "type": "MESH",
+      "parent": "RightFoot",
+      "triangles": 2976,
+      "weights": 0
+    }
+  ],
+  "triangles": 398655,
+  "native_ios_validation": "pending",
+  "eye_style": "Shallow inset V5 capsules, replacing protruding oval eyes.",
+  "arm_finish": null
+}

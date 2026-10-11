@@ -1,0 +1,20 @@
+{
+  "pip": {
+    "skeletons": 1,
+    "bones": 12,
+    "motion_reimported": true,
+    "render": "D:\\chase\\code\\gymni-codered\\blender-companions\\animated\\pip\\usdz-roundtrip.png"
+  },
+  "atlas": {
+    "skeletons": 1,
+    "bones": 12,
+    "motion_reimported": true,
+    "render": "D:\\chase\\code\\gymni-codered\\blender-companions\\animated\\atlas\\usdz-roundtrip.png"
+  },
+  "flex": {
+    "skeletons": 1,
+    "bones": 16,
+    "motion_reimported": true,
+    "render": "D:\\chase\\code\\gymni-codered\\blender-companions\\animated\\flex\\usdz-roundtrip.png"
+  }
+}

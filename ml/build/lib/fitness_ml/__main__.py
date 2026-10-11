@@ -66,8 +66,8 @@ class Runner:
         recognizer = None
         if recognizer_dir:
             artifact = Artifact(recognizer_dir)  # a threshold calibrated on validation beats the generic default
-            recognizer = Recognizer(artifact, cfg.recognition_window_ms, cfg.recognition_stride_ms,
-                                    artifact.meta.get("reject_below", cfg.reject_below))
+            recognizer = Recognizer(artifact, artifact.meta.get("window_ms", cfg.recognition_window_ms),
+                                    cfg.recognition_stride_ms, artifact.meta.get("reject_below", cfg.reject_below))
         auto = args.exercise == "auto"
         if auto and recognizer is None:
             raise SystemExit("--exercise auto needs a trained recognizer in ml/models (or pass --exercise curl etc.)")
@@ -187,7 +187,7 @@ class Runner:
 
     def _show(self, image, wait_ms: int = 1) -> int:
         import cv2
-        cv2.imshow("Gym&AI vision (debug)", image)
+        cv2.imshow("Gym&I vision (debug)", image)
         return cv2.waitKey(wait_ms) & 0xFF
 
     def _key_action(self, key: int) -> str | None:

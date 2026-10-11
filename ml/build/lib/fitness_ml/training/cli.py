@@ -24,6 +24,10 @@ def main() -> int:
     args = _parser().parse_args()
     if args.cmd == "ingest":
         return _ingest(args)
+    if args.cmd == "setup":
+        from .setup import setup
+        setup(DATA, args.workers)
+        return 0
     if args.cmd == "merge":
         from .manifest import read, summary, write
         rows = [r for p in args.manifests for r in read(Path(p))]
@@ -60,6 +64,15 @@ def main() -> int:
         from .deadlift_angles import train_deadlift_angles
         train_deadlift_angles(Path(args.csv), Path(args.out_dir), args.model, args.seed, args.calibration_reps,
                               args.max_false_correction)
+    elif args.cmd == "sweep":
+        from .sweep import ALL_TASKS, sweep
+        grid = {"window_ms": args.window_ms, "hidden": args.hidden, "layers": args.layers, "dropout": args.dropout,
+                "lr": args.lr, "batch": args.batch, "steps": args.steps, "augment": args.augment, "mask": args.mask,
+                "velocity": args.velocity, "bidirectional": args.bidirectional, "attention": args.attention}
+        tasks = ALL_TASKS if args.task == "all" else [(args.task, args.exercise)]
+        for task, exercise in tasks:
+            sweep(Path(args.manifest), Path(args.cache), Path(args.split), task, exercise, Path(args.out_dir), grid,
+                  args.seed, args.device, args.epochs, args.patience, args.form_segment)
     elif args.cmd == "calibrate-reject":
         from .evaluate import calibrate_reject
         calibrate_reject(Path(args.artifact), args.target_accuracy)
@@ -70,6 +83,12 @@ def main() -> int:
         from .evaluate import evaluate
         evaluate(Path(args.artifact), Path(args.manifest), Path(args.cache), args.split_name)
     return 0
+
+
+def _flag(text: str) -> bool:
+    if text not in ("0", "1"):
+        raise ValueError(f"expected 0 or 1, got {text!r}")
+    return text == "1"
 
 
 def _ingest(args) -> int:
@@ -88,6 +107,9 @@ def _ingest(args) -> int:
 def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="fitness-train", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    st = sub.add_parser("setup", help="fresh machine: download + verify datasets, build manifest, extract, split")
+    st.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
 
     ing = sub.add_parser("ingest", help="build a manifest CSV from a dataset folder")
     ing.add_argument("dataset", choices=["multiview", "kaggle_workout", "weggry_deadlift", "csv"],
@@ -151,6 +173,27 @@ def _parser() -> argparse.ArgumentParser:
     dl.add_argument("--calibration-reps", type=int, default=3, help="clean reps judged first (0 = no calibration)")
     dl.add_argument("--max-false-correction", type=float, default=0.10,
                     help="CV budget for flagging clean reps; picks the fault threshold")
+
+    sw = sub.add_parser("sweep", help="GRU grid search ranked on validation; keeps the winner, archives the rest")
+    sw.add_argument("--task", choices=["all", "recognition", "form_binary", "form_issue"], default="all",
+                    help="all = recognizer + the 8 form models")
+    sw.add_argument("--exercise", choices=list(EXERCISES), help="for a single form task")
+    for name, kind, default in (("window-ms", float, "2000,3000"), ("hidden", int, "64,128"), ("layers", int, "1,2"),
+                                ("dropout", float, "0.2"), ("lr", float, "0.001"), ("batch", int, "128"),
+                                ("steps", int, "48"), ("augment", _flag, "0,1"), ("mask", _flag, "1"),
+                                ("velocity", _flag, "1"), ("bidirectional", _flag, "1"), ("attention", _flag, "1")):
+        sw.add_argument(f"--{name}", type=lambda text, kind=kind: [kind(v) for v in text.split(",")],
+                        default=[kind(v) for v in default.split(",")], help=f"comma list (default {default})")
+    sw.add_argument("--form-segment", choices=["rep", "window"], default="rep",
+                    help="cut form-task videos into reps (as used live) or fixed windows")
+    sw.add_argument("--manifest", default=str(DEFAULTS["manifest"]))
+    sw.add_argument("--cache", default=str(DEFAULTS["cache"]))
+    sw.add_argument("--split", default=str(DEFAULTS["split"]))
+    sw.add_argument("--out-dir", default=str(Config().models_dir))
+    sw.add_argument("--seed", type=int, default=13)
+    sw.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
+    sw.add_argument("--epochs", type=int, default=100)
+    sw.add_argument("--patience", type=int, default=10)
 
     cr = sub.add_parser("calibrate-reject", help="set a recognizer's 'unknown' threshold from its validation sweep")
     cr.add_argument("--artifact", required=True)

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gym&I · companion motion comparison</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101a20;color:#ecf5f7;font:15px system-ui,sans-serif}main{max-width:1400px;margin:auto;padding:24px}h1{font-size:26px;margin:0 0 8px}p{color:#a8bdc8;line-height:1.5}nav{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin:24px 0}label{display:grid;gap:6px;font-size:13px;color:#a8bdc8}select,button{padding:10px;border:1px solid #44616c;border-radius:8px;background:#1b303a;color:white;font:inherit}button{cursor:pointer}input{accent-color:#00a8be}.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}article{border:1px solid #29404b;border-radius:14px;overflow:hidden;background:#172630}article header{padding:16px}h2{font-size:18px;margin:0 0 6px}.stats,.clip{color:#a8bdc8;font-size:13px}.canvas{height:480px;position:relative}.canvas canvas{width:100%;height:100%;display:block}.links{padding:12px 16px;display:flex;gap:16px}a{color:#65d9e6}#status{min-height:22px;color:#65d9e6}footer{margin-top:20px;font-size:13px;color:#a8bdc8}@media(max-width:760px){main{padding:16px}.panels{grid-template-columns:1fr}.canvas{height:360px}}
+</style>
+<main>
+<h1>Gym&I · companion motion comparison</h1>
+<p>Atlas is steady and fuzzy; Flex bends like rubber; Pip is buoyant and glossy. Both panels use the same lighting, camera framing and animation phase.</p>
+<nav>
+<label>Companion<select id="character"><option value="atlas">Atlas · get stronger</option><option value="flex">Flex · build muscle</option><option value="pip">Pip · feel fitter</option></select></label>
+<label>Blockbench context<select id="context"></select></label>
+<button id="play" type="button">Pause</button>
+<label>Animation phase<input id="phase" type="range" min="0" max="1" step="0.001" value="0"></label>
+<label>View angle<input id="angle" type="range" min="-180" max="180" step="1" value="14"></label>
+</nav>
+<div id="status" role="status">Loading models…</div>
+<div class="panels">
+<article><header><h2>Blender snapshot</h2><div class="stats" id="blender-stats"></div><div class="clip" id="blender-clip"></div></header><div class="canvas" id="blender"></div><div class="links"><a id="blender-file">GLB</a></div></article>
+<article><header><h2>Blockbench</h2><div class="stats" id="blockbench-stats"></div><div class="clip" id="blockbench-clip"></div></header><div class="canvas" id="blockbench"></div><div class="links"><a id="bb-source">Editable .bbmodel</a><a id="bb-native">iOS USDZ</a><a id="bb-board">Pose sheet</a></div></article>
+</div>
+<footer>Blender files are a frozen copy of the other chat's export. Related clips are paired by context and named explicitly; unmatched contexts show Blender's neutral pose. Native iPhone performance and RealityKit playback still require device testing. The comparison uses GLB exports; USDZ materials can render differently.</footer>
+</main>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+const $=id=>document.getElementById(id), loader=new GLTFLoader();
+const related={idle:'idle',float:'idle',listening:'idle',thinking:'idle',ready:'happy',greeting:'happy',coaching:'encouraging',encourage:'encouraging',form_correct:'encouraging',rep_good:'happy',celebrate:'celebration',set_complete:'celebration',workout_complete:'celebration',rest:'rest',breathe:'rest',pause:'rest',reconnect:'sad'};
+const panels=['blender','blockbench'].map(id=>{
+  const element=$(id), renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0x172630);renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  element.append(renderer.domElement);
+  const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(35,1,.01,100), pmrem=new THREE.PMREMGenerator(renderer);
+  scene.environment=pmrem.fromScene(new RoomEnvironment(),.04).texture;
+  scene.add(new THREE.HemisphereLight(0xffffff,0x29303a,1));
+  for(const [p,intensity] of [[[-3,4,5],2],[[3,2,2],.8]]){const l=new THREE.DirectionalLight(0xffffff,intensity);l.position.set(...p);scene.add(l);}
+  return {id,element,renderer,scene,camera,model:null,mixer:null,clips:[],action:null};
+});
+let generation=0, playing=true, phase=0, previous=performance.now(), duration=4;
+const size=bytes=>(bytes/1048576).toFixed(2)+' MiB';
+async function load(){
+  const own=++generation, character=$('character').value;$('status').textContent='Loading '+character+'…';
+  try{
+    const [bb,bl,models]=await Promise.all([
+      fetch(character+'/manifest.json').then(r=>{if(!r.ok)throw Error(r.status);return r.json()}),
+      fetch('comparison/blender/'+character+'-manifest.json').then(r=>{if(!r.ok)throw Error(r.status);return r.json()}),
+      Promise.all([loader.loadAsync('comparison/blender/'+character+'.glb'),loader.loadAsync(character+'/'+character+'.glb')])
+    ]);
+    if(own!==generation){models.forEach(dispose);return}
+    for(let i=0;i<panels.length;i++){
+      const p=panels[i],gltf=models[i];if(p.model){p.mixer.stopAllAction();p.scene.remove(p.model);dispose({scene:p.model})}
+      p.model=gltf.scene;p.scene.add(p.model);p.clips=gltf.animations;p.mixer=new THREE.AnimationMixer(p.model);
+      p.box=new THREE.Box3().setFromObject(p.model);p.center=p.box.getCenter(new THREE.Vector3());p.height=p.box.getSize(new THREE.Vector3()).y;
+    }
+    // Match visual height, since the two tools can use different source units.
+    const height=panels[1].height;
+    for(const p of panels){p.model.scale.multiplyScalar(height/p.height);p.box.setFromObject(p.model);p.center=p.box.getCenter(new THREE.Vector3());p.distance=height*1.85;}
+    const selected=$('context').value;$('context').replaceChildren(...bb.clips.map(c=>{const o=document.createElement('option');o.value=c.name;o.textContent=c.name.replaceAll('_',' ')+' · '+c.context;return o}));
+    if(bb.clips.some(c=>c.name===selected))$('context').value=selected;
+    $('blender-stats').textContent=bl.triangles.toLocaleString()+' triangles · '+bl.bones+' bones · '+models[0].animations.length+' clips · '+size(bl.glb.bytes)+' GLB';
+    $('blockbench-stats').textContent=bb.triangles.toLocaleString()+' triangles · '+bb.bones+' bones · '+models[1].animations.length+' clips · '+size(bb.glb_bytes)+' GLB · '+size(bb.usdz_bytes)+' USDZ';
+    $('blender-file').href='comparison/blender/'+character+'.glb';$('bb-source').href=character+'/'+character+'.bbmodel';$('bb-native').href=character+'/'+character+'.usdz';$('bb-board').href=character+'/all-animations.jpg';
+    selectClip();
+  }catch(e){$('status').textContent='Could not load comparison: '+e.message;console.error(e)}
+}
+function dispose(gltf){const textures=new Set();gltf.scene.traverse(o=>{o.geometry?.dispose();for(const m of [].concat(o.material||[])){for(const v of Object.values(m))if(v?.isTexture)textures.add(v);m.dispose()}});textures.forEach(t=>t.dispose())}
+function selectClip(){
+  const name=$('context').value;phase=0;$('phase').value=0;
+  for(const p of panels){
+    p.mixer.stopAllAction();const target=p.id==='blockbench'?name:related[name];const clip=p.clips.find(c=>c.name===target);
+    p.action=clip?p.mixer.clipAction(clip):null;
+    if(p.action){p.action.reset().setLoop(THREE.LoopOnce,1);p.action.clampWhenFinished=true;p.action.play();p.action.paused=true;p.mixer.update(0)}
+    $(p.id+'-clip').textContent=clip?clip.name+' · '+clip.duration.toFixed(2)+' seconds':'Neutral pose · no matching Blender clip';
+    if(p.id==='blockbench')duration=clip?.duration||4;
+  }
+  $('status').textContent=related[name]?'Paired context: '+(name===related[name]?'same clip name':name+' ↔ '+related[name]+'. Related gestures, not identical clips.'):'Blockbench-only context; Blender shows its neutral pose.';
+}
+function render(now){
+  const dt=Math.min((now-previous)/1000,.1);previous=now;if(playing){phase=(phase+dt/duration)%1;$('phase').value=phase}
+  for(const p of panels){
+    if(p.action){p.action.time=phase*p.action.getClip().duration;p.mixer.update(0)}
+    const width=p.element.clientWidth,height=p.element.clientHeight;if(p.renderer.domElement.width!==Math.round(width*p.renderer.getPixelRatio())||p.renderer.domElement.height!==Math.round(height*p.renderer.getPixelRatio())){p.renderer.setSize(width,height,false);p.camera.aspect=width/height;p.camera.updateProjectionMatrix()}
+    if(p.center){const a=+$('angle').value*Math.PI/180;p.camera.position.copy(p.center).add(new THREE.Vector3(Math.sin(a),.18,Math.cos(a)).normalize().multiplyScalar(p.distance));p.camera.lookAt(p.center)}
+    p.renderer.render(p.scene,p.camera);
+  }
+  requestAnimationFrame(render);
+}
+$('character').addEventListener('change',load);$('context').addEventListener('change',selectClip);
+$('play').addEventListener('click',()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play'});
+$('phase').addEventListener('input',()=>{phase=+$('phase').value;playing=false;$('play').textContent='Play'});
+requestAnimationFrame(render);load();
+</script>
+</html>

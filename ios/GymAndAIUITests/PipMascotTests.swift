@@ -2,6 +2,24 @@ import XCTest
 
 final class PipMascotTests: XCTestCase {
     @MainActor
+    func testAllCompanionsLoadAfterSelection() {
+        let app = XCUIApplication()
+        app.launch()
+        for (name, focus) in [("Atlas", "Get stronger"), ("Flex", "Build muscle"), ("Pip", "Feel fitter")] {
+            app.buttons["Workout setup"].tap()
+            let choice = app.descendants(matching: .any)["companion-choice"].firstMatch
+            XCTAssertTrue(choice.waitForExistence(timeout: 5))
+            choice.tap()
+            app.staticTexts["\(name) · \(focus)"].tap()
+            app.buttons["Done"].tap()
+            let mascot = app.buttons["celebrate-pip"]
+            waitForValue("3D", on: mascot)
+            XCTAssertEqual(mascot.label, "Celebrate with \(name)")
+            capture(app, name: "\(name) animated companion")
+        }
+    }
+
+    @MainActor
     func testTodayLoads3DAndTapReturnsToIdle() {
         let app = XCUIApplication()
         app.launch()

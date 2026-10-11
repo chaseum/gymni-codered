@@ -3,6 +3,7 @@ import SwiftUI
 struct TodayMascotButton: View {
     let state: MascotState
     let celebrate: () -> Void
+    @AppStorage("companion") private var companion = CompanionKind.pip
 
     var body: some View {
         Button(action: celebrate) {
@@ -11,7 +12,7 @@ struct TodayMascotButton: View {
         }
         .buttonStyle(.plain)
         .disabled(state == .celebrate)
-        .accessibilityLabel("Celebrate with Pip")
+        .accessibilityLabel("Celebrate with \(companion.name)")
         .accessibilityHint("Plays a short celebration.")
         .accessibilityIdentifier("celebrate-pip")
     }

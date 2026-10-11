@@ -36,6 +36,11 @@ class ExerciseConfig:
     reviewed: frozenset[str] = frozenset()
 
 
+# Form thresholds (2026-10-11) were set from dataset replays, not from our own clips: each flags <=10% of the
+# "good"-labelled Multi-View reps of train+val people (deadlift: weggry "correct" lifts). Held-out test people:
+# good reps flagged curl 11%, squat 7%, press 12%, triceps 2%, row 8%, side bend 14%, push-up pike 0%;
+# deadlift catches 25% of weggry hips-rise-early lifts at 4% of clean ones. "Bad" videos mostly fail for
+# reasons these rules do not measure, so catch rates on them are low; push-up sag had no examples (guess).
 EXERCISES: dict[str, ExerciseConfig] = {
     # Tuned on real front-facing sessions (demo/clips/me_curl.mp4 + a water-bottle session, 2026-10-10): the
     # estimated 3D elbow angle flattened every curl to ~85-90°, the 2D angle dipped cleanly to 5-25°. Counts on the
@@ -46,7 +51,9 @@ EXERCISES: dict[str, ExerciseConfig] = {
         basis="image_2d",
         rep=RepConfig("elbow", start_phase="lowered", start_deg=140, turn_deg=85, min_rep_ms=450),
         required=("shoulder", "elbow", "wrist"),
+        # No elbow-drift rule: on Multi-View drift never separated good/bad and spiked on tracking glitches.
         thresholds={"full_flexion_max_deg": 60},
+        reviewed=frozenset({"curl.partial_range"}),
     ),
     # Side view required for depth. Variation must be stated: bodyweight vs goblet/barbell change depth norms.
     "squat": ExerciseConfig(
@@ -55,6 +62,7 @@ EXERCISES: dict[str, ExerciseConfig] = {
         rep=RepConfig("knee", start_phase="raised", start_deg=160, turn_deg=120, min_rep_ms=800),
         required=("hip", "knee", "ankle"),
         thresholds={"depth_knee_max_deg": 95},
+        reviewed=frozenset({"squat.shallow_depth"}),
     ),
     # Side view. Landmarks cannot show bar path, bracing or spinal flexion; none of those are claimed.
     "deadlift": ExerciseConfig(
@@ -62,37 +70,41 @@ EXERCISES: dict[str, ExerciseConfig] = {
         basis="image_2d",
         rep=RepConfig("hip", start_phase="lowered", start_deg=120, turn_deg=160, min_rep_ms=800),
         required=("shoulder", "hip", "knee"),
-        thresholds={"early_window_frac": 0.3, "hip_shoulder_rise_ratio": 2.0, "min_hip_rise": 0.05},
+        thresholds={"early_window_frac": 0.3, "hip_shoulder_rise_ratio": 1.0, "min_hip_rise": 0.05},
+        reviewed=frozenset({"deadlift.hips_rise_early"}),
     ),
-    # The five below come from the Multi-View dataset. No form *rules* yet: their form signal is the trained
-    # good/bad model. Counting thresholds are starting guesses; tune with `run --record` + replay.
+    # The five below come from the Multi-View dataset. Counting thresholds are starting guesses; tune with
+    # `run --record` + replay.
     "shoulder_press": ExerciseConfig(
         variation="standing_dumbbell", basis="image_2d",
         rep=RepConfig("elbow", start_phase="lowered", start_deg=105, turn_deg=150),
-        required=("shoulder", "elbow", "wrist"), thresholds={},
+        required=("shoulder", "elbow", "wrist"), thresholds={"lockout_elbow_min_deg": 160}, reviewed=frozenset({"shoulder_press.incomplete_lockout"}),
     ),
     "triceps_extension": ExerciseConfig(
         variation="overhead_dumbbell", basis="world_3d",
         rep=RepConfig("elbow", start_phase="lowered", start_deg=90, turn_deg=145),
-        required=("shoulder", "elbow", "wrist"), thresholds={},
+        required=("shoulder", "elbow", "wrist"), thresholds={"extension_elbow_min_deg": 158},
+        reviewed=frozenset({"triceps_extension.incomplete_extension"}),
     ),
     "row": ExerciseConfig(
         variation="bent_over_dumbbell", basis="world_3d",
         rep=RepConfig("elbow", start_phase="lowered", start_deg=145, turn_deg=100),
-        required=("shoulder", "elbow", "wrist"), thresholds={},
+        required=("shoulder", "elbow", "wrist"), thresholds={"pull_elbow_max_deg": 90}, reviewed=frozenset({"row.short_pull"}),
     ),
     "push_up": ExerciseConfig(
         variation="standard", basis="image_2d",  # side view
         rep=RepConfig("elbow", start_phase="raised", start_deg=150, turn_deg=105),
-        required=("shoulder", "elbow", "wrist"), thresholds={},
+        required=("shoulder", "elbow", "wrist"),
+        thresholds={"depth_elbow_max_deg": 100, "hip_sag_max": 0.15, "hip_pike_max": 0.3},
+        reviewed=frozenset({"push_up.shallow_depth", "push_up.hips_sagging", "push_up.hips_piked"}),
     ),
     "side_bend": ExerciseConfig(
         variation="standing_dumbbell", basis="image_2d",  # front view: lean is measured in the image plane
         rep=RepConfig("trunk_lean_deg", start_phase="raised", start_deg=8, turn_deg=20, hysteresis_deg=3),
-        required=("shoulder", "hip"), thresholds={},
+        required=("shoulder", "hip"), thresholds={"lean_min_deg": 22}, reviewed=frozenset({"side_bend.partial_range"}),
     ),
 }
-CONTRACT_EXERCISES = ("curl", "squat", "deadlift")  # v1 contract ids; the rest travel as "other" + exercise_detail
+CONTRACT_EXERCISES = tuple(EXERCISES)  # all 8 are contract ids since 2026-10-11 (exercise_detail stays for old readers)
 
 
 @dataclass

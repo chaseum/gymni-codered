@@ -1,0 +1,77 @@
+{
+  "character": "atlas",
+  "source": "D:\\chase\\code\\gymni-codered\\blender-companions\\atlas\\atlas-mobile.blend",
+  "triangles": 38656,
+  "bones": 12,
+  "fps": 30,
+  "glb": {
+    "bytes": 1770452,
+    "animations": 6,
+    "skins": 1
+  },
+  "usdz_bytes": 2517893,
+  "clips": [
+    {
+      "name": "idle",
+      "duration": 2.4,
+      "loop": true,
+      "start_frame": 1,
+      "end_frame": 73,
+      "trim_start": 0.0,
+      "trim_end": 2.4,
+      "context": "Reusable float / idle: Today, waiting, listening and active workout"
+    },
+    {
+      "name": "encouraging",
+      "duration": 2.0,
+      "loop": false,
+      "start_frame": 74,
+      "end_frame": 134,
+      "trim_start": 2.433333333333333,
+      "trim_end": 4.433333333333334,
+      "context": "Coaching, encouragement and gentle form guidance"
+    },
+    {
+      "name": "celebration",
+      "duration": 2.4,
+      "loop": false,
+      "start_frame": 135,
+      "end_frame": 207,
+      "trim_start": 4.466666666666667,
+      "trim_end": 6.866666666666666,
+      "context": "Set or workout completion and verified achievements"
+    },
+    {
+      "name": "rest",
+      "duration": 3.0,
+      "loop": true,
+      "start_frame": 208,
+      "end_frame": 298,
+      "trim_start": 6.9,
+      "trim_end": 9.9,
+      "context": "Reusable sleep / rest: recovery, pause and inactive companion"
+    },
+    {
+      "name": "happy",
+      "duration": 2.0,
+      "loop": false,
+      "start_frame": 299,
+      "end_frame": 359,
+      "trim_start": 9.933333333333334,
+      "trim_end": 11.933333333333334,
+      "context": "Positive acknowledgement, improved form and successful rep feedback"
+    },
+    {
+      "name": "sad",
+      "duration": 2.4,
+      "loop": false,
+      "start_frame": 360,
+      "end_frame": 432,
+      "trim_start": 11.966666666666667,
+      "trim_end": 14.366666666666667,
+      "context": "Gentle empathy for user-reported disappointment; never shame form or performance"
+    }
+  ],
+  "ios_device_validation": "pending",
+  "reduce_motion": "Use neutral frame; stop playback"
+}

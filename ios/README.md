@@ -18,7 +18,7 @@ For a physical iPhone, select your development team in Signing & Capabilities an
 - Dynamic Type, scrolling layouts, labeled controls, and touch targets of at least 44 points.
 - Native Liquid Glass on iOS 26+: Watch/rep tiles and the floating coach caption use regular glass; primary buttons use lime-tinted glass and secondary buttons use neutral glass. Camera controls sit directly over the video, with no enclosing glass panel. Reduce Transparency uses opaque tiles and standard buttons; older iOS versions use material tiles and standard buttons. The deployment baseline stays iOS 17.
 - Settings → Apple Health → **Connect Apple Health** requests permission to read heart rate through the native HealthKit sheet. It requests no write permission, reads no samples, and sends no health data to the laptop. Completion is reported as “Permission request finished”; HealthKit does not reveal denial of read access. Errors and unavailable-device states remain visible.
-- Pip replaces the drawn Octobuddy with a bundled 3D USDZ rendered in RealityKit's non-AR mode. It animates while coaching speaks, rests on pause, and celebrates at recap. Tap Pip on Today for a brief celebration.
+- Choose Pip, Atlas or Flex in Settings > Companion. The selected bundled 3D companion coaches, rests on pause, and celebrates at recap. Tap it on Today for a brief celebration.
 
 ## Connect the laptop
 
@@ -134,14 +134,18 @@ For dynamic cues, install `backend[dynamic-cues]`, configure `GEMINI_API_KEY`, s
 
 Skills used: `code-tips-skill` and `swiftui-pro`. Deployment/toolchain settings follow the existing package and installed SDK rather than unsupported newer APIs.
 
-## Animated Pip
+## Animated companions
 
-Pip is the first of three planned companions. Its editable source is `../docs/design/models/pip/pip.blend`; run `blender --background --python scripts/build_pip.py` from the repository root to rebuild the model, reflection environment, and transparent preview.
+Choose **Pip**, **Atlas** or **Flex** in **Settings > Companion**. The saved choice applies to every existing `PipView(state:)`. The synchronized Xcode app folder includes `Mascot/Resources/Pip.usdz`, `AtlasAnimated.usdz`, `FlexAnimated.usdz`, and `CompanionClips.json` automatically: **4.27 MB combined**. Transparent fallback previews are in the asset catalog. Blender sources, GLBs and review renders are not app resources.
 
-`PipView(state:)` accepts Ready, Coaching, Celebrating, or Resting. Its RealityKit scene uses no AR session or camera permissions. Parts move independently without a skeletal rig. Speech activity comes from the native synthesizer's start/finish/cancel/pause/continue delegate callbacks; obsolete callbacks cannot override a newer utterance. Muting, leaving the workout, and backgrounding stop current speech.
+`PipMotion` now trims the imported skeletal timeline with RealityKit's AnimationView. `.idle` plays idle, `.coaching` plays encouraging, `.celebrate` plays celebration, and `.rest` plays rest. `.happy` and `.sad` are available to callers; sad is not automatically triggered by poor form. Idle/rest loop; other clips play once and return to idle unless state changes. The procedural transform driver is replaced. Models are fitted to the existing studio framing. The scene uses no AR session or camera permissions.
 
-USDZ and reflection resources load asynchronously and are shared as immutable source assets; each visible mascot gets its own entity clone. Hidden/backgrounded views dismantle the scene and cancel its update subscription. Failed model loading uses the bundled transparent preview. Reduce Motion retains a neutral 3D pose and cancels movement updates.
+USDZ and reflection resources load asynchronously and are cached; each visible mascot gets its own entity clone. Changing companion recreates its scene. Hidden/backgrounded views stop playback and cancel pending completion tasks. Failed loading uses the selected companion's preview. Reduce Motion evaluates a paused neutral idle frame and disables overlays.
 
-`PipMascotTests` checks model loading, tapping and returning to idle, static fallback, Reduce Motion, background/tab restoration, and rest/recap navigation. Debug-only `-PipForceFallback` and `-PipReduceMotion` arguments exercise those branches. Existing workout journey checks still cover camera/reps switching, orientation, and large-text control access.
+`CompanionEffectsView` adds one 2.4-second burst of 18 confetti pieces for celebration, or three floating Z letters for rest. Its SwiftUI Canvas requests at most 30 updates per second, pauses after confetti, ignores taps, and is hidden from accessibility. No new textures or dependencies are required.
+
+Run `python scripts/validate_companion_bundle.py` from the repository root to check shipped resources, all 18 clip definitions, fallback assets and Xcode inclusion. The generated assets also passed skin-weight, 30 Hz sample, endpoint, size and Blender USDZ reimport checks. Authoring instructions are in `../blender-companions/animated/README.md`; generated authoring/review outputs are ignored by Git.
+
+`PipMascotTests` checks selection/loading of all three companions, tapping and returning to idle, static fallback, Reduce Motion, background/tab restoration, and rest/recap navigation. Debug-only `-PipForceFallback` and `-PipReduceMotion` arguments exercise those branches. Existing workout journey checks still cover camera/reps switching, orientation, and large-text control access. Native compilation and UI tests require a Mac and were not run in this Windows integration session.
 
 Before judging, run on a physical iPhone and check: glossy appearance, idle/ring movement, speech-linked gestures ending on mute, rest/resume/recap, Reduce Motion, background/foreground restoration, and performance alongside the real video feed. Music/AirPods ducking needs the existing manual audio check. No physical device was connected during this implementation.

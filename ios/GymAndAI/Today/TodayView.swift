@@ -53,7 +53,7 @@ struct TodayView: View {
         mascotState = .celebrate
         celebration = Task {
             do {
-                try await Task.sleep(for: .seconds(1.6))
+                try await Task.sleep(for: .seconds(2.4))
                 mascotState = .idle
             } catch { }
         }

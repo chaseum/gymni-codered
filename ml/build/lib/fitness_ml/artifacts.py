@@ -1,11 +1,36 @@
 """Trained-model artifacts: one directory = metadata.json + model.joblib (sklearn) or model.pt (GRU).
 Shared by training (save) and live inference (load). Loading always works on CPU."""
 import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
 
-from .features import FEATURE_NAMES, aggregate, resample
+from .features import FEATURE_NAMES, aggregate
+from .sequence import gru_inputs, input_size, resample_seen
+
+@dataclass(frozen=True)
+class GRUParams:
+    """Everything that shapes a GRU model; stored in metadata["gru"] so loading rebuilds the same network."""
+    hidden: int = 64
+    layers: int = 1
+    dropout: float = 0.0
+    lr: float = 1e-3
+    batch: int = 64
+    steps: int = 48     # each window is resampled to this many time steps
+    mask: bool = False           # add a "joint was actually seen" channel per feature
+    velocity: bool = False       # add step-to-step change per feature
+    bidirectional: bool = False  # read the window forwards and backwards
+    attention: bool = False      # weight time steps instead of using only the final state
+    augment: bool = False        # training only: mirror / tilt / hidden-limb / noise variants each epoch
+
+    @classmethod
+    def from_meta(cls, meta: dict) -> "GRUParams":
+        return cls(**meta["gru"]) if "gru" in meta else cls(hidden=meta["hidden"], steps=meta["steps"])
+
+    def as_meta(self) -> dict:
+        return asdict(self)
+
 
 # Models trained on MyDeadlift's published angles (no videos) see only these three, from the tracked side.
 ANGLE_FEATURES = ("knee_angle_deg", "hip_angle_deg", "trunk_lean_deg")
@@ -76,7 +101,8 @@ class Artifact:
     def _load_gru(self):
         import torch
         state = torch.load(self.dir / "model.pt", map_location="cpu", weights_only=True)
-        self._net = build_gru(len(FEATURE_NAMES), len(self.labels), self.meta["hidden"])
+        self._params = GRUParams.from_meta(self.meta)
+        self._net = build_gru(len(self.labels), self._params)
         self._net.load_state_dict(state)
         self._net.eval()
         self._mean = np.array(self.meta["norm_mean"])
@@ -84,10 +110,11 @@ class Artifact:
 
     def _gru_proba(self, matrix, timestamps_ms):
         import torch
-        seq = (resample(matrix, timestamps_ms, self.meta["steps"]) - self._mean) / self._std
+        values, seen = resample_seen(matrix, timestamps_ms, self._params.steps)
+        x = gru_inputs(values, seen, self._mean, self._std, self._params.mask, self._params.velocity)
         with torch.no_grad():
-            logits = self._net(torch.tensor(seq[None], dtype=torch.float32))
-        return torch.softmax(logits, -1)[0].numpy()
+            logits = self._net(torch.tensor(x[None]))
+        return torch.softmax(logits / self.meta.get("temperature", 1.0), -1)[0].numpy()
 
 
 def keypose_curve(angles: np.ndarray, timestamps_ms: np.ndarray) -> np.ndarray:
@@ -122,20 +149,46 @@ def side_angles(matrix: np.ndarray, side: str) -> np.ndarray:
     return matrix[:, [FEATURE_NAMES.index(n) for n in names]]
 
 
-def build_gru(n_features: int, n_labels: int, hidden: int):
+def build_gru(n_labels: int, params: GRUParams):
+    import torch
     import torch.nn as nn
+
+    directions = 2 if params.bidirectional else 1
+    width = params.hidden * directions
 
     class GRUClassifier(nn.Module):
         def __init__(self):
             super().__init__()
-            self.gru = nn.GRU(n_features, hidden, batch_first=True)
-            self.head = nn.Linear(hidden, n_labels)
+            self.gru = nn.GRU(input_size(params.mask, params.velocity), params.hidden, num_layers=params.layers,
+                              batch_first=True, bidirectional=params.bidirectional,
+                              dropout=params.dropout if params.layers > 1 else 0.0)
+            if params.attention:
+                self.score = nn.Linear(width, 1)
+            self.drop = nn.Dropout(params.dropout)  # no weights: older state dicts still load
+            self.head = nn.Linear(width, n_labels)
 
         def forward(self, x):
-            _, h = self.gru(x)
-            return self.head(h[-1])
+            out, h = self.gru(x)
+            if params.attention:
+                weights = torch.softmax(self.score(out).squeeze(-1), dim=1)
+                pooled = (weights.unsqueeze(-1) * out).sum(1)
+            else:
+                pooled = torch.cat([h[-2], h[-1]], dim=-1) if params.bidirectional else h[-1]
+            return self.head(self.drop(pooled))
 
     return GRUClassifier()
+
+
+def fit_temperature(logits: np.ndarray, labels: np.ndarray) -> float:
+    """Temperature T minimising validation negative log-likelihood of softmax(logits / T). T > 1 softens an
+    overconfident network so that "90% sure" is right about 90% of the time; it never changes the argmax."""
+    def nll(t):
+        z = logits / t
+        z = z - z.max(1, keepdims=True)
+        log_p = z - np.log(np.exp(z).sum(1, keepdims=True))
+        return -log_p[np.arange(len(labels)), labels].mean()
+    grid = np.geomspace(0.25, 20, 200)
+    return float(grid[np.argmin([nll(t) for t in grid])])
 
 
 def discover(models_dir: str | Path) -> tuple[Path | None, dict[str, Path]]:

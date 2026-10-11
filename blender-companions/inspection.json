@@ -1,0 +1,1694 @@
+{
+  "pip": {
+    "objects": [
+      {
+        "name": "PipRoot",
+        "type": "EMPTY",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "Body",
+        "type": "EMPTY",
+        "parent": "PipRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "BodyMesh",
+        "type": "MESH",
+        "parent": "Body",
+        "vertices": 3120,
+        "polygons": 3074,
+        "modifiers": [
+          {
+            "name": "Polished continuous silhouette",
+            "type": "SUBSURF",
+            "levels": 1
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          1.0733349323272705,
+          0.9279687404632568,
+          1.4399999380111694
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "LeftEye",
+        "type": "MESH",
+        "parent": "Body",
+        "vertices": 193,
+        "polygons": 193,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.1899999976158142,
+          -0.3930445611476898,
+          1.059999942779541
+        ],
+        "dimensions": [
+          0.08843865990638733,
+          0.08086729049682617,
+          0.14294075965881348
+        ],
+        "materials": [
+          "InsetEye0097B2"
+        ]
+      },
+      {
+        "name": "RightEye",
+        "type": "MESH",
+        "parent": "Body",
+        "vertices": 193,
+        "polygons": 193,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.15000000596046448,
+          -0.3572155237197876,
+          1.059999942779541
+        ],
+        "dimensions": [
+          0.09687644988298416,
+          0.09914490580558777,
+          0.13907736539840698
+        ],
+        "materials": [
+          "InsetEye0097B2"
+        ]
+      },
+      {
+        "name": "Smile",
+        "type": "MESH",
+        "parent": "Body",
+        "vertices": 170,
+        "polygons": 160,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.18350151181221008,
+          0.06266430020332336,
+          0.07337826490402222
+        ],
+        "materials": [
+          "Brand0097B2"
+        ]
+      },
+      {
+        "name": "LeftArm",
+        "type": "EMPTY",
+        "parent": "Body",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.46000000834465027,
+          -0.02500000037252903,
+          0.9399999976158142
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftArmMesh",
+        "type": "MESH",
+        "parent": "LeftArm",
+        "vertices": 610,
+        "polygons": 640,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.10000000149011612
+        ],
+        "dimensions": [
+          0.20999985933303833,
+          0.22999979555606842,
+          0.4399999976158142
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "RightArm",
+        "type": "EMPTY",
+        "parent": "Body",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.4300000071525574,
+          -0.02500000037252903,
+          1.0700000524520874
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RightArmMesh",
+        "type": "MESH",
+        "parent": "RightArm",
+        "vertices": 610,
+        "polygons": 640,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.10000000149011612
+        ],
+        "dimensions": [
+          0.20999984443187714,
+          0.22999979555606842,
+          0.4399999678134918
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "LeftFoot",
+        "type": "EMPTY",
+        "parent": "PipRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.23000000417232513,
+          -0.009999999776482582,
+          0.15000000596046448
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftFootMesh",
+        "type": "MESH",
+        "parent": "LeftFoot",
+        "vertices": 610,
+        "polygons": 640,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          -0.08500000089406967,
+          0.0
+        ],
+        "dimensions": [
+          0.3199998140335083,
+          0.45999959111213684,
+          0.23000000417232513
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "LeftFootLeg",
+        "type": "MESH",
+        "parent": "LeftFoot",
+        "vertices": 610,
+        "polygons": 640,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.10000000149011612
+        ],
+        "dimensions": [
+          0.18999987840652466,
+          0.19999980926513672,
+          0.23999999463558197
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "RightFoot",
+        "type": "EMPTY",
+        "parent": "PipRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.23999999463558197,
+          0.009999999776482582,
+          0.12999999523162842
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RightFootMesh",
+        "type": "MESH",
+        "parent": "RightFoot",
+        "vertices": 610,
+        "polygons": 640,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          -0.08500000089406967,
+          0.0
+        ],
+        "dimensions": [
+          0.3199997842311859,
+          0.45999959111213684,
+          0.22999998927116394
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "RightFootLeg",
+        "type": "MESH",
+        "parent": "RightFoot",
+        "vertices": 610,
+        "polygons": 640,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.10000000149011612
+        ],
+        "dimensions": [
+          0.18999986350536346,
+          0.19999980926513672,
+          0.23999997973442078
+        ],
+        "materials": [
+          "CharcoalGloss"
+        ]
+      },
+      {
+        "name": "Orbit",
+        "type": "EMPTY",
+        "parent": "PipRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.5899999737739563
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "OrbitMesh",
+        "type": "MESH",
+        "parent": "Orbit",
+        "vertices": 1280,
+        "polygons": 1280,
+        "modifiers": [
+          {
+            "name": "Polished continuous silhouette",
+            "type": "SUBSURF",
+            "levels": 1
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          1.7985000610351562,
+          1.649999976158142,
+          0.1899999976158142
+        ],
+        "materials": [
+          "Brand0097B2"
+        ]
+      },
+      {
+        "name": "LargeWarmKey",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -3.799999952316284,
+          -4.800000190734863,
+          5.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "CoolRim",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          3.0,
+          2.0,
+          4.199999809265137
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "SoftFrontFill",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          3.0,
+          -4.0,
+          2.200000047683716
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "StudioCamera",
+        "type": "CAMERA",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          1.0,
+          -6.5,
+          2.75
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      }
+    ],
+    "camera": "StudioCamera"
+  },
+  "atlas": {
+    "objects": [
+      {
+        "name": "AtlasRoot",
+        "type": "EMPTY",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "Body",
+        "type": "EMPTY",
+        "parent": "AtlasRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "BodyMesh",
+        "type": "MESH",
+        "parent": "AtlasDeformRig",
+        "vertices": 14016,
+        "polygons": 16945,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          1.6799789667129517,
+          1.1799869537353516,
+          1.860229730606079
+        ],
+        "materials": [
+          "CarpetBlend00_0",
+          "CarpetBlend00_1",
+          "CarpetBlend00_2",
+          "CarpetBlend01_0",
+          "CarpetBlend01_1",
+          "CarpetBlend01_2",
+          "CarpetBlend02_0",
+          "CarpetBlend02_1",
+          "CarpetBlend02_2",
+          "CarpetBlend03_0",
+          "CarpetBlend03_1",
+          "CarpetBlend03_2",
+          "CarpetBlend04_0",
+          "CarpetBlend04_1",
+          "CarpetBlend04_2",
+          "CarpetBlend05_0",
+          "CarpetBlend05_1",
+          "CarpetBlend05_2",
+          "CarpetBlend06_0",
+          "CarpetBlend06_1",
+          "CarpetBlend06_2",
+          "CarpetBlend07_0",
+          "CarpetBlend07_1",
+          "CarpetBlend07_2",
+          "CarpetBlend08_0",
+          "CarpetBlend08_1",
+          "CarpetBlend08_2",
+          "CarpetBlend09_0",
+          "CarpetBlend09_1",
+          "CarpetBlend09_2",
+          "CarpetBlend10_0",
+          "CarpetBlend10_1",
+          "CarpetBlend10_2",
+          "CarpetBlend11_0",
+          "CarpetBlend11_1",
+          "CarpetBlend11_2",
+          "CarpetBlend12_0",
+          "CarpetBlend12_1",
+          "CarpetBlend12_2",
+          "CarpetBlend13_0",
+          "CarpetBlend13_1",
+          "CarpetBlend13_2",
+          "CarpetBlend14_0",
+          "CarpetBlend14_1",
+          "CarpetBlend14_2",
+          "CarpetBlend15_0",
+          "CarpetBlend15_1",
+          "CarpetBlend15_2",
+          "CarpetBlend16_0",
+          "CarpetBlend16_1",
+          "CarpetBlend16_2"
+        ]
+      },
+      {
+        "name": "BodyCarpetPile",
+        "type": "MESH",
+        "parent": "AtlasDeformRig",
+        "vertices": 120000,
+        "polygons": 105000,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          1.7737219333648682,
+          1.2746214866638184,
+          1.9539902210235596
+        ],
+        "materials": [
+          "CarpetBlend00_0",
+          "CarpetBlend00_1",
+          "CarpetBlend00_2",
+          "CarpetBlend01_0",
+          "CarpetBlend01_1",
+          "CarpetBlend01_2",
+          "CarpetBlend02_0",
+          "CarpetBlend02_1",
+          "CarpetBlend02_2",
+          "CarpetBlend03_0",
+          "CarpetBlend03_1",
+          "CarpetBlend03_2",
+          "CarpetBlend04_0",
+          "CarpetBlend04_1",
+          "CarpetBlend04_2",
+          "CarpetBlend05_0",
+          "CarpetBlend05_1",
+          "CarpetBlend05_2",
+          "CarpetBlend06_0",
+          "CarpetBlend06_1",
+          "CarpetBlend06_2",
+          "CarpetBlend07_0",
+          "CarpetBlend07_1",
+          "CarpetBlend07_2",
+          "CarpetBlend08_0",
+          "CarpetBlend08_1",
+          "CarpetBlend08_2",
+          "CarpetBlend09_0",
+          "CarpetBlend09_1",
+          "CarpetBlend09_2",
+          "CarpetBlend10_0",
+          "CarpetBlend10_1",
+          "CarpetBlend10_2",
+          "CarpetBlend11_0",
+          "CarpetBlend11_1",
+          "CarpetBlend11_2",
+          "CarpetBlend12_0",
+          "CarpetBlend12_1",
+          "CarpetBlend12_2",
+          "CarpetBlend13_0",
+          "CarpetBlend13_1",
+          "CarpetBlend13_2",
+          "CarpetBlend14_0",
+          "CarpetBlend14_1",
+          "CarpetBlend14_2",
+          "CarpetBlend15_0",
+          "CarpetBlend15_1",
+          "CarpetBlend15_2",
+          "CarpetBlend16_0",
+          "CarpetBlend16_1",
+          "CarpetBlend16_2"
+        ]
+      },
+      {
+        "name": "LeftArm",
+        "type": "EMPTY",
+        "parent": "AtlasDeformRig",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.8500000238418579,
+          0.05000007152557373,
+          -0.014999999664723873
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftArmMesh",
+        "type": "MESH",
+        "parent": "LeftArm",
+        "vertices": 1490,
+        "polygons": 1536,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          -0.2800000011920929,
+          -0.15000000596046448
+        ],
+        "dimensions": [
+          0.49920034408569336,
+          0.5994002819061279,
+          0.7559999823570251
+        ],
+        "materials": [
+          "CarpetCharcoal0"
+        ]
+      },
+      {
+        "name": "LeftArmCarpetPile",
+        "type": "MESH",
+        "parent": "LeftArm",
+        "vertices": 24000,
+        "polygons": 21000,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.5909427404403687,
+          0.7022238969802856,
+          0.8337314128875732
+        ],
+        "materials": [
+          "CarpetCharcoal0",
+          "CarpetCharcoal1",
+          "CarpetCharcoal2",
+          "Carpet0097B20",
+          "Carpet0097B21",
+          "Carpet0097B22"
+        ]
+      },
+      {
+        "name": "RightArm",
+        "type": "EMPTY",
+        "parent": "AtlasDeformRig",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.8500000238418579,
+          -0.04999995231628418,
+          -0.03999999910593033
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RightArmMesh",
+        "type": "MESH",
+        "parent": "RightArm",
+        "vertices": 1490,
+        "polygons": 1536,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          -0.11999999731779099,
+          -0.15000000596046448
+        ],
+        "dimensions": [
+          0.49920034408569336,
+          0.5994002819061279,
+          0.7559999823570251
+        ],
+        "materials": [
+          "CarpetCharcoal0"
+        ]
+      },
+      {
+        "name": "RightArmCarpetPile",
+        "type": "MESH",
+        "parent": "RightArm",
+        "vertices": 24000,
+        "polygons": 21000,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.5902849435806274,
+          0.7031992673873901,
+          0.8442423343658447
+        ],
+        "materials": [
+          "CarpetCharcoal0",
+          "CarpetCharcoal1",
+          "CarpetCharcoal2",
+          "Carpet0097B20",
+          "Carpet0097B21",
+          "Carpet0097B22"
+        ]
+      },
+      {
+        "name": "LeftFoot",
+        "type": "EMPTY",
+        "parent": "AtlasRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.47999998927116394,
+          -0.03999999910593033,
+          0.1599999964237213
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftFootMesh",
+        "type": "MESH",
+        "parent": "LeftFoot",
+        "vertices": 1490,
+        "polygons": 1536,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          -0.11999999731779099,
+          0.0
+        ],
+        "dimensions": [
+          0.6800004839897156,
+          0.7800003290176392,
+          0.3400000035762787
+        ],
+        "materials": [
+          "CarpetCharcoal0"
+        ]
+      },
+      {
+        "name": "LeftFootCarpetPile",
+        "type": "MESH",
+        "parent": "LeftFoot",
+        "vertices": 18432,
+        "polygons": 16128,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.7737686634063721,
+          0.8808794021606445,
+          0.42629510164260864
+        ],
+        "materials": [
+          "CarpetCharcoal0",
+          "CarpetCharcoal1",
+          "CarpetCharcoal2",
+          "Carpet0097B20",
+          "Carpet0097B21",
+          "Carpet0097B22"
+        ]
+      },
+      {
+        "name": "RightFoot",
+        "type": "EMPTY",
+        "parent": "AtlasRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.49000000953674316,
+          -0.019999999552965164,
+          0.1599999964237213
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RightFootMesh",
+        "type": "MESH",
+        "parent": "RightFoot",
+        "vertices": 1490,
+        "polygons": 1536,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          -0.11999999731779099,
+          0.0
+        ],
+        "dimensions": [
+          0.6800004839897156,
+          0.7800003290176392,
+          0.3400000035762787
+        ],
+        "materials": [
+          "Carpet0097B20"
+        ]
+      },
+      {
+        "name": "RightFootCarpetPile",
+        "type": "MESH",
+        "parent": "RightFoot",
+        "vertices": 18432,
+        "polygons": 16128,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.7778162956237793,
+          0.8692222833633423,
+          0.4324576258659363
+        ],
+        "materials": [
+          "CarpetCharcoal0",
+          "CarpetCharcoal1",
+          "CarpetCharcoal2",
+          "Carpet0097B20",
+          "Carpet0097B21",
+          "Carpet0097B22"
+        ]
+      },
+      {
+        "name": "Face",
+        "type": "EMPTY",
+        "parent": "Body",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftEye",
+        "type": "MESH",
+        "parent": "AtlasDeformRig",
+        "vertices": 193,
+        "polygons": 193,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          -0.26499998569488525,
+          -0.6700000166893005,
+          1.7699999809265137
+        ],
+        "dimensions": [
+          0.09621724486351013,
+          0.04817056655883789,
+          0.1843494176864624
+        ],
+        "materials": [
+          "InsetEye0097B2"
+        ]
+      },
+      {
+        "name": "RightEye",
+        "type": "MESH",
+        "parent": "AtlasDeformRig",
+        "vertices": 193,
+        "polygons": 193,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.3149999976158142,
+          -0.6700000166893005,
+          1.6799999475479126
+        ],
+        "dimensions": [
+          0.0966024398803711,
+          0.0449833869934082,
+          0.18467915058135986
+        ],
+        "materials": [
+          "InsetEye0097B2"
+        ]
+      },
+      {
+        "name": "Smile",
+        "type": "MESH",
+        "parent": "AtlasDeformRig",
+        "vertices": 300,
+        "polygons": 290,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.20080938935279846,
+          0.046000003814697266,
+          0.0800790786743164
+        ],
+        "materials": [
+          "Face0097B2"
+        ]
+      },
+      {
+        "name": "AtlasDeformRig",
+        "type": "ARMATURE",
+        "parent": "AtlasRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [
+          {
+            "name": "Torso",
+            "parent": null,
+            "head": [
+              0.0,
+              0.0,
+              0.3799999952316284
+            ],
+            "tail": [
+              0.0,
+              0.0,
+              1.2999999523162842
+            ]
+          },
+          {
+            "name": "Head",
+            "parent": "Torso",
+            "head": [
+              0.0,
+              0.0,
+              1.2999999523162842
+            ],
+            "tail": [
+              0.0,
+              0.0,
+              2.119999885559082
+            ]
+          }
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          1.7399998903274536
+        ],
+        "materials": []
+      },
+      {
+        "name": "LargeWarmKey",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -3.799999952316284,
+          -4.800000190734863,
+          5.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "CoolRim",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          3.0,
+          2.0,
+          4.199999809265137
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "SoftFrontFill",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          3.0,
+          -4.0,
+          2.200000047683716
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "StudioCamera",
+        "type": "CAMERA",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          1.0,
+          -6.5,
+          2.75
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      }
+    ],
+    "camera": "StudioCamera"
+  },
+  "flex": {
+    "objects": [
+      {
+        "name": "FlexRoot",
+        "type": "EMPTY",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "Body",
+        "type": "EMPTY",
+        "parent": "FlexRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "FlexRibbonRig",
+        "type": "ARMATURE",
+        "parent": "FlexRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [
+          {
+            "name": "Ribbon01",
+            "parent": null,
+            "head": [
+              -0.6800000071525574,
+              -0.4000000059604645,
+              0.10999999940395355
+            ],
+            "tail": [
+              -0.6708398461341858,
+              -0.19157226383686066,
+              0.12830565869808197
+            ]
+          },
+          {
+            "name": "Ribbon02",
+            "parent": "Ribbon01",
+            "head": [
+              -0.6708398461341858,
+              -0.19157226383686066,
+              0.12830565869808197
+            ],
+            "tail": [
+              -0.6758593916893005,
+              0.032734375447034836,
+              0.5292578339576721
+            ]
+          },
+          {
+            "name": "Ribbon03",
+            "parent": "Ribbon02",
+            "head": [
+              -0.6758593916893005,
+              0.032734375447034836,
+              0.5292578339576721
+            ],
+            "tail": [
+              -0.7202050685882568,
+              0.0722363293170929,
+              1.637548804283142
+            ]
+          },
+          {
+            "name": "Ribbon04",
+            "parent": "Ribbon03",
+            "head": [
+              -0.7202050685882568,
+              0.0722363293170929,
+              1.637548804283142
+            ],
+            "tail": [
+              -0.1837500035762787,
+              0.06187500059604645,
+              2.1153125762939453
+            ]
+          },
+          {
+            "name": "Ribbon05",
+            "parent": "Ribbon04",
+            "head": [
+              -0.1837500035762787,
+              0.06187500059604645,
+              2.1153125762939453
+            ],
+            "tail": [
+              0.3917285203933716,
+              3.9062499126885086e-05,
+              1.5107470750808716
+            ]
+          },
+          {
+            "name": "Ribbon06",
+            "parent": "Ribbon05",
+            "head": [
+              0.3917285203933716,
+              3.9062499126885086e-05,
+              1.5107470750808716
+            ],
+            "tail": [
+              0.6332031488418579,
+              -0.04632812365889549,
+              0.4690234363079071
+            ]
+          },
+          {
+            "name": "Ribbon07",
+            "parent": "Ribbon06",
+            "head": [
+              0.6332031488418579,
+              -0.04632812365889549,
+              0.4690234363079071
+            ],
+            "tail": [
+              0.6309570074081421,
+              -0.25461915135383606,
+              0.12830565869808197
+            ]
+          },
+          {
+            "name": "Ribbon08",
+            "parent": "Ribbon07",
+            "head": [
+              0.6309570074081421,
+              -0.25461915135383606,
+              0.12830565869808197
+            ],
+            "tail": [
+              0.6299999952316284,
+              -0.4099999964237213,
+              0.10999999940395355
+            ]
+          },
+          {
+            "name": "HandRight",
+            "parent": "Ribbon06",
+            "head": [
+              0.5500001907348633,
+              -0.14000001549720764,
+              1.5800000429153442
+            ],
+            "tail": [
+              0.9800001978874207,
+              -0.060000017285346985,
+              1.78000009059906
+            ]
+          },
+          {
+            "name": "HandLeft",
+            "parent": "Ribbon03",
+            "head": [
+              -1.1699999570846558,
+              0.07000000774860382,
+              1.2000001668930054
+            ],
+            "tail": [
+              -1.3951283693313599,
+              -0.15512844920158386,
+              1.2321614027023315
+            ]
+          }
+        ],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          2.375128746032715,
+          0.4822363257408142,
+          2.005312442779541
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftFoot",
+        "type": "EMPTY",
+        "parent": "FlexRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.6600000262260437,
+          -0.02500000037252903,
+          0.11999999731779099
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RightFoot",
+        "type": "EMPTY",
+        "parent": "FlexRoot",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.6399999856948853,
+          -0.02500000037252903,
+          0.11999999731779099
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "Face",
+        "type": "EMPTY",
+        "parent": "Body",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftEye",
+        "type": "MESH",
+        "parent": "FlexRibbonRig",
+        "vertices": 193,
+        "polygons": 193,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          -0.04946313053369522,
+          -0.07007278501987457,
+          2.1069798469543457
+        ],
+        "dimensions": [
+          0.09508852660655975,
+          0.11225137114524841,
+          0.1086585521697998
+        ],
+        "materials": [
+          "InsetEye0097B2"
+        ]
+      },
+      {
+        "name": "RightEye",
+        "type": "MESH",
+        "parent": "FlexRibbonRig",
+        "vertices": 193,
+        "polygons": 193,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.20051394402980804,
+          0.05105779692530632,
+          2.107001304626465
+        ],
+        "dimensions": [
+          0.09061229228973389,
+          0.09865807741880417,
+          0.1236722469329834
+        ],
+        "materials": [
+          "InsetEye0097B2"
+        ]
+      },
+      {
+        "name": "Smile",
+        "type": "MESH",
+        "parent": "FlexRibbonRig",
+        "vertices": 300,
+        "polygons": 290,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          0.16449224948883057,
+          0.1223454549908638,
+          0.0702054500579834
+        ],
+        "materials": [
+          "Face0097B2"
+        ]
+      },
+      {
+        "name": "LargeWarmKey",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -3.799999952316284,
+          -4.800000190734863,
+          5.0
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "CoolRim",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          3.0,
+          2.0,
+          4.199999809265137
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "SoftFrontFill",
+        "type": "LIGHT",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          3.0,
+          -4.0,
+          2.200000047683716
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "StudioCamera",
+        "type": "CAMERA",
+        "parent": null,
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          1.0,
+          -6.5,
+          2.75
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "LeftArm",
+        "type": "EMPTY",
+        "parent": "FlexRibbonRig",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          -0.4660481810569763,
+          -0.4190293848514557,
+          -0.031343452632427216
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RightArm",
+        "type": "EMPTY",
+        "parent": "FlexRibbonRig",
+        "vertices": 0,
+        "polygons": 0,
+        "modifiers": [],
+        "bones": [],
+        "location": [
+          0.19733908772468567,
+          -1.095977544784546,
+          -0.09928406029939651
+        ],
+        "dimensions": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "materials": []
+      },
+      {
+        "name": "RibbonBody",
+        "type": "MESH",
+        "parent": "FlexRibbonRig",
+        "vertices": 152540,
+        "polygons": 152540,
+        "modifiers": [
+          {
+            "name": "Future emote deformation",
+            "type": "ARMATURE",
+            "levels": null
+          },
+          {
+            "name": "Polished rubber curvature",
+            "type": "SUBSURF",
+            "levels": 1
+          }
+        ],
+        "bones": [],
+        "location": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "dimensions": [
+          2.5295214653015137,
+          0.8051138520240784,
+          2.3496601581573486
+        ],
+        "materials": [
+          "ConnectedMoldedRubber"
+        ]
+      }
+    ],
+    "camera": "StudioCamera"
+  }
+}

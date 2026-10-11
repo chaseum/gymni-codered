@@ -1,0 +1,120 @@
+{
+  "character": "pip",
+  "root": "PipRoot",
+  "animations": 0,
+  "authored_emotes": [],
+  "revision": "2026-10-11 connected surfaces, soft carpet blend and inset V5 eyes",
+  "objects": [
+    {
+      "name": "Body",
+      "type": "EMPTY",
+      "parent": "PipRoot"
+    },
+    {
+      "name": "BodyMesh",
+      "type": "MESH",
+      "parent": "Body",
+      "triangles": 24768,
+      "weights": 0
+    },
+    {
+      "name": "LeftArm",
+      "type": "EMPTY",
+      "parent": "Body"
+    },
+    {
+      "name": "LeftArmMesh",
+      "type": "MESH",
+      "parent": "LeftArm",
+      "triangles": 1216,
+      "weights": 0
+    },
+    {
+      "name": "LeftEye",
+      "type": "MESH",
+      "parent": "Body",
+      "triangles": 382,
+      "weights": 0
+    },
+    {
+      "name": "RightArm",
+      "type": "EMPTY",
+      "parent": "Body"
+    },
+    {
+      "name": "RightArmMesh",
+      "type": "MESH",
+      "parent": "RightArm",
+      "triangles": 1216,
+      "weights": 0
+    },
+    {
+      "name": "RightEye",
+      "type": "MESH",
+      "parent": "Body",
+      "triangles": 382,
+      "weights": 0
+    },
+    {
+      "name": "Smile",
+      "type": "MESH",
+      "parent": "Body",
+      "triangles": 320,
+      "weights": 0
+    },
+    {
+      "name": "LeftFoot",
+      "type": "EMPTY",
+      "parent": "PipRoot"
+    },
+    {
+      "name": "LeftFootLeg",
+      "type": "MESH",
+      "parent": "LeftFoot",
+      "triangles": 1216,
+      "weights": 0
+    },
+    {
+      "name": "LeftFootMesh",
+      "type": "MESH",
+      "parent": "LeftFoot",
+      "triangles": 1216,
+      "weights": 0
+    },
+    {
+      "name": "Orbit",
+      "type": "EMPTY",
+      "parent": "PipRoot"
+    },
+    {
+      "name": "OrbitMesh",
+      "type": "MESH",
+      "parent": "Orbit",
+      "triangles": 10240,
+      "weights": 0
+    },
+    {
+      "name": "RightFoot",
+      "type": "EMPTY",
+      "parent": "PipRoot"
+    },
+    {
+      "name": "RightFootLeg",
+      "type": "MESH",
+      "parent": "RightFoot",
+      "triangles": 1216,
+      "weights": 0
+    },
+    {
+      "name": "RightFootMesh",
+      "type": "MESH",
+      "parent": "RightFoot",
+      "triangles": 1216,
+      "weights": 0
+    }
+  ],
+  "triangles": 43388,
+  "native_ios_validation": "pending",
+  "eye_style": "Shallow inset V5 capsules, replacing protruding oval eyes.",
+  "arm_finish": null
+}

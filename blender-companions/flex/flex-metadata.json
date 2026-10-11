@@ -1,0 +1,76 @@
+{
+  "character": "flex",
+  "root": "FlexRoot",
+  "animations": 0,
+  "authored_emotes": [],
+  "revision": "2026-10-11 connected surfaces, soft carpet blend and inset V5 eyes",
+  "objects": [
+    {
+      "name": "Body",
+      "type": "EMPTY",
+      "parent": "FlexRoot"
+    },
+    {
+      "name": "Face",
+      "type": "EMPTY",
+      "parent": "Body"
+    },
+    {
+      "name": "FlexRibbonRig",
+      "type": "ARMATURE",
+      "parent": "FlexRoot"
+    },
+    {
+      "name": "LeftArm",
+      "type": "EMPTY",
+      "parent": "FlexRibbonRig"
+    },
+    {
+      "name": "LeftEye",
+      "type": "MESH",
+      "parent": "FlexRibbonRig",
+      "triangles": 382,
+      "weights": 8
+    },
+    {
+      "name": "RibbonBody",
+      "type": "MESH",
+      "parent": "FlexRibbonRig",
+      "triangles": 1220320,
+      "weights": 10
+    },
+    {
+      "name": "RightArm",
+      "type": "EMPTY",
+      "parent": "FlexRibbonRig"
+    },
+    {
+      "name": "RightEye",
+      "type": "MESH",
+      "parent": "FlexRibbonRig",
+      "triangles": 382,
+      "weights": 8
+    },
+    {
+      "name": "Smile",
+      "type": "MESH",
+      "parent": "FlexRibbonRig",
+      "triangles": 596,
+      "weights": 8
+    },
+    {
+      "name": "LeftFoot",
+      "type": "EMPTY",
+      "parent": "FlexRoot"
+    },
+    {
+      "name": "RightFoot",
+      "type": "EMPTY",
+      "parent": "FlexRoot"
+    }
+  ],
+  "triangles": 1221680,
+  "native_ios_validation": "pending",
+  "eye_style": "Shallow inset V5 capsules, replacing protruding oval eyes.",
+  "arm_finish": "Charcoal outer/top face with turquoise inner curl."
+}

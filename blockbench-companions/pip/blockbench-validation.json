@@ -1,0 +1,106 @@
+{
+  "version": "5.2.1",
+  "checks": [
+    {
+      "name": "idle",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "float",
+      "seam": 0,
+      "motion": 4.08083701133728
+    },
+    {
+      "name": "greeting",
+      "seam": 0,
+      "motion": 4.8773863315582275
+    },
+    {
+      "name": "ready",
+      "seam": 0,
+      "motion": 3.908985733985901
+    },
+    {
+      "name": "listening",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "thinking",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "coaching",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "rep_good",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "form_correct",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "encourage",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "countdown",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "set_complete",
+      "seam": 0,
+      "motion": 6.048873424530029
+    },
+    {
+      "name": "celebrate",
+      "seam": 0,
+      "motion": 6.048873424530029
+    },
+    {
+      "name": "rest",
+      "seam": 0,
+      "motion": 1.0558881759643555
+    },
+    {
+      "name": "breathe",
+      "seam": 0,
+      "motion": 3.908985733985901
+    },
+    {
+      "name": "stretch",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "pause",
+      "seam": 0,
+      "motion": 1.008962631225586
+    },
+    {
+      "name": "reconnect",
+      "seam": 0,
+      "motion": 3.894443392753601
+    },
+    {
+      "name": "workout_complete",
+      "seam": 0,
+      "motion": 7.7018046379089355
+    },
+    {
+      "name": "goodbye",
+      "seam": 0,
+      "motion": 2.408251442015171
+    }
+  ],
+  "errors": []
+}

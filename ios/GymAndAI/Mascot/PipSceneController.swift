@@ -1,4 +1,3 @@
-import Combine
 import Observation
 import RealityKit
 import UIKit
@@ -10,7 +9,6 @@ final class PipSceneController {
 
     @ObservationIgnored private weak var view: ARView?
     @ObservationIgnored private var motion: PipMotion?
-    @ObservationIgnored private var updates: AnyCancellable?
     @ObservationIgnored private var state = MascotState.idle
     @ObservationIgnored private var reducesMotion = false
     @ObservationIgnored private var attachmentID = 0
@@ -42,7 +40,7 @@ final class PipSceneController {
         view.scene.addAnchor(studio)
     }
 
-    func load() async {
+    func load(companion: CompanionKind) async {
         let attachment = attachmentID
         do {
             #if DEBUG
@@ -50,7 +48,7 @@ final class PipSceneController {
                 throw CocoaError(.fileNoSuchFile)
             }
             #endif
-            let character = try await PipAssetLibrary.shared.character()
+            let character = try await PipAssetLibrary.shared.character(companion)
             guard attachment == attachmentID else { return }
             try Task.checkCancellation()
             guard let view else { return }
@@ -58,11 +56,16 @@ final class PipSceneController {
             let root = Entity()
             root.name = "PipMotionRoot"
             root.addChild(character)
+            let bounds = character.visualBounds(relativeTo: root)
+            guard bounds.extents.y.isFinite, bounds.extents.y > 0 else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            character.position -= bounds.center - SIMD3<Float>(0, bounds.extents.y / 2, 0)
+            root.scale = SIMD3<Float>(repeating: 1.6 / bounds.extents.y)
             anchor.addChild(root)
             view.scene.addAnchor(anchor)
-            motion = try PipMotion(root: root, character: character)
-            motion?.setState(state)
-            motion?.setReducedMotion(reducesMotion)
+            motion = try PipMotion(character: character, companion: companion)
+            motion?.configure(state: state, reducesMotion: reducesMotion)
             if let lighting = try? await PipAssetLibrary.shared.lighting() {
                 guard attachment == attachmentID else { return }
                 try Task.checkCancellation()
@@ -71,7 +74,6 @@ final class PipSceneController {
             }
             try Task.checkCancellation()
             loadState = .ready
-            subscribeToMotion()
         } catch is CancellationError {
             if attachment == attachmentID { detach() }
         } catch {
@@ -84,36 +86,15 @@ final class PipSceneController {
     func configure(state: MascotState, reducesMotion: Bool) {
         self.state = state
         self.reducesMotion = reducesMotion
-        motion?.setState(state)
-        motion?.setReducedMotion(reducesMotion)
-        subscribeToMotion()
+        motion?.configure(state: state, reducesMotion: reducesMotion)
     }
 
     func detach() {
         attachmentID += 1
-        updates?.cancel()
-        updates = nil
+        motion?.stop()
         motion = nil
         view?.scene.anchors.removeAll()
         view = nil
     }
 
-    private func subscribeToMotion() {
-        guard !reducesMotion, motion != nil, let view else {
-            updates?.cancel()
-            updates = nil
-            return
-        }
-        guard updates == nil else { return }
-        if #available(iOS 18, *) {
-            let subscription = view.scene.subscribe(to: SceneEvents.Update.self) { [weak self] event in
-                self?.motion?.advance(by: min(event.deltaTime, 0.1))
-            }
-            updates = AnyCancellable { subscription.cancel() }
-        } else {
-            updates = view.scene.publisher(for: SceneEvents.Update.self).sink { [weak self] event in
-                self?.motion?.advance(by: min(event.deltaTime, 0.1))
-            }
-        }
-    }
 }

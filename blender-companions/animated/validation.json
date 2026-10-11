@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "total_usdz_bytes": 4269342,
+  "characters": [
+    {
+      "character": "pip",
+      "clips_checked": 6,
+      "matching_endpoints": true,
+      "all_clips_move": true,
+      "usd_skeletons": 1,
+      "usd_meshes": 11,
+      "baked_mesh_frames": false,
+      "usd_matching_endpoints": true,
+      "materials": 3,
+      "usd_animation_samples": 432,
+      "usdz_bytes": 590504
+    },
+    {
+      "character": "atlas",
+      "clips_checked": 6,
+      "matching_endpoints": true,
+      "all_clips_move": true,
+      "usd_skeletons": 1,
+      "usd_meshes": 13,
+      "baked_mesh_frames": false,
+      "usd_matching_endpoints": true,
+      "materials": 4,
+      "usd_animation_samples": 432,
+      "usdz_bytes": 2536641
+    },
+    {
+      "character": "flex",
+      "clips_checked": 6,
+      "matching_endpoints": true,
+      "all_clips_move": true,
+      "usd_skeletons": 1,
+      "usd_meshes": 4,
+      "baked_mesh_frames": false,
+      "usd_matching_endpoints": true,
+      "materials": 3,
+      "usd_animation_samples": 432,
+      "usdz_bytes": 1142197
+    }
+  ],
+  "native_ios": "Not verified on Windows; requires RealityKit/device check"
+}

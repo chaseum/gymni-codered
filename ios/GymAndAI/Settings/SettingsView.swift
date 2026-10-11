@@ -6,10 +6,21 @@ struct SettingsView: View {
     let healthAccess: HealthAccessController
     let watch: WatchConnectionController
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("companion") private var companion = CompanionKind.pip
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Companion") {
+                    Picker("Companion", selection: $companion) {
+                        ForEach(CompanionKind.allCases) { choice in
+                            Text("\(choice.name) · \(choice.focus)").tag(choice)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                    .accessibilityIdentifier("companion-choice")
+                }
+                .listRowBackground(GymTheme.surface)
                 Section("Workout mode") {
                     Picker("Mode", selection: $session.mode) {
                         ForEach(WorkoutMode.allCases) { Text($0.rawValue).tag($0) }

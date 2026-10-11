@@ -56,22 +56,27 @@ def export(models_dir: Path, out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"gymai-models-{stamp}.zip"
     with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+        hashes = {}
+
+        def add(name: str, data: bytes):  # hash what we write: reading entries back fails on Windows paths
+            zf.writestr(name, data)
+            hashes[name] = hashlib.sha256(data).hexdigest()
+
         wheel = _build_wheel(Path(tmp))
-        zf.write(wheel, f"wheels/{wheel.name}")
-        zf.write(pose, f"models/{pose.name}")
+        add(f"wheels/{wheel.name}", wheel.read_bytes())
+        add(f"models/{pose.name}", pose.read_bytes())
         for directory in chosen.values():
             for f in sorted(directory.iterdir()):
-                zf.write(f, f"models/{directory.name}/{f.name}")
+                add(f"models/{directory.name}/{f.name}", f.read_bytes())
         needs_torch = any(json.loads((d / "metadata.json").read_text())["model"] == "gru" for d in chosen.values())
         pins = PINNED + (("torch",) if needs_torch else ())
-        zf.writestr("requirements.txt", "".join(f"{p}=={package_version(p)}\n" for p in pins))
+        # "+cu130"-style local builds exist only on the training box; the target installs its own build of that version
+        add("requirements.txt", "".join(f"{p}=={package_version(p).split('+')[0]}\n" for p in pins).encode())
         manifest = {"exported_at": stamp, "code_revision": git("rev-parse", "HEAD"),
                     "code_dirty": bool(git("status", "--porcelain", "--", "ml/src")),
                     "python": sys.version.split()[0], "packages": {p: package_version(p) for p in pins},
                     "models": {k: {"dir": d.name, "test_macro_f1": test_score(d)} for k, d in chosen.items()},
-                    "sha256": {}}
-        for info in zf.infolist():
-            manifest["sha256"][info.filename] = hashlib.sha256(zf.read(info.filename)).hexdigest()
+                    "sha256": hashes}
         zf.writestr("MANIFEST.json", json.dumps(manifest, indent=2))
         zf.writestr("README.md", README.format(
             stamp=stamp, revision=(manifest["code_revision"] or "unknown")[:7],

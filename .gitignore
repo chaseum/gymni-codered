@@ -47,3 +47,10 @@ xcuserdata/
 
 # OS
 .DS_Store
+
+# Generated companion authoring/review files; iOS runtime assets live in the app.
+/blender-companions/animated/*
+!/blender-companions/animated/README.md
+!/blender-companions/animated/manifest.json
+!/blender-companions/animated/validation.json
+!/blender-companions/animated/usd-roundtrip-validation.json

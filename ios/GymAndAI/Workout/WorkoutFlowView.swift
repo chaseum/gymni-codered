@@ -3,20 +3,22 @@ import GymAndAIKit
 
 struct WorkoutFlowView: View {
     @Bindable var session: WorkoutSession
+    let watch: WatchConnectionController
+    @State private var camera = PhoneCameraController()
     @State private var audio = CoachAudioPlayer()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
             Group {
-                if session.isPositioning { PositioningView(session: session) }
+                if session.isPositioning { PositioningView(session: session, camera: camera, watch: watch) }
                 else {
                     switch session.snapshot?.state {
                     case .paused: RestViewScreen(session: session, mascotState: audio.isSpeaking ? .coaching : .rest)
                     case .complete: RecapView(session: session, mascotState: audio.isSpeaking ? .coaching : .celebrate)
                     default:
-                        if showsCamera { CameraWorkoutView(session: session, toggleAudio: toggleAudio) }
-                        else { ActiveWorkoutView(session: session, mascotState: audio.isSpeaking ? .coaching : .idle) }
+                        if showsCamera { CameraWorkoutView(session: session, camera: camera, toggleAudio: toggleAudio) }
+                        else { ActiveWorkoutView(session: session, camera: camera, mascotState: audio.isSpeaking ? .coaching : .idle) }
                     }
                 }
             }
@@ -36,16 +38,35 @@ struct WorkoutFlowView: View {
             } message: { Text(session.errorMessage ?? "Check your connection.") }
         }
         .statusBarHidden(showsCamera)
+        .persistentSystemOverlays(showsCamera ? .hidden : .automatic)
         .background(WorkoutOrientationView(landscape: showsCamera).frame(width: 0, height: 0))
         .interactiveDismissDisabled()
         .onChange(of: session.snapshot?.state, initial: true, stateChanged)
         .onChange(of: session.store.lastFeedback?.feedbackId, feedbackChanged)
         .onChange(of: session.snapshot?.activeIssues, issuesChanged)
         .onChange(of: session.snapshot?.trackingStatus, trackingChanged)
-        .onDisappear(perform: audio.stop)
-        .onChange(of: scenePhase) {
-            if scenePhase != .active { audio.stop() }
+        .task(id: cameraShouldRun) {
+            if cameraShouldRun { await camera.start() }
+            else { camera.stop() }
         }
+        .task(id: session.snapshot?.state) { await watch.synchronize(session) }
+        .onDisappear {
+            audio.stop()
+            camera.stop()
+            watch.stop()
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase != .active {
+                audio.stop()
+                if scenePhase == .background, session.isPhone, session.snapshot?.state == .active || session.snapshot?.state == .ready {
+                    Task { await session.pause() }
+                }
+            }
+        }
+    }
+
+    private var cameraShouldRun: Bool {
+        session.isPhone && scenePhase != .background && (session.snapshot?.state == .ready || session.snapshot?.state == .active)
     }
 
     private var showsCamera: Bool {
@@ -68,9 +89,10 @@ struct WorkoutFlowView: View {
         case .paused: audio.speak("Paused. Take the time you need.")
         case .complete: audio.speak("Workout ended. Here is your recap.")
         case .active:
-            if session.snapshot?.trackingStatus == .ready { audio.speak("Let’s begin. I’ll count your reps.") }
+            if session.isPhone { audio.speak("Camera ready. Begin when you’re ready.") }
+            else if session.snapshot?.trackingStatus == .ready { audio.speak("Let’s begin. I’ll count your reps.") }
             else { audio.speak("Step into view so I can follow your movement.") }
-        default: audio.speak(session.isDemo ? "Demo workout. Step into view." : "Waiting for camera tracking.")
+        default: audio.speak(session.isDemo ? "Demo workout. Step into view." : session.isPhone ? "Position your phone so you can see your movement." : "Waiting for camera tracking.")
         }
     }
 
@@ -87,7 +109,7 @@ struct WorkoutFlowView: View {
     }
 
     private func trackingChanged() {
-        guard !session.isDemo, session.audioEnabled, session.snapshot?.state == .active else { return }
+        guard !session.isDemo, !session.isPhone, session.audioEnabled, session.snapshot?.state == .active else { return }
         audio.speak(session.snapshot?.trackingStatus == .ready ? "Tracking ready. I’m following your reps." : "Tracking interrupted. Adjust your position.")
     }
 }

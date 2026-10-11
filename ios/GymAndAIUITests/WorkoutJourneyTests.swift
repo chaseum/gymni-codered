@@ -6,6 +6,13 @@ final class WorkoutJourneyTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         capture(app, name: "Today")
+        app.buttons["View plan"].tap()
+        XCTAssertTrue(app.navigationBars["Your plan"].waitForExistence(timeout: 3))
+        app.buttons["Done"].tap()
+        XCTAssertLessThan(app.buttons["Workout setup"].frame.maxY, app.buttons["Start workout"].frame.minY)
+        app.buttons["Workout setup"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        app.buttons["Done"].tap()
         app.buttons["Start workout"].tap()
         let picker = app.segmentedControls["workout-view-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 8))
@@ -24,6 +31,14 @@ final class WorkoutJourneyTests: XCTestCase {
         XCTAssertTrue(app.buttons["Pause"].isHittable)
         XCTAssertTrue(app.buttons["End workout"].isHittable)
         capture(app, name: "Camera")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(app.buttons["Pause"].isHittable)
+        XCTAssertGreaterThanOrEqual(watch.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(reps.frame.maxX, app.frame.maxX)
+        capture(app, name: "Camera landscape left")
+        XCUIDevice.shared.orientation = .landscapeRight
+        XCTAssertTrue(app.buttons["End workout"].isHittable)
+        capture(app, name: "Camera landscape right")
         app.buttons["camera-back-to-reps"].tap()
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         XCTAssertGreaterThan(app.frame.height, app.frame.width)
@@ -46,6 +61,8 @@ final class WorkoutJourneyTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
+        XCTAssertTrue(app.buttons["Start workout"].isHittable)
+        capture(app, name: "Large text Today")
         app.swipeUp()
         app.buttons["Start workout"].tap()
         let picker = app.segmentedControls["workout-view-picker"]

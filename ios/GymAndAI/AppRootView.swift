@@ -3,11 +3,20 @@ import GymAndAIKit
 
 struct AppRootView: View {
     @State private var session = WorkoutSession()
+    @State private var watch = WatchConnectionController()
     @State private var healthAccess = HealthAccessController()
     @State private var showsSettings = false
     @State private var showsPlan = false
     @State private var showsIntro = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init() {
+        let workout = WorkoutSession()
+        #if !targetEnvironment(simulator)
+        workout.mode = .phone
+        #endif
+        _session = State(initialValue: workout)
+    }
 
     var body: some View {
         @Bindable var session = session
@@ -27,10 +36,10 @@ struct AppRootView: View {
         .onAppear {
             if reduceMotion { showsIntro = false }
         }
-        .tint(GymTheme.lime)
-        .sheet(isPresented: $showsSettings) { SettingsView(session: session, healthAccess: healthAccess) }
+        .tint(GymTheme.accent)
+        .sheet(isPresented: $showsSettings) { SettingsView(session: session, healthAccess: healthAccess, watch: watch) }
         .sheet(isPresented: $showsPlan) { PlanView(session: session) }
-        .fullScreenCover(isPresented: $session.presentsWorkout) { WorkoutFlowView(session: session) }
+        .fullScreenCover(isPresented: $session.presentsWorkout) { WorkoutFlowView(session: session, watch: watch) }
         .alert("Couldn’t complete that action", isPresented: errorBinding) {
             Button("OK", action: session.clearError)
         } message: {
@@ -41,14 +50,20 @@ struct AppRootView: View {
     private func dashboard(session: WorkoutSession) -> some View {
         TabView {
             NavigationStack {
-                TodayView(session: session, showsPlan: $showsPlan)
+                TodayView(session: session, showsPlan: $showsPlan, openSettings: openSettings)
                     .toolbar {
-                        ToolbarItem(placement: .principal) { Text("Gym&AI").font(.headline) }
+                        if #available(iOS 26, *) {
+                            ToolbarItem(placement: .topBarLeading) { BrandLogoView() }
+                                .sharedBackgroundVisibility(.hidden)
+                        } else {
+                            ToolbarItem(placement: .topBarLeading) { BrandLogoView() }
+                        }
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Settings", systemImage: "gearshape", action: openSettings)
                         }
                     }
                     .navigationBarTitleDisplayMode(.inline)
+                    .toolbarBackground(.hidden, for: .navigationBar)
             }
             .tabItem { Label("Today", systemImage: "sun.max") }
             NavigationStack {

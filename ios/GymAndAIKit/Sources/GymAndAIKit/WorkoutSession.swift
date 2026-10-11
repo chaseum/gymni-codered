@@ -12,15 +12,21 @@ public final class WorkoutSession {
     public var previewAddress = ""
     public var token = ""
     public var audioEnabled = true
+    public var usesAppleWatch = true
     public var presentsWorkout = false
     public private(set) var store: WorkoutStore
     public private(set) var isPositioning = false
     public private(set) var isSending = false
     public private(set) var errorMessage: String?
     public private(set) var completedReps: Int?
+    public private(set) var completedUnmeasuredSession = false
+    public private(set) var watchHeartRate = HeartRateView.unavailable
 
     @ObservationIgnored private var demo = DemoWorkoutSource()
+    @ObservationIgnored private var phone = PhoneWorkoutSource()
     @ObservationIgnored private var demoTask: Task<Void, Never>?
+    @ObservationIgnored private var lastWatchMessageAtMs: Int64 = 0
+    @ObservationIgnored private var watchSampleNotBeforeMs: Int64 = 0
     @ObservationIgnored private var sessionMode: WorkoutMode = .demo
 
     public init() {
@@ -28,10 +34,15 @@ public final class WorkoutSession {
     }
 
     public var isDemo: Bool { presentsWorkout ? sessionMode == .demo : mode == .demo }
+    public var isPhone: Bool { presentsWorkout ? sessionMode == .phone : mode == .phone }
+    public var heartRate: HeartRateView {
+        if !isDemo, watchHeartRate.status != .unavailable { return watchHeartRate }
+        return snapshot?.heartRate ?? .unavailable
+    }
     public var snapshot: Snapshot? { store.snapshot }
     public var repCount: Int { snapshot?.repCount ?? 0 }
     public var targetReps: Int? { snapshot?.targetReps }
-    public var hasConnection: Bool { isDemo || store.connection == .connected }
+    public var hasConnection: Bool { isDemo || isPhone || store.connection == .connected }
     public var canResume: Bool { !isSending && hasConnection }
     public var previewURL: URL? { Self.networkURL(previewAddress) }
 
@@ -43,6 +54,10 @@ public final class WorkoutSession {
         sessionMode = mode
         display = .reps
         completedReps = nil
+        completedUnmeasuredSession = false
+        watchHeartRate = .unavailable
+        lastWatchMessageAtMs = 0
+        watchSampleNotBeforeMs = 0
         demoTask?.cancel()
         store.disconnect()
         do {
@@ -52,6 +67,12 @@ public final class WorkoutSession {
                 store.apply(demo.initialSnapshot(exercise: exercise))
                 presentsWorkout = true
                 beginDemoPositioning()
+            } else if sessionMode == .phone {
+                phone = PhoneWorkoutSource()
+                store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: phone.sessionID)
+                store.apply(phone.initialSnapshot(exercise: exercise))
+                isPositioning = true
+                presentsWorkout = true
             } else {
                 try await startBackend()
             }
@@ -74,7 +95,8 @@ public final class WorkoutSession {
 
     public func returnToday() {
         guard snapshot?.state == .complete else { return }
-        completedReps = repCount
+        completedReps = isPhone ? nil : repCount
+        completedUnmeasuredSession = isPhone
         demoTask?.cancel()
         store.disconnect()
         presentsWorkout = false
@@ -82,14 +104,36 @@ public final class WorkoutSession {
 
     public func clearError() { errorMessage = nil }
 
+    public func beginPhoneSet() {
+        guard isPhone, isPositioning, snapshot?.state == .ready else { return }
+        isPositioning = false
+        store.apply(phone.event(.sessionState(SessionStatePayload(state: .active))))
+    }
+
+    public func receiveWatchTelemetry(_ telemetry: WatchTelemetry, at now: Date = .now) {
+        guard !isDemo, usesAppleWatch, presentsWorkout, snapshot?.state != .complete,
+              telemetry.workoutID == store.sessionId,
+              telemetry.emittedAtMs >= lastWatchMessageAtMs else { return }
+        lastWatchMessageAtMs = telemetry.emittedAtMs
+        if !telemetry.isRunning { watchHeartRate = .unavailable; return }
+        guard snapshot?.state != .paused else { return }
+        let rate = telemetry.heartRate(for: store.sessionId, at: now)
+        guard rate.status == .live,
+              (rate.sampleTimestampMs ?? 0) >= watchSampleNotBeforeMs,
+              (rate.sampleTimestampMs ?? 0) > (watchHeartRate.sampleTimestampMs ?? 0) else { return }
+        watchHeartRate = rate
+    }
+
+    public func clearWatchHeartRate() { watchHeartRate = .unavailable }
+
     public func restRemaining(at date: Date) -> Int {
         guard let endsAt = snapshot?.rest?.endsAtMs else { return 0 }
         return max(0, Int(ceil(Double(endsAt) / 1_000 - date.timeIntervalSince1970)))
     }
 
     public func heartRateText(at date: Date) -> String {
-        guard let rate = snapshot?.heartRate,
-              rate.status != .unavailable,
+        let rate = heartRate
+        guard rate.source == "apple_watch", rate.status != .unavailable,
               let bpm = rate.bpm,
               let timestamp = rate.sampleTimestampMs else { return "Heart rate unavailable" }
         let age = date.timeIntervalSince1970 - Double(timestamp) / 1_000
@@ -139,6 +183,10 @@ public final class WorkoutSession {
             applyDemoCommand(intent, args: args)
             return
         }
+        if sessionMode == .phone {
+            applyPhoneCommand(intent, args: args)
+            return
+        }
         do {
             let ack = try await store.send(intent, args: args)
             if !ack.accepted { errorMessage = ack.error ?? "The coach could not accept that action." }
@@ -168,6 +216,34 @@ public final class WorkoutSession {
             demoTask?.cancel()
             isPositioning = false
             emit(.sessionState(SessionStatePayload(state: .complete)))
+        default: break
+        }
+    }
+
+    private func applyPhoneCommand(_ intent: Intent, args: CommandArgs?) {
+        switch intent {
+        case .pause, .rest:
+            guard snapshot?.state == .active || snapshot?.state == .ready else { return }
+            isPositioning = false
+            watchHeartRate = .unavailable
+            watchSampleNotBeforeMs = Int64(Date.now.timeIntervalSince1970 * 1_000)
+            store.apply(phone.event(.sessionState(SessionStatePayload(state: .paused))))
+            let end = Date().addingTimeInterval(Double(args?.restSeconds ?? 60))
+            store.apply(phone.event(.rest(RestView(status: .resting, endsAtMs: Int64(end.timeIntervalSince1970 * 1_000)))))
+        case .resume:
+            guard snapshot?.state == .paused else { return }
+            watchSampleNotBeforeMs = Int64(Date.now.timeIntervalSince1970 * 1_000)
+            store.apply(phone.event(.rest(RestView(status: .ended))))
+            store.apply(phone.event(.sessionState(SessionStatePayload(state: .ready))))
+            isPositioning = true
+        case .extendRest:
+            guard snapshot?.state == .paused else { return }
+            let end = Date().addingTimeInterval(Double(restRemaining(at: .now) + (args?.restSeconds ?? 30)))
+            store.apply(phone.event(.rest(RestView(status: .resting, endsAtMs: Int64(end.timeIntervalSince1970 * 1_000)))))
+        case .end:
+            isPositioning = false
+            watchHeartRate = .unavailable
+            store.apply(phone.event(.sessionState(SessionStatePayload(state: .complete))))
         default: break
         }
     }

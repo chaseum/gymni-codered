@@ -9,7 +9,7 @@ struct CoachMessageView: View {
         HStack(alignment: .center, spacing: 12) {
             PipView(state: mascotState).frame(width: 64, height: 60)
             VStack(alignment: .leading, spacing: 8) {
-                Text("COACH").font(.subheadline).foregroundStyle(GymTheme.cyan)
+                Text("COACH").font(.subheadline).foregroundStyle(GymTheme.accentText)
                 Text(session.coachingMessage).font(.headline).accessibilityIdentifier("coach-message")
             }
         }

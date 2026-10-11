@@ -12,7 +12,7 @@ struct PlanView: View {
                     Picker("Exercise", selection: $session.exercise) {
                         ForEach(Exercise.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
-                    LabeledContent("Target", value: "8 reps")
+                    LabeledContent("Target", value: session.mode == .phone ? "Manual set · Analysis pending" : "8 reps")
                     Text("This first build runs one set. Personalized plans will connect to the planner in a later update.")
                         .foregroundStyle(.secondary)
                 }
@@ -30,7 +30,7 @@ struct PlanView: View {
             }
             .navigationTitle("Your plan")
             .toolbar { Button("Done", action: dismiss.callAsFunction) }
-            .tint(GymTheme.lime)
+            .tint(GymTheme.accent)
         }
     }
 }

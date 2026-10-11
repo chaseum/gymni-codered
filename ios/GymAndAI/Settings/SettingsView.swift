@@ -4,6 +4,7 @@ import GymAndAIKit
 struct SettingsView: View {
     @Bindable var session: WorkoutSession
     let healthAccess: HealthAccessController
+    let watch: WatchConnectionController
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -15,7 +16,14 @@ struct SettingsView: View {
                         ForEach(WorkoutMode.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    Text("Demo uses simulated movement. Laptop uses the existing backend session and its actual events.")
+                    Text("iPhone uses this phone’s camera. Rep and form analysis awaits the trained model. Demo simulates movement. Laptop receives backend events.")
+                        .foregroundStyle(.secondary)
+                }
+                Section("Apple Watch") {
+                    Toggle("Use Watch heart rate", isOn: $session.usesAppleWatch)
+                    Text(watch.status).foregroundStyle(.secondary)
+                    Button("Refresh Watch connection", action: watch.refresh)
+                    Text("Install Gym&AI on the paired Watch and allow Health access there. Starting a workout on iPhone launches the Watch companion.")
                         .foregroundStyle(.secondary)
                 }
                 Section("Laptop connection") {
@@ -35,13 +43,13 @@ struct SettingsView: View {
                 }
                 Section("Coaching") {
                     Toggle("Spoken coaching", isOn: $session.audioEnabled)
-                    Text("Uses the iPhone’s speech voice in this build. Captions remain visible. Watch heart rate and voice commands are not connected yet.")
+                    Text("Uses the iPhone’s speech voice in this build. Captions remain visible. Watch heart rate comes from the Gym&AI Watch companion. Voice commands are not connected yet.")
                         .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Settings")
             .toolbar { Button("Done", action: dismiss.callAsFunction) }
-            .tint(GymTheme.lime)
+            .tint(GymTheme.accent)
         }
     }
 }

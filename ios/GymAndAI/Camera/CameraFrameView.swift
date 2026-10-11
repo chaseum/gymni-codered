@@ -12,13 +12,18 @@ struct CameraFrameView: View {
                 VStack(spacing: 16) {
                     Text("Simulated camera view").font(.headline)
                     Image(systemName: "figure.strengthtraining.traditional")
-                        .font(.system(size: 64)).foregroundStyle(GymTheme.cyan).accessibilityHidden(true)
+                        .font(.system(size: 64)).foregroundStyle(GymTheme.accentText).accessibilityHidden(true)
                 }
                 .padding(.bottom, 44)
             } else if let image = stream.image, let frameDate = stream.frameDate, date.timeIntervalSince(frameDate) < 3 {
-                Image(decorative: image, scale: 1).resizable().scaledToFit()
-                    .accessibilityLabel("Live webcam preview")
-                    .accessibilityHidden(false)
+                GeometryReader { geometry in
+                    Image(decorative: image, scale: 1)
+                        .resizable().scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .accessibilityLabel("Live webcam preview")
+                        .accessibilityHidden(false)
+                }
             } else {
                 ContentUnavailableView(
                     "Camera preview unavailable", systemImage: "video.slash",

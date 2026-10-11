@@ -5,10 +5,10 @@ struct OctobuddyView: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(GymTheme.cyan).frame(width: 58, height: 58).offset(y: -6)
+            Circle().fill(GymTheme.accentText).frame(width: 58, height: 58).offset(y: -6)
             HStack(spacing: -4) {
                 ForEach(0..<4) { _ in
-                    Ellipse().fill(GymTheme.cyan).frame(width: 25, height: 20)
+                    Ellipse().fill(GymTheme.accentText).frame(width: 25, height: 20)
                 }
             }
             .offset(y: 24)

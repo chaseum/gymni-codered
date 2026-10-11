@@ -17,7 +17,7 @@ struct HealthAccessSection: View {
         } header: {
             Text("Apple Health")
         } footer: {
-            Text("Requests heart-rate read access only. Live Apple Watch readings and workout saving are not available in this build.")
+            Text("This button requests heart-rate read access on iPhone. Live readings require the Gym&AI Watch companion and Health access on your Watch.")
         }
     }
 

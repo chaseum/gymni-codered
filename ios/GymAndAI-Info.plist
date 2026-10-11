@@ -42,5 +42,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Gym&amp;AI uses your camera to show your workout live. Movement analysis will be enabled when the trained model is available.</string>
 </dict>
 </plist>

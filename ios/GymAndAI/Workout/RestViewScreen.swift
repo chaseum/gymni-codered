@@ -9,7 +9,7 @@ struct RestViewScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: GymTheme.spacing) {
                 Text(session.isDemo ? "DEMO · WORKOUT PAUSED" : "WORKOUT PAUSED")
-                    .font(.subheadline).foregroundStyle(GymTheme.cyan)
+                    .font(.subheadline).foregroundStyle(GymTheme.accentText)
                 Text("Take a breath.").font(.largeTitle.bold())
                 PipView(state: mascotState).frame(width: 160, height: 140)
                 TimelineView(.periodic(from: .now, by: 1)) { context in

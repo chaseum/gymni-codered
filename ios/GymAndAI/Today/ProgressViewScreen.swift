@@ -15,6 +15,8 @@ struct ProgressViewScreen: View {
                         .foregroundStyle(GymTheme.muted).multilineTextAlignment(.center)
                 }
                 .padding(GymTheme.spacing)
+            } else if session.completedUnmeasuredSession {
+                ContentUnavailableView("You completed a camera session", systemImage: "checkmark.circle", description: Text("Rep counts and form scores will be available after the trained model is connected."))
             } else {
                 ContentUnavailableView("Your progress starts here", systemImage: "chart.bar", description: Text("Complete a workout to see your session recap."))
             }

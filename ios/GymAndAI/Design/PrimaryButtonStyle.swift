@@ -11,8 +11,8 @@ struct PrimaryButtonStyle: PrimitiveButtonStyle {
             .buttonStyle(.glassProminent)
             .buttonBorderShape(.roundedRectangle(radius: 18))
             .controlSize(.large)
-            .tint(GymTheme.lime)
-            .foregroundStyle(GymTheme.background)
+            .tint(GymTheme.accent)
+            .foregroundStyle(GymTheme.charcoal)
         } else {
             Button(role: configuration.role, action: configuration.trigger) {
                 configuration.label.font(.headline).frame(maxWidth: .infinity, minHeight: 36)
@@ -20,8 +20,8 @@ struct PrimaryButtonStyle: PrimitiveButtonStyle {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .buttonBorderShape(.roundedRectangle(radius: 18))
-                .tint(GymTheme.lime)
-                .foregroundStyle(GymTheme.background)
+                .tint(GymTheme.accent)
+                .foregroundStyle(GymTheme.charcoal)
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 52)
         }

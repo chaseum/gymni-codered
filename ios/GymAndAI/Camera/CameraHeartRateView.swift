@@ -8,12 +8,12 @@ struct CameraHeartRateView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Apple Watch", systemImage: "heart.fill")
-                .font(.caption).foregroundStyle(GymTheme.cyan)
-            Text(reading).font(.title2.bold()).monospacedDigit()
+                .font(.caption).foregroundStyle(GymTheme.accentText)
+            Text(reading).font(.largeTitle.bold()).monospacedDigit()
             Text(freshness).font(.caption).foregroundStyle(.secondary)
         }
         .padding(12)
-        .modifier(GymGlassSurface(cornerRadius: 16))
+        .modifier(CameraGlassPanel())
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("camera-heart-rate")
     }
@@ -31,13 +31,13 @@ struct CameraHeartRateView: View {
     }
 
     private var reading: String {
-        guard isFresh, let bpm = rate?.bpm else { return "Unavailable" }
+        guard isFresh, let bpm = rate?.bpm else { return "— bpm" }
         return "\(Int(bpm.rounded())) bpm"
     }
 
     private var freshness: String {
-        if isFresh, let age = sampleAge { return "Updated \(Int(age))s ago" }
-        if rate?.source == "apple_watch", rate?.status != .unavailable { return "Waiting for a fresh sample" }
-        return "No Watch data connected"
+        if isFresh, let age = sampleAge { return "Live · Updated \(Int(age))s ago" }
+        if rate?.source == "apple_watch", rate?.status != .unavailable { return "Stale · Waiting for sample" }
+        return "No Watch data"
     }
 }

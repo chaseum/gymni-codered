@@ -9,7 +9,7 @@ struct TodayWorkoutCard: View {
     let openPlan: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: GymTheme.Space.section) {
             TodayWorkoutHero(exercise: exercise, state: mascotState, celebrate: celebrate)
             TodayWorkoutDetails(exercise: exercise, mode: mode)
             Rectangle().fill(GymTheme.divider).frame(height: 1)
@@ -31,11 +31,6 @@ struct TodayWorkoutCard: View {
         }
         .padding(GymTheme.spacing)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.radius))
-        .overlay {
-            RoundedRectangle(cornerRadius: GymTheme.radius)
-                .strokeBorder(GymTheme.divider, lineWidth: 1)
-                .allowsHitTesting(false)
-        }
+        .modifier(GymSurface())
     }
 }

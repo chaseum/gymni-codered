@@ -29,8 +29,8 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
         isInstalled = connection.isWatchAppInstalled
         isReachable = connection.isReachable
         if !isPaired { status = "No Apple Watch paired to this iPhone." }
-        else if !isInstalled { status = "Install Gym&AI on your Apple Watch using the Watch app." }
-        else { status = isReachable ? "Watch app reachable · Waiting for a heart-rate sample" : "Watch installed · Open Gym&AI on your Watch" }
+        else if !isInstalled { status = "Install Gym&I on your Apple Watch using the Watch app." }
+        else { status = isReachable ? "Watch app reachable · Waiting for a heart-rate sample" : "Watch installed · Open Gym&I on your Watch" }
     }
 
     func synchronize(_ workout: WorkoutSession) async {
@@ -59,7 +59,7 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
             configuration.locationType = .indoor
             try await healthStore.startWatchApp(toHandle: configuration)
         } catch {
-            status = "Couldn’t launch Watch workout: \(error.localizedDescription). Open Gym&AI on your Watch and retry."
+            status = "Couldn’t launch Watch workout: \(error.localizedDescription). Open Gym&I on your Watch and retry."
             launchedWorkoutID = nil
         }
     }

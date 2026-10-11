@@ -10,10 +10,10 @@ struct TodayView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: GymTheme.Space.page) {
+                VStack(alignment: .leading, spacing: GymTheme.Space.small) {
                     Text("Today")
-                        .font(.largeTitle.bold())
+                        .font(.title2.bold())
                         .fontDesign(.rounded)
                         .accessibilityAddTraits(.isHeader)
                     Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day())
@@ -28,21 +28,17 @@ struct TodayView: View {
                     openPlan: openPlan
                 )
                 TodayWorkoutSourceView(mode: session.mode, openSettings: openSettings)
-                TodayWelcomeView()
+                TodayWelcomeView(exercise: session.exercise)
             }
             .padding(GymTheme.spacing)
-            .frame(maxWidth: 600)
+            .frame(maxWidth: GymTheme.contentWidth)
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            TodayStartButton(isStarting: session.isSending, startWorkout: startWorkout)
-                .padding(.horizontal, GymTheme.spacing)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
-                .frame(maxWidth: 600)
-                .frame(maxWidth: .infinity)
-                .background(GymTheme.background)
+            GymActionDock {
+                TodayStartButton(isStarting: session.isSending, startWorkout: startWorkout)
+            }
         }
         .background(GymTheme.background.ignoresSafeArea())
         .foregroundStyle(GymTheme.text)

@@ -5,7 +5,7 @@ struct CameraSessionControls: View {
     let session: WorkoutSession
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: GymTheme.Space.related) {
             Button("Pause", systemImage: "pause.fill", action: pause)
                 .buttonStyle(PrimaryButtonStyle())
                 .fixedSize(horizontal: true, vertical: false)

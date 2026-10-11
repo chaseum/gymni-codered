@@ -25,10 +25,11 @@ struct WorkoutFlowView: View {
             .background(GymTheme.background)
             .foregroundStyle(GymTheme.text)
             .toolbar {
-                ToolbarItem(placement: .principal) { Text("Gym&AI").font(.headline) }
+                ToolbarItem(placement: .principal) { Text("Gym&I").font(.headline) }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(session.audioEnabled ? "Mute coach" : "Unmute coach", systemImage: session.audioEnabled ? "speaker.wave.2" : "speaker.slash", action: toggleAudio)
                         .labelStyle(.iconOnly)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -45,6 +46,8 @@ struct WorkoutFlowView: View {
         .onChange(of: session.store.lastFeedback?.feedbackId, feedbackChanged)
         .onChange(of: session.snapshot?.activeIssues, issuesChanged)
         .onChange(of: session.snapshot?.trackingStatus, trackingChanged)
+        .sensoryFeedback(.selection, trigger: session.display)
+        .sensoryFeedback(.impact(weight: .light), trigger: session.snapshot?.state)
         .task(id: cameraShouldRun) {
             if cameraShouldRun { await camera.start() }
             else { camera.stop() }
@@ -90,6 +93,7 @@ struct WorkoutFlowView: View {
         case .complete: audio.speak("Workout ended. Here is your recap.")
         case .active:
             if session.isPhone { audio.speak("Camera ready. Begin when you’re ready.") }
+            else if session.isDemo { audio.speak("The simulated set is starting.") }
             else if session.snapshot?.trackingStatus == .ready { audio.speak("Let’s begin. I’ll count your reps.") }
             else { audio.speak("Step into view so I can follow your movement.") }
         default: audio.speak(session.isDemo ? "Demo workout. Step into view." : session.isPhone ? "Position your phone so you can see your movement." : "Waiting for camera tracking.")
@@ -98,8 +102,10 @@ struct WorkoutFlowView: View {
 
     private func feedbackChanged() {
         guard session.audioEnabled, session.snapshot?.state == .active,
-              let text = session.store.lastFeedback?.text else { return }
-        audio.speak(text)
+              let feedback = session.store.lastFeedback,
+              feedback.setId == session.snapshot?.setId,
+              session.snapshot?.activeIssues.contains(feedback.issueCode) == true else { return }
+        audio.speak(feedback.text)
     }
 
     private func issuesChanged(_ previous: [String]?, _ current: [String]?) {

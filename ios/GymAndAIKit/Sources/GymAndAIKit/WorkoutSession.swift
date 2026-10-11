@@ -20,6 +20,9 @@ public final class WorkoutSession {
     public private(set) var errorMessage: String?
     public private(set) var completedReps: Int?
     public private(set) var completedUnmeasuredSession = false
+    public private(set) var completedMode: WorkoutMode?
+    public private(set) var completedExercise: Exercise?
+    public private(set) var completedSource: InputSource?
     public private(set) var watchHeartRate = HeartRateView.unavailable
 
     @ObservationIgnored private var demo = DemoWorkoutSource()
@@ -55,6 +58,9 @@ public final class WorkoutSession {
         display = .reps
         completedReps = nil
         completedUnmeasuredSession = false
+        completedMode = nil
+        completedExercise = nil
+        completedSource = nil
         watchHeartRate = .unavailable
         lastWatchMessageAtMs = 0
         watchSampleNotBeforeMs = 0
@@ -97,6 +103,9 @@ public final class WorkoutSession {
         guard snapshot?.state == .complete else { return }
         completedReps = isPhone ? nil : repCount
         completedUnmeasuredSession = isPhone
+        completedMode = sessionMode
+        completedExercise = snapshot?.exercise ?? exercise
+        completedSource = snapshot?.source
         demoTask?.cancel()
         store.disconnect()
         presentsWorkout = false
@@ -135,6 +144,7 @@ public final class WorkoutSession {
         let rate = heartRate
         guard rate.source == "apple_watch", rate.status != .unavailable,
               let bpm = rate.bpm,
+              bpm.isFinite, (20...250).contains(bpm),
               let timestamp = rate.sampleTimestampMs else { return "Heart rate unavailable" }
         let age = date.timeIntervalSince1970 - Double(timestamp) / 1_000
         guard rate.status == .live, age >= 0, age <= 10 else { return "Heart rate unavailable · Stale sample" }

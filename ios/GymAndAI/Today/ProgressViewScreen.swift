@@ -5,24 +5,47 @@ struct ProgressViewScreen: View {
     let session: WorkoutSession
 
     var body: some View {
-        Group {
-            if let reps = session.completedReps {
-                VStack(spacing: GymTheme.spacing) {
-                    PipView().frame(width: 160, height: 140)
-                    Text("Your last session").font(.title2.bold())
-                    Text("\(reps) completed reps").font(.title)
-                    Text("From this app session. Demo sessions contain simulated reps.")
-                        .foregroundStyle(GymTheme.muted).multilineTextAlignment(.center)
+        GymPage {
+            if session.completedReps != nil || session.completedUnmeasuredSession {
+                WorkoutHeaderView(context: "Last session", title: session.completedExercise?.title ?? "Your last session",
+                                  detail: "Retained during this app session.")
+                VStack(alignment: .leading, spacing: GymTheme.Space.related) {
+                    Label(sourceTitle, systemImage: session.completedUnmeasuredSession ? "camera" : "checkmark.circle")
+                        .font(GymTheme.TypeStyle.label).foregroundStyle(GymTheme.accentText)
+                    if let reps = session.completedReps {
+                        RepCounterView(count: reps, target: nil)
+                    } else {
+                        Text("You completed a camera session").font(GymTheme.TypeStyle.heading)
+                        UnmeasuredRepsView()
+                    }
                 }
-                .padding(GymTheme.spacing)
-            } else if session.completedUnmeasuredSession {
-                ContentUnavailableView("You completed a camera session", systemImage: "checkmark.circle", description: Text("Rep counts and form scores will be available after the trained model is connected."))
+                .padding(GymTheme.Space.page)
+                .modifier(GymSurface())
+                Text(sourceDetail).foregroundStyle(GymTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("A new workout replaces this recap. Workout history isn’t saved yet.")
+                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
             } else {
-                ContentUnavailableView("Your progress starts here", systemImage: "chart.bar", description: Text("Complete a workout to see your session recap."))
+                WorkoutHeaderView(context: "Session recaps", title: "Your progress starts here")
+                PipView().frame(width: 104, height: 100)
+                ContentUnavailableView("One set is a start", systemImage: "figure.strengthtraining.traditional",
+                                       description: Text("Complete a workout, then return to Today to see your last session here."))
+                Text("Laptop reps, simulated Demo sets, and unmeasured iPhone sessions are labeled by source.")
+                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(GymTheme.background)
-        .foregroundStyle(GymTheme.text)
+    }
+
+    private var sourceTitle: String {
+        if session.completedUnmeasuredSession { return "iPhone camera · Unmeasured" }
+        if session.completedMode == .demo { return "Demo · Simulated reps" }
+        return session.completedSource == .recorded ? "Laptop · Recorded footage" : "Laptop · Backend events"
+    }
+
+    private var sourceDetail: String {
+        if session.completedUnmeasuredSession { return "Reps and form were not measured during this camera session." }
+        if session.completedMode == .demo { return "These reps are illustrative. Demo did not measure movement or heart rate." }
+        return "These reps were reported by the laptop backend. Camera preview availability does not change the recorded count."
     }
 }

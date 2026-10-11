@@ -9,6 +9,14 @@ extension Exercise {
         }
     }
 
+    var equipment: String {
+        switch self {
+        case .curl: "Dumbbell"
+        case .squat: "Bodyweight"
+        case .deadlift: "Barbell"
+        }
+    }
+
     var positioning: String {
         switch self {
         case .curl: "Keep your working shoulder, elbow, and wrist in view."

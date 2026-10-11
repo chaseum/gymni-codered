@@ -4,10 +4,10 @@ struct BrandLogoView: View {
     var body: some View {
         Image("GymAILogo")
             .resizable()
-            .scaledToFit()
+            .scaledToFill()
             .frame(width: 80, height: 36)
+            .clipped()
             .padding(4)
-            .background(.white, in: .rect(cornerRadius: 8))
-            .accessibilityLabel("Gym&AI")
+            .accessibilityLabel("Gym&I")
     }
 }

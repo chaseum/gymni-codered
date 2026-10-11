@@ -8,26 +8,31 @@ struct CameraWorkoutOverlay: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        GymGlassContainer {
-            VStack(spacing: 12) {
-                if dynamicTypeSize.isAccessibilitySize {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            CameraWorkoutMetrics(session: session)
-                            CameraCoachCaption(message: message)
+        VStack(spacing: GymTheme.Space.related) {
+            if dynamicTypeSize.isAccessibilitySize {
+                ScrollView {
+                    VStack(spacing: GymTheme.Space.inset) {
+                        CameraWorkoutMetrics(session: session)
+                        if session.isDemo {
+                            Text("Simulated camera view")
+                                .font(GymTheme.TypeStyle.label)
+                                .foregroundStyle(GymTheme.accentText)
                         }
-                        .padding(.vertical, 2)
+                        CameraCoachCaption(message: message, status: session.isPhone ? nil : session.trackingMessage)
                     }
-                } else {
-                    CameraWorkoutMetrics(session: session)
-                    Spacer(minLength: 8)
-                    CameraCoachCaption(message: message)
+                    .padding(.vertical, 2)
                 }
-                CameraWorkoutControls(session: session, camera: camera, toggleAudio: toggleAudio)
+                .accessibilityIdentifier("camera-workout-details")
+            } else {
+                CameraWorkoutMetrics(session: session)
+                Spacer(minLength: GymTheme.Space.small)
+                CameraCoachCaption(message: message, status: session.isPhone ? nil : session.trackingMessage)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            if session.isSending { PendingWorkoutActionView() }
+            CameraWorkoutControls(session: session, camera: camera, toggleAudio: toggleAudio)
         }
+        .padding(.horizontal, GymTheme.Space.section)
+        .padding(.vertical, GymTheme.Space.related)
     }
 
     private var message: String {

@@ -6,13 +6,13 @@ struct PhoneCameraView: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            GymTheme.charcoal
             if camera.state == .ready {
                 PhoneCameraPreview(camera: camera)
                     .accessibilityLabel("Live iPhone camera preview")
             }
             if camera.state != .ready {
-                VStack(spacing: 12) {
+                VStack(spacing: GymTheme.Space.related) {
                     Image(systemName: "camera").font(.largeTitle)
                     Text(camera.state.message).multilineTextAlignment(.center)
                     if camera.state == .denied {
@@ -23,8 +23,8 @@ struct PhoneCameraView: View {
                     } else if case .failed = camera.state { retryButton }
                     else if case .interrupted = camera.state { retryButton }
                 }
-                .padding(24)
-                .foregroundStyle(.white)
+                .padding(GymTheme.Space.page)
+                .foregroundStyle(GymTheme.text)
             }
         }
     }

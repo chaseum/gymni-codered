@@ -2,7 +2,7 @@ import SwiftUI
 import GymAndAIKit
 
 struct AppRootView: View {
-    @State private var session = WorkoutSession()
+    @State private var session: WorkoutSession
     @State private var watch = WatchConnectionController()
     @State private var healthAccess = HealthAccessController()
     @State private var showsSettings = false
@@ -60,6 +60,7 @@ struct AppRootView: View {
                         }
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Settings", systemImage: "gearshape", action: openSettings)
+                                .frame(minWidth: 44, minHeight: 44)
                         }
                     }
                     .navigationBarTitleDisplayMode(.inline)
@@ -69,6 +70,7 @@ struct AppRootView: View {
             NavigationStack {
                 ProgressViewScreen(session: session)
                     .navigationTitle("Progress")
+                    .navigationBarTitleDisplayMode(.inline)
             }
             .tabItem { Label("Progress", systemImage: "chart.bar") }
         }

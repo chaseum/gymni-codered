@@ -71,3 +71,41 @@ import Testing
     let recovered = [UInt8](arrayLiteral: 0xff, 0xd8, 4, 0xff, 0xd9).compactMap { decoder.append($0) }
     #expect(recovered == [Data([0xff, 0xd8, 4, 0xff, 0xd9])])
 }
+
+@MainActor @Test func lastRecapKeepsItsSourceAfterSetupChanges() async {
+    let session = WorkoutSession()
+    session.exercise = .squat
+    await session.start()
+    await session.end()
+    session.returnToday()
+    session.mode = .backend
+    session.exercise = .deadlift
+    session.inputSource = .recorded
+    #expect(session.completedMode == .demo)
+    #expect(session.completedExercise == .squat)
+    #expect(session.completedReps == 0)
+    #expect(!session.completedUnmeasuredSession)
+    session.mode = .phone
+    await session.start()
+    #expect(session.completedMode == nil)
+    await session.end()
+    session.returnToday()
+    session.mode = .demo
+    #expect(session.completedMode == .phone)
+    #expect(session.completedExercise == .deadlift)
+    #expect(session.completedReps == nil)
+    #expect(session.completedUnmeasuredSession)
+}
+
+@MainActor @Test func invalidBackendHeartRateIsUnavailable() {
+    let session = WorkoutSession()
+    let demo = DemoWorkoutSource()
+    session.store.apply(demo.initialSnapshot(exercise: .curl))
+    let now = Date.now
+    for bpm in [0.0, 19, 251, Double.infinity, Double.nan] {
+        let rate = HeartRateView(status: .live, bpm: bpm, sampleId: "invalid",
+                                 sampleTimestampMs: Int64(now.timeIntervalSince1970 * 1_000), source: "apple_watch")
+        session.store.apply(demo.event(.heartRate(rate)))
+        #expect(session.heartRateText(at: now) == "Heart rate unavailable")
+    }
+}

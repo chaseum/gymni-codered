@@ -7,13 +7,13 @@ struct TodayWorkoutSourceView: View {
 
     var body: some View {
         Button(action: openSettings) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: GymTheme.Space.related) {
                 Image(systemName: symbol)
                     .font(.title3)
                     .foregroundStyle(GymTheme.accentText)
                     .frame(width: 28, height: 24)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: GymTheme.Space.tight) {
                     Text(title).font(.subheadline.bold())
                     Text(detail)
                         .font(.subheadline)
@@ -47,8 +47,8 @@ struct TodayWorkoutSourceView: View {
     private var title: String {
         switch mode {
         case .demo: "Demo · Illustrative data"
-        case .phone: "Your iPhone is your camera"
-        case .backend: "Connected laptop workout"
+        case .phone: "iPhone camera · Unmeasured"
+        case .backend: "Laptop · Backend events"
         }
     }
 

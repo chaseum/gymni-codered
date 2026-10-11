@@ -19,6 +19,11 @@ final class LaptopConnectionTests: XCTestCase {
         app.buttons["Settings"].tap()
         app.segmentedControls.buttons["Laptop"].tap()
         let sessionField = app.textFields["Existing session ID"]
+        for _ in 0..<6 {
+            if sessionField.exists && sessionField.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(sessionField.exists && sessionField.isHittable)
         sessionField.tap()
         sessionField.typeText(sessionId)
         app.buttons["Done"].tap()
@@ -37,8 +42,10 @@ final class LaptopConnectionTests: XCTestCase {
         _ = try await post(baseURL.appending(path: "api/sessions/\(sessionId)/observations"), body: observation)
         let counter = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "1 of 8 completed reps")).firstMatch
         XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        capture(app, name: "Laptop reps from fixture")
         app.segmentedControls.buttons["Camera"].tap()
         XCTAssertTrue(app.staticTexts["Camera preview unavailable"].waitForExistence(timeout: 5))
+        capture(app, name: "Laptop preview unavailable")
         let sample: [String: Any] = [
             "sample_id": UUID().uuidString, "session_id": sessionId,
             "participant_id": "integration-fixture", "bpm": 112,
@@ -52,12 +59,25 @@ final class LaptopConnectionTests: XCTestCase {
         let stale = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "Waiting for a fresh sample"), object: watch)
         await fulfillment(of: [stale], timeout: 12)
         XCTAssertFalse(watch.label.contains("112 bpm"))
+        capture(app, name: "Laptop stale Watch fixture")
         app.buttons["Pause"].tap()
         XCTAssertTrue(app.staticTexts["Take a breath."].waitForExistence(timeout: 5))
         app.buttons["Resume workout"].tap()
         XCTAssertTrue(app.staticTexts["Camera preview unavailable"].waitForExistence(timeout: 5))
         app.buttons["End workout"].tap()
         XCTAssertTrue(app.staticTexts["You showed up."].waitForExistence(timeout: 5))
+        app.buttons["Back to Today"].tap()
+        app.tabBars.buttons["Progress"].tap()
+        XCTAssertTrue(app.staticTexts["Laptop · Recorded footage"].waitForExistence(timeout: 5))
+        capture(app, name: "Recorded Laptop progress")
+    }
+
+    @MainActor
+    private func capture(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     @MainActor

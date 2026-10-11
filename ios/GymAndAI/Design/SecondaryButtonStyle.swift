@@ -1,26 +1,21 @@
 import SwiftUI
 
-struct SecondaryButtonStyle: PrimitiveButtonStyle {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+struct SecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
-        if #available(iOS 26, *), !reduceTransparency {
-            Button(role: configuration.role, action: configuration.trigger) {
-                configuration.label.font(.headline).frame(maxWidth: .infinity, minHeight: 36)
-            }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.roundedRectangle(radius: 18))
-            .controlSize(.large)
+        configuration.label
+            .font(.headline)
+            .padding(.horizontal, GymTheme.Space.section)
+            .padding(.vertical, GymTheme.Space.related)
+            .frame(maxWidth: .infinity, minHeight: GymTheme.controlHeight)
             .foregroundStyle(GymTheme.text)
-        } else {
-            Button(role: configuration.role, action: configuration.trigger) {
-                configuration.label.font(.headline).frame(maxWidth: .infinity, minHeight: 36)
+            .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.controlRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: GymTheme.controlRadius)
+                    .strokeBorder(GymTheme.divider, lineWidth: 1)
             }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .buttonBorderShape(.roundedRectangle(radius: 18))
-                .tint(GymTheme.text)
-                .font(.headline)
-                .frame(maxWidth: .infinity, minHeight: 52)
-        }
+            .opacity(isEnabled ? configuration.isPressed ? 0.7 : 1 : 0.45)
+            .contentShape(.rect(cornerRadius: GymTheme.controlRadius))
     }
 }

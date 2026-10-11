@@ -6,7 +6,7 @@ struct CameraWorkoutMetrics: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(alignment: .top, spacing: 24) {
+        HStack(alignment: .top, spacing: GymTheme.Space.page) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 CameraHeartRateView(rate: session.heartRate, date: context.date)
             }

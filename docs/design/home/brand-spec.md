@@ -1,4 +1,6 @@
-# Home v2 — design and brand reference
+# Gym&I — design and brand reference
+
+The complete native flow now uses the shared product system documented in [SwiftUI product redesign](../swiftui-product-redesign.md). The color palette below remains authoritative; the Home v2 verification below is the historical baseline.
 
 ## Design read
 
@@ -24,11 +26,11 @@ The first version gave the greeting the largest visual weight. V2 gives that wei
 | Implemented v2 preview | `docs/design/home/home-v2.png` |
 | Largest text size preview | `docs/design/home/home-v2-large-text.png` |
 
-Colors come from `GymTheme`: background `#283239`, panels `#1B272D`, main text `#F2F6F5`, secondary text `#B8C5CB`, action `#0097B2`, accent text `#6ECADB`, and text on the action `#0E1418`. The logo keeps its supplied white backing.
+Colors come from `GymTheme`: background `#283239`, panels `#1B272D`, main text `#F2F6F5`, secondary text `#B8C5CB`, action `#0097B2`, accent text `#6ECADB`, and text on the action `#0E1418`. The official logo is the user-supplied `GymILogo.png`, installed on October 11, 2026. Its transparent artwork displays directly on the app background, without an added white backing. The header fits the wordmark into the existing compact slot; the launch screen displays the full supplied image. Historical captures below predate this logo replacement.
 
 Typography is the native system family with rounded bold large titles, semantic headline/detail styles, and Dynamic Type. The base page padding is 24 points; related groups use 6–12 points, panel sections use 20 points, and distinct page sections use 28 points. Panel radius remains 24 points. One border establishes the panel's depth; no decorative glow or nested card system.
 
-Liquid Glass is reserved for native navigation and the primary button on iOS 26. Content panels are opaque for legibility. Older iOS versions and Reduce Transparency use the existing button fallbacks. The iOS 17 deployment target stays unchanged.
+Native navigation retains system styling. Primary actions now use opaque teal, secondary actions use opaque slate, and camera overlays are opaque for legibility. Controls use a 16-point radius and at least 52-point height. The iOS 17 deployment target stays unchanged.
 
 ## Preserved interactions and states
 
@@ -48,3 +50,7 @@ Impeccable informed hierarchy, material restraint, truthful states, and a bounde
 Simulator build passed on iPhone 17 Pro / iOS 26.4. Five existing mascot/phone-mode tests passed in the first run. The two workout journey tests passed in the final run after correcting the setup row's position relative to the pinned Start control. The journey now asserts the setup row ends above Start, opens both plan and settings, starts a workout, and completes the camera/pause/recap flow. Largest accessibility text keeps Start reachable and uses vertical, scrollable content.
 
 Standard and largest-text Home captures were inspected together, then confirmed after the layout correction. All seven selected test cases passed across these runs. The screenshots are actual app captures with illustrative Demo data. No physical camera or Watch readings are shown.
+
+## Transparent logo update
+
+The supplied PNG is installed unchanged. Added white backgrounds were removed from the header and launch screen. The simulator build passed, and the new logo was visually verified on Today in iPhone 17 Pro / iOS 26.2. [Actual capture](../native/redesign/today-transparent-logo.png).

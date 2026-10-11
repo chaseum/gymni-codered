@@ -8,10 +8,12 @@ final class WorkoutJourneyTests: XCTestCase {
         capture(app, name: "Today")
         app.buttons["View plan"].tap()
         XCTAssertTrue(app.navigationBars["Your plan"].waitForExistence(timeout: 3))
+        capture(app, name: "Plan review")
         app.buttons["Done"].tap()
         XCTAssertLessThan(app.buttons["Workout setup"].frame.maxY, app.buttons["Start workout"].frame.minY)
         app.buttons["Workout setup"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        capture(app, name: "Workout settings")
         app.buttons["Done"].tap()
         app.buttons["Start workout"].tap()
         let picker = app.segmentedControls["workout-view-picker"]
@@ -52,8 +54,37 @@ final class WorkoutJourneyTests: XCTestCase {
         add(restScreenshot)
         app.buttons["End workout"].tap()
         XCTAssertTrue(app.staticTexts["You showed up."].waitForExistence(timeout: 3))
+        capture(app, name: "Session recap")
         app.buttons["Back to Today"].tap()
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 3))
+        app.tabBars.buttons["Progress"].tap()
+        XCTAssertTrue(app.staticTexts["Demo · Simulated reps"].waitForExistence(timeout: 3))
+        capture(app, name: "Demo progress")
+    }
+
+    @MainActor
+    func testPlanAndProgressKeepSourcesHonest() {
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["Progress"].tap()
+        capture(app, name: "Progress empty state")
+        app.tabBars.buttons["Today"].tap()
+        app.buttons["Start workout"].tap()
+        XCTAssertTrue(app.segmentedControls["workout-view-picker"].waitForExistence(timeout: 8))
+        app.buttons["End workout"].tap()
+        app.buttons["Back to Today"].tap()
+        app.buttons["Settings"].tap()
+        app.segmentedControls.buttons["Laptop"].tap()
+        app.buttons["Done"].tap()
+        app.buttons["View plan"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "8 reps requested")).firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Input, Live webcam"].exists || app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Live webcam")).firstMatch.exists)
+        capture(app, name: "Laptop plan")
+        app.buttons["Done"].tap()
+        app.tabBars.buttons["Progress"].tap()
+        XCTAssertTrue(app.staticTexts["Demo · Simulated reps"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Laptop · Backend events"].exists)
+        capture(app, name: "Progress source after setup change")
     }
 
     @MainActor
@@ -76,15 +107,25 @@ final class WorkoutJourneyTests: XCTestCase {
         XCTAssertLessThanOrEqual(watch.frame.maxX, reps.frame.minX)
         XCTAssertLessThan(watch.frame.maxY, app.buttons["Pause"].frame.minY)
         XCTAssertLessThan(reps.frame.maxY, app.buttons["Pause"].frame.minY)
+        XCTAssertTrue(app.scrollViews["camera-workout-details"].exists)
         XCTAssertGreaterThanOrEqual(watch.frame.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(reps.frame.maxX, app.frame.maxX)
         capture(app, name: "Large text camera")
         app.buttons["Pause"].tap()
         XCTAssertTrue(app.staticTexts["Take a breath."].waitForExistence(timeout: 3))
+        let rest = app.scrollViews["rest-content"]
+        XCTAssertTrue(rest.waitForExistence(timeout: 3))
+        let timer = app.descendants(matching: .any)["rest-countdown"]
         for _ in 0..<5 {
-            if app.buttons["End workout"].isHittable { break }
-            app.swipeUp()
+            if timer.frame.midY < app.buttons["Resume workout"].frame.minY { break }
+            // Keep the gesture above the fixed action dock.
+            let visibleHeight = app.buttons["Resume workout"].frame.minY - rest.frame.minY
+            let top = rest.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+            top.withOffset(CGVector(dx: 0, dy: visibleHeight - 30))
+                .press(forDuration: 0.05, thenDragTo: top.withOffset(CGVector(dx: 0, dy: 30)))
         }
+        XCTAssertTrue(timer.isHittable)
+        XCTAssertLessThan(timer.frame.midY, app.buttons["Resume workout"].frame.minY)
         capture(app, name: "Large text rest")
         XCTAssertTrue(app.buttons["End workout"].isHittable)
     }

@@ -14,7 +14,7 @@ struct CameraWorkoutView: View {
                 if session.isPhone { PhoneCameraView(camera: camera) }
                 else {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        CameraFrameView(stream: stream, date: context.date, isDemo: session.isDemo, hasURL: session.previewURL != nil)
+                        CameraFrameView(stream: stream, date: context.date, isDemo: session.isDemo, hasURL: session.previewURL != nil, isRecorded: session.snapshot?.source == .recorded)
                     }
                 }
             }

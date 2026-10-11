@@ -8,20 +8,12 @@ struct TodayWorkoutDetails: View {
 
     var body: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: 24))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: GymTheme.Space.inset))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: GymTheme.Space.page))
 
         layout {
-            TodayWorkoutDetail(label: "Equipment", value: equipment)
+            TodayWorkoutDetail(label: "Equipment", value: exercise.equipment)
             TodayWorkoutDetail(label: "One set", value: target)
-        }
-    }
-
-    private var equipment: String {
-        switch exercise {
-        case .curl: "Dumbbell"
-        case .squat: "Bodyweight"
-        case .deadlift: "Barbell"
         }
     }
 
@@ -29,7 +21,7 @@ struct TodayWorkoutDetails: View {
         switch mode {
         case .phone: "Manual set"
         case .demo: "8 demo reps"
-        case .backend: "8 reps"
+        case .backend: "Laptop target"
         }
     }
 }

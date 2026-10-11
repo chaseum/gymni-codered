@@ -5,7 +5,7 @@ struct TodayWorkoutDetail: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: GymTheme.Space.small) {
             Text(label)
                 .font(.subheadline)
                 .foregroundStyle(GymTheme.muted)

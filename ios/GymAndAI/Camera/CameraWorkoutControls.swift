@@ -8,12 +8,12 @@ struct CameraWorkoutControls: View {
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
+            HStack(spacing: GymTheme.Space.related) {
                 CameraNavigationControls(session: session, camera: camera, toggleAudio: toggleAudio)
                 Spacer(minLength: 12)
                 CameraSessionControls(session: session)
             }
-            VStack(spacing: 8) {
+            VStack(spacing: GymTheme.Space.small) {
                 CameraNavigationControls(session: session, camera: camera, toggleAudio: toggleAudio)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 CameraSessionControls(session: session)

@@ -7,7 +7,7 @@ struct TodayMascotButton: View {
     var body: some View {
         Button(action: celebrate) {
             PipView(state: state)
-                .frame(width: 152, height: 160)
+                .frame(width: 120, height: 132)
         }
         .buttonStyle(.plain)
         .disabled(state == .celebrate)

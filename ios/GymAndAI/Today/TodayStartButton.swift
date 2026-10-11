@@ -6,7 +6,7 @@ struct TodayStartButton: View {
 
     var body: some View {
         Button(action: startWorkout) {
-            HStack(spacing: 10) {
+            HStack(spacing: GymTheme.Space.related) {
                 if isStarting {
                     ProgressView().tint(GymTheme.charcoal)
                     Text("Starting…")

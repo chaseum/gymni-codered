@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Gym&amp;AI</string>
+	<string>Gym&amp;I</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,11 +24,11 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Gym&amp;AI connects to your laptop coach and webcam preview.</string>
+	<string>Gym&amp;I connects to your laptop coach and webcam preview.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Gym&amp;AI reads your heart rate during workouts to display your current effort and support coaching.</string>
+	<string>Gym&amp;I reads your heart rate during workouts to display your current effort and support coaching.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Gym&amp;AI saves completed workouts to Apple Health.</string>
+	<string>Gym&amp;I saves completed workouts to Apple Health.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -43,6 +43,6 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Gym&amp;AI uses your camera to show your workout live. Movement analysis will be enabled when the trained model is available.</string>
+	<string>Gym&amp;I uses your camera to show your workout live. Movement analysis will be enabled when the trained model is available.</string>
 </dict>
 </plist>

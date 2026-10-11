@@ -6,20 +6,26 @@ struct RestViewScreen: View {
     var mascotState = MascotState.rest
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: GymTheme.spacing) {
-                Text(session.isDemo ? "DEMO · WORKOUT PAUSED" : "WORKOUT PAUSED")
-                    .font(.subheadline).foregroundStyle(GymTheme.accentText)
-                Text("Take a breath.").font(.largeTitle.bold())
-                PipView(state: mascotState).frame(width: 160, height: 140)
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    RestCountdownView(seconds: session.restRemaining(at: context.date))
-                }
-                Text("Take the time you need. Water if you need it.").font(.title3)
-                if session.isDemo { Text("Shortened demo timer · Illustrative data").foregroundStyle(GymTheme.muted) }
+        GymPage(accessibilityIdentifier: "rest-content") {
+            WorkoutHeaderView(context: session.isDemo ? "Demo · Workout paused" : "Workout paused",
+                              title: "Take a breath.",
+                              detail: (session.snapshot?.exercise ?? session.exercise).title)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                RestCountdownView(seconds: session.restRemaining(at: context.date))
+                    .padding(GymTheme.Space.page)
+                    .modifier(GymSurface())
             }
-            .padding(GymTheme.spacing)
+            HStack(spacing: GymTheme.Space.related) {
+                PipView(state: mascotState).frame(width: 80, height: 80)
+                Text("Take the time you need. Water if you need it.")
+                    .font(.body).foregroundStyle(GymTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if session.isDemo {
+                Text("Shortened demo timer · Illustrative data")
+                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
+            }
         }
-        .safeAreaInset(edge: .bottom) { RestControlsView(session: session) }
+        .safeAreaInset(edge: .bottom, spacing: 0) { RestControlsView(session: session) }
     }
 }

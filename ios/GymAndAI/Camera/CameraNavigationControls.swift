@@ -7,7 +7,7 @@ struct CameraNavigationControls: View {
     let toggleAudio: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: GymTheme.Space.related) {
             Button("Reps", systemImage: "arrow.left", action: showReps)
                 .buttonStyle(SecondaryButtonStyle())
                 .fixedSize(horizontal: true, vertical: false)

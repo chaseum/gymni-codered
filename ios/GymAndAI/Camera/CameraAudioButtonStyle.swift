@@ -1,22 +1,16 @@
 import SwiftUI
 
-struct CameraAudioButtonStyle: PrimitiveButtonStyle {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+struct CameraAudioButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
-        if #available(iOS 26, *), !reduceTransparency {
-            Button(role: configuration.role, action: configuration.trigger) {
-                configuration.label.frame(minWidth: 28, minHeight: 36)
-            }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-        } else {
-            Button(role: configuration.role, action: configuration.trigger) {
-                configuration.label.frame(minWidth: 28, minHeight: 36)
-            }
-                .buttonStyle(.bordered)
-                .controlSize(.large).buttonBorderShape(.circle)
-                .frame(minWidth: 44, minHeight: 52)
-        }
+        configuration.label
+            .font(.headline)
+            .frame(minWidth: GymTheme.controlHeight, minHeight: GymTheme.controlHeight)
+            .foregroundStyle(GymTheme.text)
+            .background(GymTheme.surface, in: .circle)
+            .overlay { Circle().strokeBorder(GymTheme.divider, lineWidth: 1) }
+            .opacity(isEnabled ? configuration.isPressed ? 0.7 : 1 : 0.45)
+            .contentShape(.circle)
     }
 }

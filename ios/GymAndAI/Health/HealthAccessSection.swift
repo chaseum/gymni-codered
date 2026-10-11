@@ -17,7 +17,7 @@ struct HealthAccessSection: View {
         } header: {
             Text("Apple Health")
         } footer: {
-            Text("This button requests heart-rate read access on iPhone. Live readings require the Gym&AI Watch companion and Health access on your Watch.")
+            Text("This button requests heart-rate read access on iPhone. Live readings require the Gym&I Watch companion and Health access on your Watch.")
         }
     }
 

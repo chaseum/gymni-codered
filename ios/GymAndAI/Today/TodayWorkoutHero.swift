@@ -9,17 +9,16 @@ struct TodayWorkoutHero: View {
 
     var body: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: GymTheme.Space.inset))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: GymTheme.Space.small))
 
         layout {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: GymTheme.Space.related) {
                 Text(exercise.title)
-                    .font(.largeTitle.bold())
-                    .fontDesign(.rounded)
+                    .font(GymTheme.TypeStyle.title)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("Strength foundations")
+                Text("Your next set")
                     .font(.subheadline)
                     .foregroundStyle(GymTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)

@@ -3,15 +3,26 @@ import GymAndAIKit
 
 struct RestControlsView: View {
     let session: WorkoutSession
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        VStack(spacing: 10) {
-            Button("Resume workout", action: resume).buttonStyle(PrimaryButtonStyle()).disabled(!session.canResume)
-            Button("More time", action: moreTime).buttonStyle(SecondaryButtonStyle()).disabled(session.isSending)
-            Button("End workout", action: end).buttonStyle(SecondaryButtonStyle()).disabled(session.isSending)
+        GymActionDock {
+            if session.isSending { PendingWorkoutActionView() }
+            Button("Resume workout", systemImage: "play.fill", action: resume)
+                .buttonStyle(PrimaryButtonStyle()).disabled(!session.canResume)
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(spacing: GymTheme.Space.small))
+                : AnyLayout(HStackLayout(spacing: GymTheme.Space.small))
+            layout {
+                Button("More time", action: moreTime).buttonStyle(SecondaryButtonStyle())
+                Button("End workout", action: end).buttonStyle(SecondaryButtonStyle())
+            }
+            .disabled(session.isSending)
+            if !session.hasConnection {
+                Text("Reconnect to your laptop to resume.")
+                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
+            }
         }
-        .padding(.horizontal, GymTheme.spacing).padding(.vertical, 12)
-        .background(GymTheme.background)
     }
 
     private func resume() { Task { await session.resume() } }

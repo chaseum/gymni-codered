@@ -4,7 +4,7 @@ final class PipMascotTests: XCTestCase {
     @MainActor
     func testAllCompanionsLoadAfterSelection() {
         let app = XCUIApplication()
-        app.launch()
+        app.launchPastIntro()
         for (name, focus) in [("Atlas", "Get stronger"), ("Flex", "Build muscle"), ("Pip", "Feel fitter")] {
             app.buttons["Workout setup"].tap()
             let choice = app.descendants(matching: .any)["companion-choice"].firstMatch
@@ -23,7 +23,7 @@ final class PipMascotTests: XCTestCase {
     func testTodayLoads3DAndTapReturnsToIdle() {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
-        app.launch()
+        app.launchPastIntro()
         let pip = app.buttons["celebrate-pip"]
         XCTAssertTrue(pip.waitForExistence(timeout: 10))
         waitForValue("3D", on: pip)
@@ -39,7 +39,7 @@ final class PipMascotTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
         app.launchArguments += ["-PipForceFallback"]
-        app.launch()
+        app.launchPastIntro()
         let pip = app.buttons["celebrate-pip"]
         XCTAssertTrue(pip.waitForExistence(timeout: 10))
         waitForValue("Static preview", on: pip)
@@ -53,7 +53,7 @@ final class PipMascotTests: XCTestCase {
     func testModelReturnsAfterBackgroundAndTabChange() {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
-        app.launch()
+        app.launchPastIntro()
         waitForValue("3D", on: app.buttons["celebrate-pip"])
         XCUIDevice.shared.press(.home)
         app.activate()
@@ -68,7 +68,7 @@ final class PipMascotTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
         app.launchArguments += ["-PipReduceMotion"]
-        app.launch()
+        app.launchPastIntro()
         waitForValue("motion reduced", on: app.buttons["celebrate-pip"])
         app.buttons["Start workout"].tap()
         XCTAssertTrue(app.segmentedControls["workout-view-picker"].waitForExistence(timeout: 8))

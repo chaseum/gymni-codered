@@ -30,7 +30,7 @@ struct ProgressViewScreen: View {
                 PipView().frame(width: 104, height: 100)
                 ContentUnavailableView("One set is a start", systemImage: "figure.strengthtraining.traditional",
                                        description: Text("Complete a workout, then return to Today to see your last session here."))
-                Text("Laptop reps, simulated Demo sets, and unmeasured iPhone sessions are labeled by source.")
+                Text("Sets counted from your Pi or laptop camera and unmeasured iPhone sessions are labeled by source.")
                     .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -39,14 +39,11 @@ struct ProgressViewScreen: View {
 
     private var sourceTitle: String {
         if session.completedUnmeasuredSession { return "iPhone camera · Unmeasured" }
-        if session.completedMode == .demo { return "Demo · Simulated reps" }
-        if session.completedMode == .hub { return "Camera device · Counted on this iPhone" }
-        return session.completedSource == .recorded ? "Laptop · Recorded footage" : "Laptop · Backend events"
+        return "Pi or laptop camera · Counted on this iPhone"
     }
 
     private var sourceDetail: String {
         if session.completedUnmeasuredSession { return "Reps and form were not measured during this camera session." }
-        if session.completedMode == .demo { return "These reps are illustrative. Demo did not measure movement or heart rate." }
-        return "These reps were reported by the laptop backend. Camera preview availability does not change the recorded count."
+        return "These reps were counted on this iPhone from your Pi or laptop camera."
     }
 }

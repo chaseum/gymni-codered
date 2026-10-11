@@ -3,7 +3,7 @@ import Testing
 @testable import GymAndAIKit
 
 @MainActor @Test func coachingCuesDecodeAndRejectStaleOrUntrustedState() throws {
-    let store = WorkoutStore(baseURL: URL(string: "http://localhost:8000")!, sessionId: "session-001")
+    let store = WorkoutStore(sessionId: "session-001")
     let snapshotData = try steps("catalog.json", kind: "event")[0]
     let event = try Contracts.decoder.decode(WorkoutEvent.self, from: snapshotData)
     guard case .snapshot(var snap) = event.payload else { Issue.record("Expected snapshot"); return }

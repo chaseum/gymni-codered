@@ -5,9 +5,9 @@ final class PhoneCameraTests: XCTestCase {
     func testSimulatorDoesNotFakePhoneVideoOrRepCounts() {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
-        app.launch()
+        app.launchPastIntro()
         app.buttons["Settings"].tap()
-        app.segmentedControls.buttons["iPhone"].tap()
+        app.segmentedControls.buttons["iPhone camera"].tap()
         app.buttons["Done"].tap()
         app.buttons["Start workout"].tap()
         let unavailable = app.staticTexts.matching(NSPredicate(format: "identifier == %@ AND label == %@", "phone-camera-status", "No camera available. Use a physical iPhone.")).firstMatch

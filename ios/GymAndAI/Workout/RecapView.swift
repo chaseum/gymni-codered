@@ -7,7 +7,7 @@ struct RecapView: View {
 
     var body: some View {
         GymPage {
-            WorkoutHeaderView(context: session.isDemo ? "Demo recap · Simulated data" : "Session recap",
+            WorkoutHeaderView(context: "Session recap",
                               title: "You showed up.")
             PipView(state: mascotState).frame(width: 120, height: 110)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -20,7 +20,7 @@ struct RecapView: View {
             }
             .padding(GymTheme.Space.page)
             .modifier(GymSurface())
-            Text(session.isDemo ? "This walkthrough simulated your reps and coaching. No movement or heart rate was measured." : session.isPhone ? "Your camera session ended. Reps and form were not measured." : "These completed reps came from your laptop session.")
+            Text(session.isPhone ? "Your camera session ended. Reps and form were not measured." : "These reps were counted on this iPhone from your camera’s movement data.")
                 .font(.body).foregroundStyle(GymTheme.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -32,9 +32,7 @@ struct RecapView: View {
     }
 
     private var sourceDescription: String {
-        if session.isDemo { return "Simulated Demo set" }
         if session.isPhone { return "iPhone camera · Unmeasured" }
-        if session.isHub { return "Camera device · Counted on this iPhone" }
-        return session.snapshot?.source == .recorded ? "Laptop · Recorded footage" : "Laptop · Backend events"
+        return "Pi or laptop camera · Counted on this iPhone"
     }
 }

@@ -24,7 +24,7 @@ private func observation(_ id: String, rep: Int? = nil, exercise: String = "curl
 
 @MainActor @Test func hubCommitsTrustedRepsAndCues() {
     let hub = HubSession(sessionId: "phone")
-    let store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: "phone")
+    let store = WorkoutStore(sessionId: "phone")
     hub.onEvent = store.apply
     store.apply(hub.snapshot())
     #expect(hub.command(.start, args: CommandArgs(exercise: .curl, targetReps: 8)) == nil)
@@ -49,7 +49,7 @@ private func observation(_ id: String, rep: Int? = nil, exercise: String = "curl
 
 @MainActor @Test func hubIgnoresRepsWhilePausedEvenAfterResume() {
     let hub = HubSession(sessionId: "phone")
-    let store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: "phone")
+    let store = WorkoutStore(sessionId: "phone")
     hub.onEvent = store.apply
     store.apply(hub.snapshot())
     hub.command(.start, args: CommandArgs(exercise: .curl))

@@ -7,53 +7,29 @@ For a physical iPhone, select your development team in Signing & Capabilities an
 ## Implemented first slice
 
 - Today, exercise selection/plan details, settings, and a lightweight last-session Progress screen.
-- Demo → simulated positioning → workout → explicit pause/rest → resume → recap.
+- Two modes: **iPhone camera** (positioning only; reps unmeasured) and **Pi / laptop camera** (the camera device runs the model and posts to this iPhone, which counts reps and coaches). Workout → explicit pause/rest → resume → recap.
 - **Reps | Camera** display switch. Both views share the same session, coach caption, and controls. Switching never changes the count or session state.
 - Camera opens edge to edge in landscape. Apple Watch heart rate sits at the upper left, completed/target reps at the upper right, and coaching plus Reps/Mute/Pause/End controls overlay the bottom. Returning to Reps, rest, or recap restores portrait. The video preserves its aspect ratio so joints are not cropped to fill the screen.
 - The Watch tile displays BPM only for `apple_watch` samples marked live and timestamped within ten seconds. Missing, stale, or unrelated-source samples show Unavailable. The Watch bridge still needs implementing.
-- Demo mode produces explicitly simulated contract events. It never measures movement or heart rate. Its 15-second rest timer is shortened for demonstration, and expiry never resumes the workout.
-- Laptop mode attaches to an existing backend session, displays its snapshots/events, and sends acknowledged start/rest/resume/extend/end commands. It never increments reps locally. Failed/rejected actions remain visible; reconnects resynchronize from a snapshot.
-- Optional external webcam **MJPEG preview**. Missing or stale video has an explicit unavailable state. Preview parsing runs away from the main actor with bounded frame buffering. The preview does not perform inference.
-- Spoken captions use native speech synthesis; generated dynamic corrections use ElevenLabs MP3 audio from the laptop backend when enabled. Both use temporary audio ducking. Audio can be muted; current cues stop on pause/end.
+- Pi / laptop camera mode runs the session on the phone (`HubSession`, a port of the backend's session rules) and accepts the camera device's observations on port 8000 (`HubServer`). Rest timer expiry never resumes the workout.
+- Optional camera-device **MJPEG preview** (`fitness-ml --preview-port`). Missing or stale video has an explicit unavailable state. Preview parsing runs away from the main actor with bounded frame buffering. The preview does not perform inference.
+- Spoken captions and form corrections use native speech synthesis with temporary audio ducking. Audio can be muted; current cues stop on pause/end.
 - Dynamic Type, scrolling layouts, labeled controls, and touch targets of at least 44 points.
 - Native Liquid Glass on iOS 26+: Watch/rep tiles and the floating coach caption use regular glass; primary buttons use lime-tinted glass and secondary buttons use neutral glass. Camera controls sit directly over the video, with no enclosing glass panel. Reduce Transparency uses opaque tiles and standard buttons; older iOS versions use material tiles and standard buttons. The deployment baseline stays iOS 17.
 - Settings → Apple Health → **Connect Apple Health** requests permission to read heart rate through the native HealthKit sheet. It requests no write permission, reads no samples, and sends no health data to the laptop. Completion is reported as “Permission request finished”; HealthKit does not reveal denial of read access. Errors and unavailable-device states remain visible.
 - Choose Pip, Atlas or Flex in Settings > Companion. The selected bundled 3D companion coaches, rests on pause, and celebrates at recap. Tap it on Today for a brief celebration.
 
-## Connect the laptop
+## Simulator: one-command live demo
 
-### macOS Simulator: one-command live demo
-
-On the Mac, install the Python packages, make sure the ignored model bundle exists at `ml/models/`, and run:
+On the Mac, with the ignored model bundle in `ml/models/`:
 
 ```bash
 python3.11 -m venv .venv
-.venv/bin/pip install -e 'backend[dynamic-cues]' -e 'ml[gru]'
-if [ ! -f .env ]; then cp .env.example .env; fi
-# Add GEMINI_API_KEY, ELEVENLABS_API_KEY, and ELEVENLABS_VOICE_ID to .env
+.venv/bin/pip install -e 'ml[gru]'
 bash scripts/run_simulator_demo.sh curl
 ```
 
-The script selects an installed iPhone Simulator (or use the optional second argument to choose a name), starts the backend, creates a session, builds and opens the iOS app, attaches it to that session, and starts live webcam inference. On first use, allow camera access for the terminal running the script. Close the model window with `q` to stop the model and backend. Examples: `bash scripts/run_simulator_demo.sh curl` or `bash scripts/run_simulator_demo.sh squat "iPhone 16"`. The dynamic cue flag is enabled for this demo; provider failures fall back to the approved fixed cue and native speech.
-
-If you prefer manual control, start the backend:
-
-```bash
-python -m uvicorn gymai_backend.app:app --app-dir backend --host 0.0.0.0 --port 8000
-```
-
-Then in a second terminal create a session and start model inference:
-
-```bash
-python -c "import httpx; print(httpx.post('http://localhost:8000/api/sessions', json={'session_id':'phone-demo'}).json())"
-python -m fitness_ml run --source live --exercise curl --post http://localhost:8000 --session phone-demo
-```
-
-For a physical iPhone, select **Laptop** in Settings and enter the laptop's LAN URL and session ID. The phone and laptop must be on the same trusted network. If using `GYMAI_TOKEN`, configure it in the app as well. Local Network permission and `NSAllowsLocalNetworking` are configured; arbitrary network loads are not globally enabled.
-
-Choose the exercise and Live webcam/Recorded input in View plan, then Start workout. When attaching to an already active/paused/completed session, its state is preserved. The phone does not create or start a second set automatically.
-
-Drive observations using the ML CLI documented in `../ml/README.md`. For a fixture replay, clearly describe that the connected backend input is simulated: `source=live` alone does not establish that an observation came from real inference.
+The script builds and opens the app in an iPhone Simulator in Pi / laptop camera mode, waits for its listener on `127.0.0.1:8000`, then streams live webcam inference into it. Allow camera access for the terminal on first use; close the model window with `q` to stop. An optional second argument picks the Simulator, e.g. `bash scripts/run_simulator_demo.sh squat "iPhone 17"`.
 
 ## Camera device mode (iPhone as the hub)
 
@@ -114,7 +90,7 @@ Native speech announcements use the system-managed speech audio session. ElevenL
 To check on a physical iPhone:
 
 1. Start music in Apple Music or Spotify on that iPhone, using the phone speaker or connected AirPods.
-2. Open Gym&AI, leave Spoken coaching enabled, and start a Demo workout to hear a native speech announcement. For ElevenLabs, connect Laptop mode and use a session that produces a supported correction with its generated cue MP3 available.
+2. Open Gym&AI, leave Spoken coaching enabled, and start a workout to hear a native speech announcement.
 3. Check that music becomes quieter while the cue is audible, then returns afterward.
 4. Mute the coach while a cue is playing and verify speech stops and music returns. Pause/end should cancel the current cue; their short transition announcement may then duck music again.
 5. Switch Reps/Camera and confirm no extra announcement or music interruption occurs just from switching views.

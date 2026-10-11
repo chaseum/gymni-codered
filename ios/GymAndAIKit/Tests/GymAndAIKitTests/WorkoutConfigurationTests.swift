@@ -2,74 +2,50 @@ import Foundation
 import Testing
 @testable import GymAndAIKit
 
-@MainActor @Test func laptopLaunchSurvivesNormalRelaunch() throws {
+@MainActor @Test func hubLaunchSurvivesNormalRelaunch() throws {
     let suite = "workout-settings-\(UUID().uuidString)"
     let preferences = try #require(UserDefaults(suiteName: suite))
     defer { preferences.removePersistentDomain(forName: suite) }
     let first = WorkoutSession(preferences: preferences)
-    first.configureSimulatorLaunch(arguments: ["app", "--gymni-laptop", "--backend-url", "http://127.0.0.1:8000",
-                                               "--session-id", "live-first", "--exercise", "squat"])
+    first.configureSimulatorLaunch(arguments: ["app", "--gymni-hub", "--exercise", "squat"])
     #expect(first.consumeSimulatorAutoStartRequest())
     #expect(!first.consumeSimulatorAutoStartRequest())
 
     let reopened = WorkoutSession(defaultMode: .phone, preferences: preferences)
     reopened.configureSimulatorLaunch(arguments: ["app"])
-    #expect(reopened.mode == .backend)
-    #expect(!reopened.isDemo && !reopened.isPhone)
-    #expect(reopened.backendSessionId == "live-first")
-    #expect(reopened.backendAddress == "http://127.0.0.1:8000")
-    #expect(reopened.inputSource == .live)
+    #expect(reopened.mode == .hub)
+    #expect(reopened.isHub && !reopened.isPhone)
     #expect(reopened.exercise == .squat)
     #expect(reopened.audioEnabled)
     #expect(!reopened.shouldAutoStartSimulatorSession)
 }
 
-@MainActor @Test func newLaptopLaunchReplacesOldSessionAndRecordedMode() throws {
+@MainActor @Test func settingsPersistButWorkoutStateDoesNot() async throws {
     let suite = "workout-settings-\(UUID().uuidString)"
     let preferences = try #require(UserDefaults(suiteName: suite))
     defer { preferences.removePersistentDomain(forName: suite) }
-    let previous = WorkoutSession(preferences: preferences)
-    previous.mode = .backend
-    previous.backendSessionId = "old-session"
-    previous.inputSource = .recorded
-    previous.audioEnabled = false
-
-    let next = WorkoutSession(preferences: preferences)
-    next.configureSimulatorLaunch(arguments: ["app", "--gymni-laptop", "--backend-url", "http://127.0.0.1:8000",
-                                              "--session-id", "live-second", "--exercise", "curl"])
-    #expect(next.backendSessionId == "live-second")
-    #expect(next.inputSource == .live)
-    #expect(next.audioEnabled)
-    #expect(next.shouldAutoStartSimulatorSession)
-    #expect(WorkoutSession(preferences: preferences).backendSessionId == "live-second")
-}
-
-@MainActor @Test func explicitDemoChoicePersistsButTokensAndWorkoutStateDoNot() async throws {
-    let suite = "workout-settings-\(UUID().uuidString)"
-    let preferences = try #require(UserDefaults(suiteName: suite))
-    defer { preferences.removePersistentDomain(forName: suite) }
-    let session = WorkoutSession(defaultMode: .backend, preferences: preferences)
-    session.token = "private-lan-token"
-    session.mode = .demo
+    let session = WorkoutSession(defaultMode: .hub, preferences: preferences)
+    session.mode = .phone
+    session.previewAddress = "192.168.1.30:8081"
+    session.audioEnabled = false
+    session.usesAppleWatch = false
     await session.start()
     await session.end()
+
     let next = WorkoutSession(preferences: preferences)
-    #expect(next.isDemo)
-    #expect(next.token.isEmpty)
+    #expect(next.isPhone)
+    #expect(next.previewAddress == "192.168.1.30:8081")
+    #expect(!next.audioEnabled)
+    #expect(!next.usesAppleWatch)
     #expect(next.snapshot == nil)
     #expect(!next.presentsWorkout)
-    let data = try #require(preferences.data(forKey: WorkoutConfiguration.preferencesKey))
-    #expect(!String(decoding: data, as: UTF8.self).contains("private-lan-token"))
 }
 
-@MainActor @Test func failedLaptopConnectionNeverStartsSimulatedReps() async {
-    let session = WorkoutSession(defaultMode: .backend)
-    session.backendAddress = ""
-    await session.start()
-    #expect(session.errorMessage != nil)
-    #expect(session.mode == .backend)
-    #expect(!session.isDemo)
-    #expect(!session.presentsWorkout)
-    #expect(session.snapshot == nil)
-    #expect(session.repCount == 0)
+@MainActor @Test func unreadableSavedSettingsFallBackToDefaults() throws {
+    let suite = "workout-settings-\(UUID().uuidString)"
+    let preferences = try #require(UserDefaults(suiteName: suite))
+    defer { preferences.removePersistentDomain(forName: suite) }
+    let removedMode = #"{"mode":"Laptop","exercise":"curl","previewAddress":"","audioEnabled":true,"usesAppleWatch":true}"#
+    preferences.set(Data(removedMode.utf8), forKey: WorkoutConfiguration.preferencesKey)
+    #expect(WorkoutSession(defaultMode: .phone, preferences: preferences).mode == .phone)
 }

@@ -28,12 +28,6 @@ struct PlanView: View {
                         ForEach(WorkoutMode.allCases) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.menu)
-                    if session.mode == .backend {
-                        Picker("Input", selection: $session.inputSource) {
-                            Text("Live webcam").tag(InputSource.live)
-                            Text("Recorded footage").tag(InputSource.recorded)
-                        }
-                    }
                     Text(sourceDetail).foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
@@ -58,8 +52,6 @@ struct PlanView: View {
     private var target: String {
         switch session.mode {
         case .phone: "Manual · Unmeasured"
-        case .demo: "8 simulated reps"
-        case .backend: "8 reps requested"
         case .hub: "8 reps"
         }
     }
@@ -67,8 +59,6 @@ struct PlanView: View {
     private var targetDetail: String {
         switch session.mode {
         case .phone: "Start and end the set yourself. This camera does not measure reps or form yet."
-        case .demo: "The walkthrough simulates eight reps. No movement is measured."
-        case .backend: "A new set requests eight reps. An existing session keeps the laptop’s current exercise and target."
         case .hub: "Each set targets eight reps. This iPhone counts them from the camera device’s movement data."
         }
     }
@@ -76,8 +66,6 @@ struct PlanView: View {
     private var sourceDetail: String {
         switch session.mode {
         case .phone: "Use your iPhone camera to see your position. Video stays on your phone."
-        case .demo: "A simulated set lets you explore coaching, rest, and recap. No camera runs."
-        case .backend: "The laptop owns tracking and rep counting. Configure its connection in Settings."
         case .hub: "The camera device tracks your movement; this iPhone counts reps and coaches. Start the camera with the address shown during the workout."
         }
     }

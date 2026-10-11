@@ -12,7 +12,7 @@ enum WorkoutLiveActivity {
         let activeCue = session.store.lastFeedback.flatMap { feedback in
             feedback.setId == snapshot?.setId && snapshot?.activeIssues.contains(feedback.issueCode) == true ? feedback.text : nil
         }
-        let measuresForm = !session.isPhone && session.hasConnection && snapshot?.trackingStatus == .ready
+        let measuresForm = !session.isPhone && snapshot?.trackingStatus == .ready
         let status = switch snapshot?.state {
         case .active: snapshot?.trackingStatus == .ready || session.isPhone ? "Active" : session.trackingMessage
         case .paused: "Resting"

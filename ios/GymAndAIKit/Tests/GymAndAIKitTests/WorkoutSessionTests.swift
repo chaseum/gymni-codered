@@ -14,8 +14,8 @@ import Testing
     #expect(session.snapshot == before)
 }
 
-@MainActor @Test func simulatedEventsUseTheSameEnvelopeTypesAsBackendEvents() {
-    let source = DemoWorkoutSource()
+@MainActor @Test func phoneEventsUseTheSameEnvelopeTypesAsBackendEvents() {
+    let source = PhoneWorkoutSource()
     let snapshot = source.initialSnapshot(exercise: .curl)
     let paused = source.event(.sessionState(SessionStatePayload(state: .paused)))
     #expect(snapshot.type == "session.snapshot")
@@ -31,23 +31,12 @@ import Testing
     await session.pause()
     #expect(session.snapshot?.state == .paused)
     #expect(session.restRemaining(at: Date().addingTimeInterval(60)) == 0)
-    try? await Task.sleep(for: .seconds(3.2))
     #expect(session.snapshot?.state == .paused)
     #expect(session.repCount == 0)
     #expect(!session.isPositioning)
     await session.resume()
     #expect(session.isPositioning)
     await session.end()
-}
-
-@MainActor @Test func endingBeforeTrackingNeverStartsDelayedDemo() async {
-    let session = WorkoutSession()
-    await session.start()
-    await session.end()
-    try? await Task.sleep(for: .seconds(3.2))
-    #expect(session.snapshot?.state == .complete)
-    #expect(session.repCount == 0)
-    #expect(!session.isPositioning)
 }
 
 @MainActor @Test func missingAndExpiredHeartRateNeverShowFreshBPM() throws {
@@ -76,36 +65,26 @@ import Testing
     let session = WorkoutSession()
     session.exercise = .squat
     await session.start()
-    await session.end()
-    session.returnToday()
-    session.mode = .backend
-    session.exercise = .deadlift
-    session.inputSource = .recorded
-    #expect(session.completedMode == .demo)
-    #expect(session.completedExercise == .squat)
-    #expect(session.completedReps == 0)
-    #expect(!session.completedUnmeasuredSession)
-    session.mode = .phone
-    await session.start()
     #expect(session.completedMode == nil)
     await session.end()
     session.returnToday()
-    session.mode = .demo
+    session.mode = .hub
+    session.exercise = .deadlift
     #expect(session.completedMode == .phone)
-    #expect(session.completedExercise == .deadlift)
+    #expect(session.completedExercise == .squat)
     #expect(session.completedReps == nil)
     #expect(session.completedUnmeasuredSession)
 }
 
 @MainActor @Test func invalidBackendHeartRateIsUnavailable() {
     let session = WorkoutSession()
-    let demo = DemoWorkoutSource()
-    session.store.apply(demo.initialSnapshot(exercise: .curl))
+    let phone = PhoneWorkoutSource()
+    session.store.apply(phone.initialSnapshot(exercise: .curl))
     let now = Date.now
     for bpm in [0.0, 19, 251, Double.infinity, Double.nan] {
         let rate = HeartRateView(status: .live, bpm: bpm, sampleId: "invalid",
                                  sampleTimestampMs: Int64(now.timeIntervalSince1970 * 1_000), source: "apple_watch")
-        session.store.apply(demo.event(.heartRate(rate)))
+        session.store.apply(phone.event(.heartRate(rate)))
         #expect(session.heartRateText(at: now) == "Heart rate unavailable")
     }
 }

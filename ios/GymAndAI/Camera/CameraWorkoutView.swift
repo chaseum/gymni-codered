@@ -14,7 +14,7 @@ struct CameraWorkoutView: View {
                 if session.isPhone { PhoneCameraView(camera: camera) }
                 else {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                        CameraFrameView(stream: stream, date: context.date, isDemo: session.isDemo, hasURL: session.previewURL != nil, isRecorded: session.snapshot?.source == .recorded)
+                        CameraFrameView(stream: stream, date: context.date, hasURL: session.previewURL != nil, isRecorded: session.snapshot?.source == .recorded)
                     }
                 }
             }
@@ -36,7 +36,7 @@ struct CameraWorkoutView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: session.previewURL) {
-            if !session.isDemo, !session.isPhone, let url = session.previewURL { await stream.load(url) }
+            if !session.isPhone, let url = session.previewURL { await stream.load(url) }
         }
     }
 }

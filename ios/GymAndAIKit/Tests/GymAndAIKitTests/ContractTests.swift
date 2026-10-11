@@ -33,7 +33,7 @@ func steps(_ file: String, kind: String) throws -> [Data] {
 }
 
 @MainActor @Test func storeAppliesSnapshotThenDedupes() throws {
-    let store = WorkoutStore(baseURL: URL(string: "http://localhost:8000")!, sessionId: "session-001")
+    let store = WorkoutStore(sessionId: "session-001")
     let events = try steps("catalog.json", kind: "event").map { try Contracts.decoder.decode(WorkoutEvent.self, from: $0) }
     events.forEach(store.apply)
     let rep = events.first { $0.type == "rep.completed" }!

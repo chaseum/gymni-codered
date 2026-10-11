@@ -40,27 +40,17 @@ struct SettingsView: View {
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
-                Section("Laptop connection") {
-                    TextField("Backend URL", text: $session.backendAddress)
+                Section("Pi or laptop camera preview") {
+                    TextField("Camera preview address, like 192.168.1.30:8081", text: $session.previewAddress)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    TextField("Existing session ID", text: $session.backendSessionId)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("Access token (optional)", text: $session.token)
-                    Text("Use localhost in Simulator. On an iPhone, enter the laptop’s LAN address. Start the backend and create the session first.")
-                        .foregroundStyle(GymTheme.muted)
-                }
-                .listRowBackground(GymTheme.surface)
-                Section("Laptop camera preview") {
-                    TextField("MJPEG preview URL (optional)", text: $session.previewAddress)
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Text("Requires a separate MJPEG feed from the same webcam and session. The current backend does not publish video yet. A missing feed never replaces real video with a simulated image. Workout events can continue without a preview.")
+                    Text("Run the camera with --preview-port 8081 and enter its address. Reps still count without a preview.")
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
                 Section("Spoken coaching") {
                     Toggle("Spoken coaching", isOn: $session.audioEnabled)
                         .tint(GymTheme.accent)
-                    Text("Laptop corrections use ElevenLabs audio when cue files are available; otherwise the iPhone voice is used. Captions remain visible when muted.")
+                    Text("Form corrections are spoken with the iPhone voice. Captions remain visible when muted.")
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
@@ -75,8 +65,6 @@ struct SettingsView: View {
     private var modeDetail: String {
         switch session.mode {
         case .phone: "iPhone uses this phone’s camera. Rep and form analysis awaits the trained model."
-        case .demo: "Demo simulates reps and coaching. No camera, movement, or heart rate is measured."
-        case .backend: "Laptop receives backend events. The laptop owns workout state and rep counting."
         case .hub: "A Pi or laptop runs only the camera and model and sends what it sees to this iPhone, which counts reps and coaches."
         }
     }

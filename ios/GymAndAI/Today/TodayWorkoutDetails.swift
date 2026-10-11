@@ -20,8 +20,6 @@ struct TodayWorkoutDetails: View {
     private var target: String {
         switch mode {
         case .phone: "Manual set"
-        case .demo: "8 demo reps"
-        case .backend: "Laptop target"
         case .hub: "8 reps"
         }
     }

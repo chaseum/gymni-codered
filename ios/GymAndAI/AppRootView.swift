@@ -13,7 +13,7 @@ struct AppRootView: View {
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         #if targetEnvironment(simulator)
-        let defaultMode: WorkoutMode = .demo
+        let defaultMode: WorkoutMode = .hub  // the simulator has no camera; the Pi / laptop session runs without one
         #else
         let defaultMode: WorkoutMode = .phone
         #endif

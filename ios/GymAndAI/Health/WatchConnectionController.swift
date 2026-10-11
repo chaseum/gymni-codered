@@ -37,7 +37,7 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
 
     func synchronize(_ workout: WorkoutSession) async {
         self.workout = workout
-        guard !workout.isDemo, workout.usesAppleWatch, workout.presentsWorkout,
+        guard workout.usesAppleWatch, workout.presentsWorkout,
               let state = workout.snapshot?.state else { return }
         if state == .paused || state == .complete { workout.clearWatchHeartRate() }
         let message = WatchWorkoutMessage(workoutID: workout.store.sessionId, state: state)

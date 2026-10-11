@@ -7,7 +7,7 @@ struct RestViewScreen: View {
 
     var body: some View {
         GymPage(accessibilityIdentifier: "rest-content") {
-            WorkoutHeaderView(context: session.isDemo ? "Demo · Workout paused" : "Workout paused",
+            WorkoutHeaderView(context: "Workout paused",
                               title: "Take a breath.",
                               detail: (session.snapshot?.exercise ?? session.exercise).title)
             TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -20,10 +20,6 @@ struct RestViewScreen: View {
                 Text("Take the time you need. Water if you need it.")
                     .font(.body).foregroundStyle(GymTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-            if session.isDemo {
-                Text("Shortened demo timer · Illustrative data")
-                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { RestControlsView(session: session) }

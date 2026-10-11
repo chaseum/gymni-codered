@@ -13,11 +13,6 @@ struct CameraWorkoutOverlay: View {
                 ScrollView {
                     VStack(spacing: GymTheme.Space.inset) {
                         CameraWorkoutMetrics(session: session)
-                        if session.isDemo {
-                            Text("Simulated camera view")
-                                .font(GymTheme.TypeStyle.label)
-                                .foregroundStyle(GymTheme.accentText)
-                        }
                         CameraCoachCaption(message: message, status: session.isPhone ? nil : session.trackingMessage)
                     }
                     .padding(.vertical, 2)

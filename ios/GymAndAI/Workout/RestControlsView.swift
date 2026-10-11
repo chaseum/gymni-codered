@@ -18,10 +18,6 @@ struct RestControlsView: View {
                 Button("End workout", action: end).buttonStyle(SecondaryButtonStyle())
             }
             .disabled(session.isSending)
-            if !session.hasConnection {
-                Text("Reconnect to your laptop to resume.")
-                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
-            }
         }
     }
 

@@ -5,7 +5,7 @@ final class WorkoutJourneyTests: XCTestCase {
     func testCameraSwitchPauseAndExplicitResume() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
-        app.launch()
+        app.launchPastIntro()
         capture(app, name: "Today")
         app.buttons["View plan"].tap()
         XCTAssertTrue(app.navigationBars["Your plan"].waitForExistence(timeout: 3))
@@ -21,7 +21,7 @@ final class WorkoutJourneyTests: XCTestCase {
         XCTAssertTrue(picker.waitForExistence(timeout: 8))
         capture(app, name: "Reps")
         picker.buttons["Camera"].tap()
-        XCTAssertTrue(app.staticTexts["Simulated camera view"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Camera preview unavailable"].waitForExistence(timeout: 5))
         let watch = app.descendants(matching: .any)["camera-heart-rate"]
         let reps = app.descendants(matching: .any)["camera-rep-count"]
         XCTAssertTrue(watch.exists)
@@ -45,7 +45,7 @@ final class WorkoutJourneyTests: XCTestCase {
         app.buttons["camera-back-to-reps"].tap()
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         XCTAssertGreaterThan(app.frame.height, app.frame.width)
-        XCTAssertFalse(app.staticTexts["Simulated camera view"].exists)
+        XCTAssertFalse(app.staticTexts["Camera preview unavailable"].exists)
         app.buttons["Pause"].tap()
         XCTAssertTrue(app.staticTexts["Take a breath."].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["Resume workout"].exists)
@@ -59,15 +59,15 @@ final class WorkoutJourneyTests: XCTestCase {
         app.buttons["Back to Today"].tap()
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 3))
         app.tabBars.buttons["Progress"].tap()
-        XCTAssertTrue(app.staticTexts["Demo · Simulated reps"].waitForExistence(timeout: 3))
-        capture(app, name: "Demo progress")
+        XCTAssertTrue(app.staticTexts["Pi or laptop camera · Counted on this iPhone"].waitForExistence(timeout: 3))
+        capture(app, name: "Pi progress")
     }
 
     @MainActor
     func testPlanAndProgressKeepSourcesHonest() {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
-        app.launch()
+        app.launchPastIntro()
         app.tabBars.buttons["Progress"].tap()
         capture(app, name: "Progress empty state")
         app.tabBars.buttons["Today"].tap()
@@ -76,16 +76,14 @@ final class WorkoutJourneyTests: XCTestCase {
         app.buttons["End workout"].tap()
         app.buttons["Back to Today"].tap()
         app.buttons["Settings"].tap()
-        app.segmentedControls.buttons["Laptop"].tap()
+        app.segmentedControls.buttons["iPhone camera"].tap()
         app.buttons["Done"].tap()
         app.buttons["View plan"].tap()
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "8 reps requested")).firstMatch.waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Input, Live webcam"].exists || app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Live webcam")).firstMatch.exists)
-        capture(app, name: "Laptop plan")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Manual · Unmeasured")).firstMatch.waitForExistence(timeout: 3))
+        capture(app, name: "iPhone camera plan")
         app.buttons["Done"].tap()
         app.tabBars.buttons["Progress"].tap()
-        XCTAssertTrue(app.staticTexts["Demo · Simulated reps"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.staticTexts["Laptop · Backend events"].exists)
+        XCTAssertTrue(app.staticTexts["Pi or laptop camera · Counted on this iPhone"].waitForExistence(timeout: 3))
         capture(app, name: "Progress source after setup change")
     }
 
@@ -94,7 +92,7 @@ final class WorkoutJourneyTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--gymni-ui-testing"]
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
-        app.launch()
+        app.launchPastIntro()
         XCTAssertTrue(app.buttons["Start workout"].isHittable)
         capture(app, name: "Large text Today")
         app.swipeUp()
@@ -102,7 +100,7 @@ final class WorkoutJourneyTests: XCTestCase {
         let picker = app.segmentedControls["workout-view-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 8))
         picker.buttons["Camera"].tap()
-        XCTAssertTrue(app.staticTexts["Simulated camera view"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Camera preview unavailable"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pause"].isHittable)
         XCTAssertTrue(app.buttons["End workout"].isHittable)
         let watch = app.descendants(matching: .any)["camera-heart-rate"]

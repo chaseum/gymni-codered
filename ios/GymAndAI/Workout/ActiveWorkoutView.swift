@@ -28,7 +28,7 @@ struct ActiveWorkoutView: View {
                 } else {
                     RepCounterView(count: session.repCount, target: session.targetReps)
                 }
-                if !session.isDemo, let setID = session.snapshot?.setId {
+                if let setID = session.snapshot?.setId {
                     Text("Set \(setID)").font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
                 }
             }

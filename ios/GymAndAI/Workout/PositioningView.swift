@@ -18,16 +18,6 @@ struct PositioningView: View {
                     .accessibilityIdentifier("phone-camera-status")
                 Button("Flip camera", systemImage: "arrow.triangle.2.circlepath.camera", action: camera.flip)
                     .buttonStyle(SecondaryButtonStyle()).disabled(camera.state != .ready)
-            } else if session.isDemo {
-                HStack(spacing: GymTheme.Space.related) {
-                    PipView().frame(width: 72, height: 72)
-                    VStack(alignment: .leading, spacing: GymTheme.Space.small) {
-                        Label("Simulating readiness…", systemImage: "play.rectangle")
-                            .font(GymTheme.TypeStyle.label).foregroundStyle(GymTheme.accentText)
-                        Text("No camera is accessed in Demo mode. Your set starts after three seconds.")
-                            .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
-                    }
-                }
             } else {
                 CameraPreviewView(session: session)
                 SessionStatusView(session: session)
@@ -64,9 +54,7 @@ struct PositioningView: View {
 
     private var sourceTitle: String {
         if session.isPhone { return "iPhone camera · Unmeasured set" }
-        if session.isDemo { return "Demo · Simulated set" }
-        if session.isHub { return "Camera device · Counted on this iPhone" }
-        return session.snapshot?.source == .recorded ? "Laptop · Recorded footage" : "Laptop · Live input"
+        return "Pi or laptop camera · Counted on this iPhone"
     }
 
     private func end() { Task { await session.end() } }

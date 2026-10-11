@@ -45,7 +45,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B00000000000000000000002"
             BuildableName = "GymAndAIWatch.app"
-            BlueprintName = "GymAndAIWatch"
             ReferencedContainer = "container:GymAndAI.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

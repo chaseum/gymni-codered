@@ -1,6 +1,6 @@
 {
   "catalog_version": 1,
-  "title": "Gym&AI supported exercise catalog",
+  "title": "Gym&I supported exercise catalog",
   "scope": {
     "population": "Healthy adults age 18 and older",
     "purpose": "Selectable movements for a general fitness demo planner and their supported vision variations.",
@@ -105,7 +105,7 @@
       "description": "Prioritize strength-focused movements early in the session and give demanding sets enough recovery.",
       "sets": {"default": 2, "minimum": 2, "maximum": 3},
       "repetitions": {"minimum": 6, "maximum": 8},
-      "load": "User-confirmed. ACSM highlights heavier loads around 80% 1RM for strength, but Gym&AI does not test or infer 1RM; do not apply this percentage unless a qualified plan already supplies it.",
+      "load": "User-confirmed. ACSM highlights heavier loads around 80% 1RM for strength, but Gym&I does not test or infer 1RM; do not apply this percentage unless a qualified plan already supplies it.",
       "effort": "Use challenging but controlled repetitions; stop before technique breaks down."
     }
   },

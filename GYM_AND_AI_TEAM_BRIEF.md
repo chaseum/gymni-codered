@@ -1,4 +1,4 @@
-# Gym&AI — 24-Hour Hackathon Team Brief
+# Gym&I — 24-Hour Hackathon Team Brief
 
 **Architecture and ownership update:** [The revised brief](GYM_AND_AI_TEAM_BRIEF_REVISED.md) supersedes this document for architecture, ownership, ML training, and the iPhone experience. This file retains the detailed planning and validation reference.
 
@@ -15,7 +15,7 @@
 
 ## 1. Product and demonstration
 
-Gym&AI is a home workout companion that observes movement through a camera, considers Apple Watch heart-rate data and the user's spoken feedback, and responds like a supportive personal trainer. It corrects supported movement issues, celebrates progress, checks in when movement becomes difficult, and offers rests or water-break reminders. Its defining interaction is automatic intervention: once a session begins, the user should not need to keep checking a screen or asking for every cue.
+Gym&I is a home workout companion that observes movement through a camera, considers Apple Watch heart-rate data and the user's spoken feedback, and responds like a supportive personal trainer. It corrects supported movement issues, celebrates progress, checks in when movement becomes difficult, and offers rests or water-break reminders. Its defining interaction is automatic intervention: once a session begins, the user should not need to keep checking a screen or asking for every cue.
 
 The full product would combine goal onboarding, workout planning, exercise recognition, repetition tracking, movement feedback, workout history, and adaptive plans. Our hackathon prototype will demonstrate a narrow but complete version of that experience.
 
@@ -140,7 +140,7 @@ Movement restrictions filter the plan; the prototype does not create rehabilitat
 
 **Demonstration:** Enter two profiles with different equipment or time constraints, show the resulting eligible exercises/session sizes and explanations, accept one plan, and launch its live curl set. A curl-only judging set is explicitly a shortened demonstration of the accepted plan.
 
-### Adaptive coaching: how Gym&AI acts like a trainer
+### Adaptive coaching: how Gym&I acts like a trainer
 
 The vision model observes movement. A separate backend coaching policy combines those observations with Watch samples, voice input, the workout plan, and recent coaching history. Start with explicit, testable rules and approved cue templates. Live coaching does not need a language-model call, even when onboarding uses one. If richer phrasing is added later, it must not override the policy's pause/rest decisions or invent sensor readings.
 

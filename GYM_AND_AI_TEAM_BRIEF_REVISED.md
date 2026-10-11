@@ -1,4 +1,4 @@
-# Gym&AI — Revised 24-Hour Hackathon Team Brief
+# Gym&I — Revised 24-Hour Hackathon Team Brief
 
 **Revision:** 2026-10-10. Supersedes the attached `GYM_AND_AI_TEAM_BRIEF.md` for architecture, ownership, ML training, and the iPhone experience. Preserves the original's validated safeguards and three-exercise demo plan.
 
@@ -26,7 +26,7 @@
 
 ### Personalized workout planning
 
-**Confirmed addition:** Gym&AI gathers goals and creates a personalized workout. This is a separate component from MediaPipe and the live coaching policy. Use a hosted language model for goal extraction/follow-up questions and grounded explanations; a Python planner/validator controls the actual plan. No custom training is needed for this planning component.
+**Confirmed addition:** Gym&I gathers goals and creates a personalized workout. This is a separate component from MediaPipe and the live coaching policy. Use a hosted language model for goal extraction/follow-up questions and grounded explanations; a Python planner/validator controls the actual plan. No custom training is needed for this planning component.
 
 Example: "I want to build muscle, I'm new, I have dumbbells, and I have twenty minutes three days a week." Extract those fields, ask about missing restrictions/preferences, and let the user correct the profile. Do not invent equipment, training loads, or missing answers. Voice can reuse the phone transcript path; form entry remains available.
 

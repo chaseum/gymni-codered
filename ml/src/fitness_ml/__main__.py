@@ -187,7 +187,7 @@ class Runner:
 
     def _show(self, image, wait_ms: int = 1) -> int:
         import cv2
-        cv2.imshow("Gym&AI vision (debug)", image)
+        cv2.imshow("Gym&I vision (debug)", image)
         return cv2.waitKey(wait_ms) & 0xFF
 
     def _key_action(self, key: int) -> str | None:

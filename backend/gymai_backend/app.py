@@ -11,7 +11,11 @@ import time
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field
 from jsonschema import Draft202012Validator
+
+from .backboard_memory import add_profile_memory, delete_profile_memory, list_profile_memories
+from .gemini import send_coach_message
 
 SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "contracts" / "gymai.schema.json").read_text())
 VALIDATORS = {k: Draft202012Validator({**SCHEMA, "$ref": f"#/$defs/{k}"})
@@ -200,13 +204,70 @@ class Session:
         return {"accepted": True, "duplicate": False}
 
 
-app = FastAPI(title="Gym&AI backend")
+app = FastAPI(title="Gym&I backend")
 sessions: dict[str, Session] = {}  # ponytail: in-memory, lost on restart; add SQLite when history/PRs land
 
 
 def auth(request: Request):
     if TOKEN and request.headers.get("authorization") != f"Bearer {TOKEN}":
         raise HTTPException(401, "missing or wrong bearer token")
+
+
+class CoachMessage(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    thread_id: str | None = Field(default=None, min_length=1, max_length=100)
+    profile_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class CoachMemory(BaseModel):
+    content: str = Field(min_length=1, max_length=1000)
+
+
+@app.post("/api/coach/messages", dependencies=[Depends(auth)])
+async def coach_message(body: CoachMessage):
+    """Send an onboarding/planning conversation turn to Gemini."""
+    try:
+        return await send_coach_message(body.message, body.thread_id, body.profile_id)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        # Keep provider details and credentials out of the client response.
+        raise HTTPException(502, "Coach request failed; try again shortly.") from exc
+
+
+@app.post("/api/coach/profiles/{profile_id}/memories", dependencies=[Depends(auth)])
+async def save_coach_memory(profile_id: str, body: CoachMemory):
+    """Save a user-confirmed profile fact in Backboard memory."""
+    try:
+        memory_id = await add_profile_memory(profile_id, body.content)
+        return {"saved": True, "memory_id": memory_id}
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, "Could not save this profile memory.") from exc
+
+
+@app.get("/api/coach/profiles/{profile_id}/memories", dependencies=[Depends(auth)])
+async def get_coach_memories(profile_id: str):
+    """List saved facts so a client can show or review them."""
+    try:
+        return {"memories": await list_profile_memories(profile_id)}
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, "Could not load profile memories.") from exc
+
+
+@app.delete("/api/coach/profiles/{profile_id}/memories/{memory_id}", dependencies=[Depends(auth)])
+async def remove_coach_memory(profile_id: str, memory_id: str):
+    """Delete one saved profile fact."""
+    try:
+        await delete_profile_memory(profile_id, memory_id)
+        return {"deleted": True, "memory_id": memory_id}
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, "Could not delete profile memory.") from exc
 
 
 def get(session_id: str) -> Session:

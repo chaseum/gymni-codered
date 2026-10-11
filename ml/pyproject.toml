@@ -1,7 +1,7 @@
 [project]
 name = "fitness-ml"
 version = "0.2.0"
-description = "Gym&AI vision: MediaPipe pose -> features -> reps/form -> contract observations (Chase)"
+description = "Gym&I vision: MediaPipe pose -> features -> reps/form -> contract observations (Chase)"
 requires-python = ">=3.11"  # verified on CPython 3.11 / macOS arm64 with the pins below
 dependencies = [
     "mediapipe==1.1.0",                  # Tasks PoseLandmarker; pulls opencv-contrib-python

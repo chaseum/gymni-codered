@@ -1,9 +1,9 @@
 [project]
 name = "gymai-backend"
 version = "0.1.0"
-description = "Gym&AI authoritative session + coaching server (Tyler)"
+description = "Gym&I authoritative session + coaching server (Tyler)"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "jsonschema>=4.23", "httpx>=0.27"]
+dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "jsonschema>=4.23", "httpx>=0.27", "python-dotenv>=1.0"]
 
 [build-system]
 requires = ["setuptools>=69"]

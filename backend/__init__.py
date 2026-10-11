@@ -1,1 +1,1 @@
-"""Gym&AI backend package."""
+"""Gym&I backend package."""

@@ -1,4 +1,4 @@
-# Gym&AI wire protocol — v1 (frozen)
+# Gym&I wire protocol — v1 (frozen)
 
 Machine-checkable source of truth: [`gymai.schema.json`](gymai.schema.json). Fixtures: [`fixtures/`](fixtures/).
 Python validates with `python contracts/validate.py`; the backend validates every request body against the same schema; Swift decodes the fixtures in `ios/GymAndAIKit` tests.

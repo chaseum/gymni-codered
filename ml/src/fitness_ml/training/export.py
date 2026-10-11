@@ -16,7 +16,7 @@ from ..pose import model_path
 from .train import git, package_version
 
 PINNED = ("mediapipe", "opencv-contrib-python", "numpy", "scikit-learn", "joblib")
-README = """# Gym&AI vision models: {stamp}
+README = """# Gym&I vision models: {stamp}
 
 Code revision {revision}{dirty}. Built on Python {python}.
 

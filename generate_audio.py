@@ -1,4 +1,4 @@
-"""Generate the approved Gym&AI coaching cues into assets/audio."""
+"""Generate the approved Gym&I coaching cues into assets/audio."""
 
 import os
 from pathlib import Path

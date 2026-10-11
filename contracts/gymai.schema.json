@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gymai.local/contracts/v1",
-  "title": "Gym&AI contracts v1",
+  "title": "Gym&I contracts v1",
   "description": "Authoritative wire contracts. See protocol.md. Unknown fields are allowed everywhere; receivers must ignore them.",
   "$defs": {
     "id": {"type": "string", "minLength": 1, "maxLength": 128},

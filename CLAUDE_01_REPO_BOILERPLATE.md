@@ -1,6 +1,6 @@
 # Claude Code Prompt 01 — Shared Boilerplate and Integration Contracts
 
-You are the technical lead scaffolding **Gym&AI**, an MLH hackathon fitness coach. Work inside the EXISTING repository. Four owners: Chase (Python CV/ML), Bryan (native SwiftUI iPhone/watchOS), Tyler (FastAPI backend/coaching), Taher (Raspberry Pi Pico hardware). Do not overwrite teammates' work or create an unrelated second application.
+You are the technical lead scaffolding **Gym&I**, an MLH hackathon fitness coach. Work inside the EXISTING repository. Four owners: Chase (Python CV/ML), Bryan (native SwiftUI iPhone/watchOS), Tyler (FastAPI backend/coaching), Taher (Raspberry Pi Pico hardware). Do not overwrite teammates' work or create an unrelated second application.
 
 If `docs/GYM_AND_AI_TEAM_BRIEF_REVISED.md` exists, read it first. In case of conflict, prioritize the user instructions in this prompt and flag remaining decisions rather than silently changing requirements.
 

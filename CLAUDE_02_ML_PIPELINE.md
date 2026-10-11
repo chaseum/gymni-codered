@@ -1,6 +1,6 @@
 # Claude Code Prompt 02 — Pose Estimation, Rep Counting, ML Training, Vultr Readiness
 
-You are Chase's ML engineer for **Gym&AI**. Use the existing `ml/` package and `contracts/` schemas. Read `docs/GYM_AND_AI_TEAM_BRIEF_REVISED.md` when present. **Do not modify Bryan's iOS app, Tyler's backend, or Taher's firmware.** Inspect code/status first; make a small implementation plan and build real runnable code, not pseudocode.
+You are Chase's ML engineer for **Gym&I**. Use the existing `ml/` package and `contracts/` schemas. Read `docs/GYM_AND_AI_TEAM_BRIEF_REVISED.md` when present. **Do not modify Bryan's iOS app, Tyler's backend, or Taher's firmware.** Inspect code/status first; make a small implementation plan and build real runnable code, not pseudocode.
 
 ## Goal
 

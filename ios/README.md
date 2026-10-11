@@ -33,12 +33,26 @@ curl -X POST http://localhost:8000/api/sessions \
 
 In app Settings, select **Laptop**, enter the backend URL and existing session ID, and supply the token if the server uses `GYMAI_TOKEN`. Simulator uses `http://localhost:8000`; a physical iPhone needs the laptop's address on the same trusted LAN. Local Network permission and `NSAllowsLocalNetworking` are configured; arbitrary network loads are not globally enabled.
 
+<<<<<<< Updated upstream
 Choose the exercise and Live webcam/Recorded input in View plan, then Start workout. When attaching to an already active/paused/completed session, its state is preserved. The phone does not create or start a second set automatically.
+=======
+1. Xcode → File → New → Project → **iOS App**. Set the displayed product name to `Gym&I` and the Swift target name to `GymAndI`; choose SwiftUI, Swift, and no Core Data. Save it **in `ios/`**, so you get `ios/GymAndI.xcodeproj` and `ios/GymAndI/`. Leave "Create Git repository" unchecked (we're already in one).
+2. File → New → Target → **watchOS → App**, name `GymAndIWatch`, "Watch App for Existing iOS App" → `GymAndI`.
+3. File → Add Package Dependencies → **Add Local…** → `ios/GymAndAIKit`. Link the `GymAndAIKit` library to **both** targets.
+4. iPhone target → Info:
+   - `NSLocalNetworkUsageDescription` = "Gym&I connects to the coach running on your laptop."
+   - `NSAppTransportSecurity` → `NSAllowsLocalNetworking` = YES (allows plain `http://`/`ws://` to LAN hosts only. Do **not** set `NSAllowsArbitraryLoads`).
+   - `NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription` when voice commands are added.
+5. Watch target → Signing & Capabilities → **HealthKit**; Info: `NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription`; Background Modes → Workout processing. iPhone target also gets HealthKit if it receives mirrored sessions.
+6. Signing: pick your personal/team account for both targets; set a unique bundle id prefix (e.g. `com.<you>.gymandi`).
+7. Build and run on the iPhone simulator, then on device. Commit `ios/GymAndI.xcodeproj` + sources (`xcuserdata/` is git-ignored).
+>>>>>>> Stashed changes
 
 Drive observations using the ML CLI documented in `../ml/README.md`. For a fixture replay, clearly describe that the connected backend input is simulated: `source=live` alone does not establish that an observation came from real inference.
 
 ## Camera integration contract
 
+<<<<<<< Updated upstream
 Settings accepts an optional HTTP(S) MJPEG URL. The publisher must return status 200 and `Content-Type: multipart/x-mixed-replace; boundary=...`, followed by JPEG parts. Use the same participant, source, and webcam frames as the active analyzer; retain the Recorded label for prerecorded footage.
 
 **The current FastAPI backend does not publish this feed.** Tyler/Chase should add publishing to the existing capture pipeline rather than opening the camera from a second process. Until then Laptop Camera view honestly shows unavailable. The app does not access the phone camera. Preview authorization is not implemented; use only a permitted trusted local feed for this prototype. Backend tokens are never forwarded to a separately configured preview host.
@@ -50,6 +64,23 @@ The preview connection starts when Camera view is visible, stops when it leaves,
 ```bash
 cd ios/GymAndAIKit
 swift test
+=======
+@main struct GymAndIApp: App {
+    // Host comes from user settings (e.g. @AppStorage "backendHost"), never hardcoded.
+    @State var store = WorkoutStore(baseURL: URL(string: "http://192.168.1.20:8000")!, sessionId: "demo")
+    var body: some Scene {
+        WindowGroup {
+            VStack {
+                Text(store.snapshot?.exercise?.rawValue.capitalized ?? "—").font(.largeTitle.bold())
+                Text("\(store.snapshot?.repCount ?? 0)").font(.system(size: 96, weight: .bold, design: .rounded))
+                Text(store.lastFeedback?.text ?? "")
+                Button("Pause") { Task { try await store.send(.pause) } }
+            }
+            .task { store.connect() }
+        }
+    }
+}
+>>>>>>> Stashed changes
 ```
 
 From the repo root:

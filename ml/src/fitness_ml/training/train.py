@@ -45,8 +45,12 @@ def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: st
               "(train a second model with --exclude-labels push_up to measure it)")
 
     meta = _metadata(manifest, split_path, split, task, exercise, model, labels, window_ms, stride_ms, seed, train_w, val_w)
-    out = Path(out_root) / meta["model_version"]
-    out.mkdir(parents=True, exist_ok=True)
+    out, n = Path(out_root) / meta["model_version"], 1
+    while out.exists():  # fast runs (seconds) can share a timestamp; never overwrite another artifact
+        n += 1
+        out = Path(out_root) / f"{meta['model_version']}-{n}"
+    meta["model_version"] = out.name
+    out.mkdir(parents=True)
     if model == "gru":
         meta |= _train_gru(train_w, val_w, labels, out, seed, device, epochs, patience, gru)
     else:

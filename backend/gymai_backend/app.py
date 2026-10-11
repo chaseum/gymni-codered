@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from jsonschema import Draft202012Validator
 
@@ -25,12 +26,24 @@ HR_STALE_MS = 10_000
 
 # Only issue codes listed here may be spoken. cue_id == audio file stem in assets/audio/.
 # ponytail: one cue per issue per set, no priority queue yet; Tyler replaces with the coaching policy.
+# With GYMAI_DYNAMIC_CUES=1 the text is the approved action that Gemini rephrases (backend/audio/dynamic_cue.py)
+# and ElevenLabs voices; the mp3 is served at /audio/dynamic/<feedback_id>.mp3 (cue_id "dynamic/<feedback_id>").
 CUES = {
     "curl.elbow_drift": "Keep your elbows pinned to your sides.",
     "curl.partial_range": "Let the weight come all the way down.",
     "squat.shallow_depth": "Sit a little deeper if it feels comfortable.",
     "deadlift.hips_rise_early": "Push the floor away; let your hips and chest rise together.",
+    "shoulder_press.incomplete_lockout": "Press all the way up until your arms are straight overhead.",
+    "triceps_extension.incomplete_extension": "Straighten your arms fully at the top of each rep.",
+    "row.short_pull": "Pull your elbow further back, toward your hip.",
+    "push_up.shallow_depth": "Lower your chest a little closer to the floor.",
+    "push_up.hips_sagging": "Squeeze your glutes and keep your hips in line with your shoulders.",
+    "push_up.hips_piked": "Lower your hips so your body forms a straight line.",
+    "side_bend.partial_range": "Bend a little further to the side, keeping your hips still.",
 }
+DYNAMIC_CUES = os.environ.get("GYMAI_DYNAMIC_CUES") == "1"
+AUDIO_DIR = Path(__file__).resolve().parents[2] / "assets" / "audio"
+DYNAMIC_CUE_TIMEOUT_S = 8.0  # slower than this and the fixed text is used instead
 
 
 def now_ms() -> int:
@@ -53,6 +66,7 @@ class Session:
         self.hr = None  # last real sample dict, never synthesized
         self.rest_ends_at = None
         self.active_issues: dict[str, str] = {}  # issue_code -> feedback_id
+        self.pending_cues: set[str] = set()  # feedback_ids whose dynamic cue is still being generated
         self.events: list[dict] = []
         self.subscribers: set[asyncio.Queue] = set()
         self.acks: dict[str, dict] = {}
@@ -148,6 +162,7 @@ class Session:
         self.exercise = args.get("exercise", self.exercise or "curl")
         self.target_reps, self.load = args.get("target_reps"), args.get("load")
         self.rep_count, self.active_issues = 0, {}
+        self.pending_cues.clear()  # a cue still generating for the old set is dropped
         self.emit("exercise.changed", {"exercise": self.exercise, "set_id": self.set_id, "target_reps": self.target_reps})
 
     def _finish_set(self):
@@ -178,17 +193,47 @@ class Session:
         self.rep_count += 1
         self.emit("rep.completed", {"exercise": self.exercise, "set_id": self.set_id, "rep_count": self.rep_count,
                                     "target_reps": self.target_reps, "duration_ms": rep.get("duration_ms")})
-        codes = [i["code"] for i in obs["issues"] if i["code"] in CUES]
-        for code in codes:
+        issues = {i["code"]: i.get("evidence", {}) for i in obs["issues"] if i["code"] in CUES}
+        for code, evidence in issues.items():
             if code not in self.active_issues:
                 fid = f"fb-{next(self.feedback_ids)}"
                 self.active_issues[code] = fid
-                self.emit("feedback.issued", {"feedback_id": fid, "issue_code": code, "cue_id": code, "text": CUES[code],
-                                              "set_id": self.set_id, "rep_count": self.rep_count})
-        for code in [c for c in self.active_issues if c not in codes]:
-            self.emit("feedback.improved", {"feedback_id": self.active_issues.pop(code), "issue_code": code,
+                if DYNAMIC_CUES:
+                    self.pending_cues.add(fid)
+                    asyncio.get_running_loop().create_task(self._dynamic_cue(code, evidence, fid, self.set_id, self.rep_count))
+                else:
+                    self._issue(code, fid, CUES[code], code, self.set_id, self.rep_count)
+        for code in [c for c in self.active_issues if c not in issues]:
+            fid = self.active_issues.pop(code)
+            if fid in self.pending_cues:  # fixed before its cue was ready: never voice it
+                self.pending_cues.discard(fid)
+                continue
+            self.emit("feedback.improved", {"feedback_id": fid, "issue_code": code,
                                             "set_id": self.set_id, "rep_count": self.rep_count})
         return {"accepted": True, "duplicate": False}
+
+    def _issue(self, code: str, fid: str, text: str, cue_id: str, set_id: str, rep_count: int):
+        self.emit("feedback.issued", {"feedback_id": fid, "issue_code": code, "cue_id": cue_id, "text": text,
+                                      "set_id": set_id, "rep_count": rep_count})
+
+    async def _dynamic_cue(self, code: str, evidence: dict, fid: str, set_id: str, rep_count: int):
+        """Gemini rephrases the approved action using the rep's measured evidence; ElevenLabs voices it.
+        Any failure or timeout falls back to the fixed approved text (cue_id = issue code)."""
+        text, cue_id = CUES[code], code
+        try:
+            from backend.audio.dynamic_cue import CueRequest, save_spoken_cue  # needs uvicorn started at the repo root
+            facts = ", ".join(f"{k}={v}" for k, v in evidence.items() if k not in ("provenance", "model_version"))
+            request = CueRequest(exercise=code.split(".")[0], issue_code=code, evidence=facts[:300] or "none",
+                                 recommended_action=CUES[code], tracking_status="ready", coach_approved=True,
+                                 confidence=evidence.get("probability", 1.0))  # rules are deterministic: 1.0
+            text = await asyncio.wait_for(asyncio.to_thread(save_spoken_cue, request, AUDIO_DIR / "dynamic" / f"{fid}.mp3"),
+                                          DYNAMIC_CUE_TIMEOUT_S)
+            cue_id = f"dynamic/{fid}"
+        except Exception as exc:  # noqa: BLE001 - a cue outage must never stop the workout
+            print(f"dynamic cue for {code} failed ({type(exc).__name__}: {exc}); using the fixed text", flush=True)
+        if fid in self.pending_cues:  # still active (not already improved)
+            self.pending_cues.discard(fid)
+            self._issue(code, fid, text, cue_id, set_id, rep_count)
 
     def heart_rate(self, sample: dict) -> dict:
         if sample["sample_id"] in self.seen_hr:
@@ -205,6 +250,7 @@ class Session:
 
 
 app = FastAPI(title="Gym&I backend")
+app.mount("/audio", StaticFiles(directory=AUDIO_DIR, check_dir=False), name="audio")  # cue mp3s for the phone
 sessions: dict[str, Session] = {}  # ponytail: in-memory, lost on restart; add SQLite when history/PRs land
 
 

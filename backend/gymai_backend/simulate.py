@@ -63,8 +63,9 @@ def main() -> int:
         client = httpx.Client(base_url=args.url, headers={"Authorization": f"Bearer {token}"} if token else {})
     else:
         from fastapi.testclient import TestClient
-        from .app import app
-        client = TestClient(app)
+        from . import app as backend
+        backend.DYNAMIC_CUES = False  # fixtures expect the fixed cue text; never call Gemini/ElevenLabs here
+        client = TestClient(backend.app)
     failed = 0
     for path in paths:
         fixture = json.loads(path.read_text())

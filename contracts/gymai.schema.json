@@ -5,13 +5,13 @@
   "description": "Authoritative wire contracts. See protocol.md. Unknown fields are allowed everywhere; receivers must ignore them.",
   "$defs": {
     "id": {"type": "string", "minLength": 1, "maxLength": 128},
-    "exercise": {"enum": ["curl", "squat", "deadlift"]},
-    "recognized_exercise": {"enum": ["curl", "squat", "deadlift", "other", "unknown"]},
+    "exercise": {"enum": ["curl", "squat", "deadlift", "shoulder_press", "triceps_extension", "row", "push_up", "side_bend"]},
+    "recognized_exercise": {"enum": ["curl", "squat", "deadlift", "shoulder_press", "triceps_extension", "row", "push_up", "side_bend", "other", "unknown"]},
     "session_state": {"enum": ["ready", "active", "paused", "complete"]},
     "input_source": {"enum": ["live", "recorded"]},
     "tracking_status": {"enum": ["ready", "low_visibility", "lost", "unassessable"]},
     "phase": {"enum": ["unknown", "lowered", "raising", "raised", "lowering"]},
-    "issue_code": {"type": "string", "pattern": "^(curl|squat|deadlift)\\.[a-z_]+$"},
+    "issue_code": {"type": "string", "pattern": "^(curl|squat|deadlift|shoulder_press|triceps_extension|row|push_up|side_bend)\\.[a-z_]+$"},
     "epoch_ms": {"type": "integer", "minimum": 1000000000000},
     "load": {
       "type": ["object", "null"],

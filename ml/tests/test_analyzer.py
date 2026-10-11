@@ -1,6 +1,7 @@
 """Integration of features -> reps -> form -> contract Observation, on synthetic poses."""
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -26,12 +27,16 @@ def test_live_curls_emit_one_completed_rep_each_and_validate_against_contract():
         assert errors("observation", json.loads(json.dumps(r.observation.to_dict()))) == []
 
 
-def test_partial_flexion_is_a_candidate_issue_but_not_sent_until_reviewed():
+def test_partial_flexion_is_sent_once_reviewed_and_held_back_otherwise():
     results = run(Analyzer("curl", "s-1", "live"), curl_frames(1, high=68))  # passes the 75° turn, misses 60° flexion
     done = [r for r in results if r.observation.completed_rep]
     assert len(done) == 1
     assert [(a.code, a.status) for a in done[0].candidates] == [("curl.partial_range", "issue")]
-    assert done[0].observation.issues == []  # criterion not in config.reviewed yet
+    assert [i.code for i in done[0].observation.issues] == ["curl.partial_range"]
+    gated = Analyzer("curl", "s-1", "live")
+    gated.exercise_cfg = replace(gated.exercise_cfg, reviewed=frozenset())
+    done = [r for r in run(gated, curl_frames(1, high=68)) if r.observation.completed_rep]
+    assert done[0].observation.issues == []  # not in config.reviewed: debug candidate only
 
 
 def test_occlusion_reports_low_visibility_and_counts_nothing():
@@ -124,14 +129,19 @@ def test_wrist_just_below_frame_still_counts_when_visible():
     assert sum(1 for r in results if r.observation.completed_rep) == 2
 
 
-def test_new_exercises_travel_as_other_with_detail_and_stay_contract_valid():
-    frames = [(i * 50.0, v) for i, v in enumerate([170] * 10 + list(range(170, 95, -5)) + list(range(95, 171, 5)) + [170] * 10)]
-    analyzer = Analyzer("push_up", "s-1", "recorded")
-    results = [analyzer.analyze_frame(make_pose(elbow_deg=v), t) for t, v in frames]
-    obs = results[-1].observation
-    assert obs.exercise == "other" and obs.exercise_detail == "push_up"
-    assert sum(1 for r in results if r.observation.completed_rep) == 1
-    assert errors("observation", json.loads(json.dumps(obs.to_dict()))) == []
+def test_new_exercises_are_contract_ids_and_their_rules_send_named_issues():
+    def press(top):  # shoulder press from 100° up to `top` and back
+        vs = [100] * 10 + list(range(100, top, 5)) + [top] * 3 + list(range(top, 99, -5)) + [100] * 10
+        analyzer = Analyzer("shoulder_press", "s-1", "recorded")
+        return [analyzer.analyze_frame(make_pose(elbow_deg=v), i * 50.0) for i, v in enumerate(vs)]
+
+    for top, expected in ((155, ["shoulder_press.incomplete_lockout"]), (175, [])):  # counts at 150°, lockout at 160°
+        done = [r.observation for r in press(top) if r.observation.completed_rep]
+        assert len(done) == 1 and done[0].exercise == "shoulder_press" and done[0].exercise_detail is None
+        assert [i.code for i in done[0].issues] == expected
+        assert errors("observation", json.loads(json.dumps(done[0].to_dict()))) == []
+    issue = [r.observation for r in press(155) if r.observation.completed_rep][0].issues[0]
+    assert issue.evidence["max_elbow_angle_deg"] == 155 and issue.evidence["threshold"] == 160
 
 
 class CalibratedFaultModel:
@@ -159,3 +169,19 @@ def test_calibrated_form_model_judges_only_after_calibration_reps():
     assert any("form calibration 1/2" in e for e in done[0].events)
     assert [i.code for i in done[2].observation.issues] == ["curl.knees_past_toes"]
     assert all(ref is not None for ref in model.references) and len(model.references) == 2
+
+
+def test_push_up_body_line_names_sagging_and_piked_hips_from_the_side_only():
+    from fitness_ml.config import EXERCISES
+    from fitness_ml.form import review_rep
+
+    def statuses(hip_y, view="side"):  # plank along x, image y down: + hip_y = hip below the shoulder-ankle line
+        f = {"left_elbow_angle_deg": 80.0, "left_shoulder_x": -1.0, "left_shoulder_y": 0.0, "left_hip_x": 0.0,
+             "left_hip_y": hip_y, "left_ankle_x": 1.5, "left_ankle_y": 0.0}
+        review = review_rep("push_up", EXERCISES["push_up"], [(t * 50.0, f) for t in range(5)], "left", view)
+        return {a.code: a.status for a in review.assessments if a.code != "push_up.shallow_depth"}
+
+    assert statuses(0.0) == {"push_up.hips_sagging": "ok", "push_up.hips_piked": "ok"}
+    assert statuses(0.3) == {"push_up.hips_sagging": "issue", "push_up.hips_piked": "ok"}
+    assert statuses(-0.4) == {"push_up.hips_sagging": "ok", "push_up.hips_piked": "issue"}
+    assert set(statuses(0.3, view="front").values()) == {"unassessable"}

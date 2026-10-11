@@ -21,13 +21,13 @@ Changing a field = bump `schema_version`, update schema + fixtures + Swift mirro
 
 | Name | Values |
 |---|---|
-| exercise (analyzers) | `curl`, `squat`, `deadlift` |
+| exercise (analyzers) | `curl`, `squat`, `deadlift`, `shoulder_press`, `triceps_extension`, `row`, `push_up`, `side_bend` (the last 5 added 2026-10-11; the iOS `Exercise` enum still has only the first 3) |
 | recognized exercise (ML only) | above + `other`, `unknown` |
 | session state | `ready` → `active` ⇄ `paused` → `complete` |
 | input source | `live` (webcam), `recorded` (MP4) |
 | tracking status | `ready`, `low_visibility`, `lost`, `unassessable` |
 | rep phase | `unknown`, `lowered`, `raising`, `raised`, `lowering` — position of the *moving load/body*: curl dumbbell down = `lowered`; squat bottom = `lowered`, standing = `raised`; deadlift bar on floor = `lowered`, lockout = `raised` |
-| issue code | `<exercise>.<snake_case>`; backend only voices codes in its approved cue table (currently `curl.elbow_drift`, `curl.partial_range`, `squat.shallow_depth`, `deadlift.hips_rise_early` — Chase to confirm against measurable criteria) |
+| issue code | `<exercise>.<snake_case>`; backend only voices codes in its approved cue table (`CUES` in `backend/gymai_backend/app.py`). ML sends a code only when it is in `reviewed` for that exercise (`ml/src/fitness_ml/config.py`); each issue's `evidence` holds the measured value and threshold |
 | coach state | `idle`, `observing`, `correcting`, `encouraging`, `resting` |
 
 ## 1. ML → backend: observation

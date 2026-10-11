@@ -99,4 +99,70 @@ def _deadlift(cfg, trace, side, view):
     return RepReview([a], {"rep_max_hip_angle_deg": lockout, "rep_hip_shoulder_rise_ratio": ratio})
 
 
-REVIEWERS = {"curl": _curl, "squat": _squat, "deadlift": _deadlift}
+def _check(code: str, value, is_issue: bool, evidence: dict) -> Assessment:
+    if value is None:
+        return Assessment(code, "unassessable", {"reason": "joint_not_tracked"})
+    return Assessment(code, "issue" if is_issue else "ok", evidence)
+
+
+def _range_rule(code: str, feature: str, extreme: str, limit_key: str, name: str, views: tuple = ()):
+    """Range-of-motion rule: the rep's min (or max) of `feature` must pass a limit stricter than the rep counter's
+    turn threshold. "min": flag when the smallest value stays above the limit; "max": when the largest stays below.
+    `feature` may use {side} and {d} ("_3d" when the exercise counts on estimated 3D angles). `views`: the camera
+    views where the measurement means something (empty = any)."""
+    fn = np.min if extreme == "min" else np.max
+
+    def review(cfg, trace, side, view):
+        value = _nan_extreme(_series(trace, feature.format(side=side, d="_3d" if cfg.basis == "world_3d" else "")), fn)
+        limit = cfg.thresholds[limit_key]
+        if views and view not in views:
+            a = Assessment(code, "unassessable", {"reason": f"needs_{'_or_'.join(views)}_view", "view": view})
+        else:
+            bad = value is not None and (value > limit if extreme == "min" else value < limit)
+            a = _check(code, value, bad, {name: value, "threshold": limit, "basis": cfg.basis, "view": view})
+        return [a], {f"rep_{name}": value}
+    return review
+
+
+def _push_up(cfg, trace, side, view):
+    """Depth (min elbow angle) and body line: the hip's distance from the shoulder-ankle line, in torso lengths,
+    median over the rep (+ = hips sag below the line, - = hips piked above it). Body line needs a side view."""
+    assessments, measurements = _range_rule("push_up.shallow_depth", "{side}_elbow_angle{d}_deg", "min",
+                                            "depth_elbow_max_deg", "min_elbow_angle_deg", ("side",))(cfg, trace, side, view)
+    s = np.array([[f[f"{side}_{j}_{c}"] for j in ("shoulder", "hip", "ankle") for c in "xy"] for _, f in trace])
+    sx, sy, hx, hy, ax, ay = s.T
+    with np.errstate(all="ignore"):
+        dev = hy - (sy + (hx - sx) * (ay - sy) / (ax - sx))  # image y points down: + = hip below the line
+    dev = dev[np.isfinite(dev) & (np.abs(ax - sx) > 0.5)]  # shoulder-ankle must be roughly horizontal (plank)
+    line = round(float(np.median(dev)), 3) if dev.size and view == "side" else None
+    sag, pike = cfg.thresholds["hip_sag_max"], cfg.thresholds["hip_pike_max"]
+    ev = {"hip_offset_torso": line, "sag_threshold": sag, "pike_threshold": -pike, "view": view}
+    reason = {"reason": "needs_side_view_in_plank", "view": view}
+    for code, bad in (("push_up.hips_sagging", line is not None and line > sag),
+                      ("push_up.hips_piked", line is not None and line < -pike)):
+        assessments.append(_check(code, line, bad, ev) if line is not None else Assessment(code, "unassessable", reason))
+    return RepReview(assessments, {**measurements, "rep_hip_offset_torso": line})
+
+
+def _rules(*reviews):
+    """Combine range rules into one reviewer."""
+    def review(cfg, trace, side, view):
+        assessments, measurements = [], {}
+        for r in reviews:
+            a, m = r(cfg, trace, side, view)
+            assessments += a
+            measurements |= m
+        return RepReview(assessments, measurements)
+    return review
+
+
+REVIEWERS = {
+    "curl": _curl, "squat": _squat, "deadlift": _deadlift, "push_up": _push_up,
+    "shoulder_press": _rules(_range_rule("shoulder_press.incomplete_lockout", "{side}_elbow_angle{d}_deg", "max",
+                                         "lockout_elbow_min_deg", "max_elbow_angle_deg")),
+    "triceps_extension": _rules(_range_rule("triceps_extension.incomplete_extension", "{side}_elbow_angle{d}_deg",
+                                            "max", "extension_elbow_min_deg", "max_elbow_angle_deg")),
+    "row": _rules(_range_rule("row.short_pull", "{side}_elbow_angle{d}_deg", "min", "pull_elbow_max_deg", "min_elbow_angle_deg")),
+    "side_bend": _rules(_range_rule("side_bend.partial_range", "trunk_lean_deg", "max", "lean_min_deg", "max_trunk_lean_deg",
+                                    ("front", "diagonal"))),
+}

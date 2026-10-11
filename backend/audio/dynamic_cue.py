@@ -18,7 +18,7 @@ load_dotenv(ROOT / ".env")
 class CueRequest(BaseModel):
     """A form observation already approved by the deterministic coaching policy."""
 
-    exercise: Literal["curl", "squat", "deadlift"]
+    exercise: Literal["curl", "squat", "deadlift", "shoulder_press", "triceps_extension", "row", "push_up", "side_bend"]
     issue_code: str = Field(min_length=1, max_length=80)
     evidence: str = Field(min_length=1, max_length=300)
     recommended_action: str = Field(min_length=1, max_length=200)

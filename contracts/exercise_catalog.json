@@ -1,0 +1,364 @@
+{
+  "catalog_version": 1,
+  "title": "Gym&AI supported exercise catalog",
+  "scope": {
+    "population": "Healthy adults age 18 and older",
+    "purpose": "Selectable movements for a general fitness demo planner and their supported vision variations.",
+    "excluded_uses": [
+      "Rehabilitation or treatment",
+      "Condition-specific exercise prescriptions",
+      "Injury-risk or medical-form diagnosis",
+      "Automatic selection of a user's training load"
+    ]
+  },
+  "sources": [
+    {
+      "id": "acsm_2026_position_stand",
+      "title": "ACSM Position Stand: Resistance Training Prescription for Muscle Function, Hypertrophy, and Physical Performance in Healthy Adults",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/",
+      "supports": [
+        "Progressive resistance training benefits healthy adults.",
+        "At least two sets per exercise is a reasonable baseline; strength benefits are associated with 2-3 sets and at least two weekly sessions.",
+        "Hypertrophy benefits are associated with higher weekly volume (at least about 10 sets per muscle group per week); increase volume gradually.",
+        "Training to momentary failure is not required. Sets can use a near-failure effort such as roughly 2-3 repetitions in reserve.",
+        "Specific equipment, tempo, and periodization are not uniquely required for the average healthy adult."
+      ]
+    },
+    {
+      "id": "acsm_2026_infographic",
+      "title": "ACSM: 5 Things to Know About Creating an Effective Resistance Training Plan",
+      "url": "https://www.acsm.org/wp-content/uploads/2026/03/Resistance-Training-Position-Stand-infographic.pdf",
+      "supports": [
+        "Train all major muscle groups at least two days per week and build gradually.",
+        "For strength, heavier loads around 80% of one-repetition maximum and 2-3 sets are highlighted.",
+        "For hypertrophy, higher weekly volume around 10 sets per muscle group is highlighted."
+      ]
+    },
+    {
+      "id": "cdc_adult_activity_guidance",
+      "title": "CDC: Adult Activity Recommendations",
+      "url": "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html",
+      "supports": [
+        "Adults should do muscle-strengthening activity on at least two days per week that works all major muscle groups."
+      ]
+    },
+    {
+      "id": "ace_triceps_extension",
+      "title": "ACE Exercise Library: Triceps Extension",
+      "url": "https://www.acefitness.org/resources/everyone/exercise-library/74/triceps-extension/",
+      "supports": ["A two-handed overhead dumbbell triceps-extension setup and controlled movement description."]
+    },
+    {
+      "id": "ace_bent_over_row",
+      "title": "ACE Exercise Library: Bent-over Row",
+      "url": "https://www.acefitness.org/resources/everyone/exercise-library/12/bent-over-row/",
+      "supports": ["Hip-hinged row setup and back-position coaching considerations."]
+    }
+  ],
+  "programming_defaults": {
+    "weekly_frequency": {
+      "strength_days_per_week": {"minimum": 2, "recommended_for": "healthy adults; distribute work across the week"},
+      "source_ids": ["acsm_2026_position_stand", "cdc_adult_activity_guidance"]
+    },
+    "effort": {
+      "target_repetitions_in_reserve": {"minimum": 2, "maximum": 3},
+      "failure_required": false,
+      "load_policy": "The user chooses or confirms the load. Do not estimate a safe load from pose, heart rate, or model output.",
+      "source_ids": ["acsm_2026_position_stand"]
+    },
+    "progression": {
+      "rule": "Build gradually. If the user completes every prescribed set at the top of the rep range with controlled movement and reports that the load feels manageable, suggest a small available increase for the user to confirm.",
+      "automatic_load_increase": false,
+      "source_ids": ["acsm_2026_position_stand", "acsm_2026_infographic"]
+    },
+    "rest_policy": {
+      "note": "The current ACSM evidence review did not establish one optimal rest interval for everyone. These are adjustable planning defaults: allow more recovery for heavy or demanding sets, and extend rest when the user is not ready to maintain controlled movement.",
+      "default_ranges_seconds": {
+        "fitness_or_muscle_growth": [90, 180],
+        "strength_building": [120, 240]
+      },
+      "source_ids": ["acsm_2026_position_stand"]
+    },
+    "warm_up": "Offer a brief general warm-up and, when useful, lighter practice repetitions before work sets. Do not make an exact warm-up duration a health requirement.",
+    "stop_rule": "Stop the set and session for pain or dizziness; do not coach the user to push through."
+  },
+  "prescription_profiles": {
+    "fitness": {
+      "display_name": "Fitness",
+      "description": "Simple, manageable starting prescription for general fitness.",
+      "sets": {"default": 2, "minimum": 2, "maximum": 2},
+      "repetitions": {"minimum": 8, "maximum": 12},
+      "load": "User-confirmed resistance that permits controlled repetitions; bodyweight when specified.",
+      "effort": "Aim to finish with about 2-3 good repetitions still possible; this is a practical effort cue, not a precise measurement."
+    },
+    "muscle_growth": {
+      "display_name": "Muscle Growth",
+      "description": "Use multiple sets and track weekly work for each muscle group; build volume progressively rather than starting at a high volume.",
+      "sets": {"default": 2, "minimum": 2, "maximum": 3},
+      "repetitions": {"minimum": 8, "maximum": 12},
+      "weekly_volume_target_sets_per_muscle_group": 10,
+      "load": "User-confirmed resistance that permits controlled repetitions.",
+      "effort": "Aim to finish with about 2-3 good repetitions still possible; do not require momentary failure."
+    },
+    "strength_building": {
+      "display_name": "Strength Building",
+      "description": "Prioritize strength-focused movements early in the session and give demanding sets enough recovery.",
+      "sets": {"default": 2, "minimum": 2, "maximum": 3},
+      "repetitions": {"minimum": 6, "maximum": 8},
+      "load": "User-confirmed. ACSM highlights heavier loads around 80% 1RM for strength, but Gym&AI does not test or infer 1RM; do not apply this percentage unless a qualified plan already supplies it.",
+      "effort": "Use challenging but controlled repetitions; stop before technique breaks down."
+    }
+  },
+  "exercises": [
+    {
+      "id": "alternating_dumbbell_curl",
+      "display_name": "Alternating dumbbell curl",
+      "recognition_class": "curl",
+      "variation_id": "standing_dumbbell_alternating",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": ["dumbbell_pair"],
+      "equipment_optional": [],
+      "movement_patterns": ["elbow_flexion"],
+      "primary_muscle_groups": ["arms"],
+      "secondary_muscle_groups": ["forearms"],
+      "prescription_type": "accessory",
+      "rep_unit": "per_side",
+      "camera_guidance": "Front view; keep the shoulder, elbow, and wrist of the working arm visible.",
+      "setup_and_coaching": [
+        "Stand with a dumbbell in each hand and alternate arms.",
+        "Use a load the user confirms they can control; keep the torso steady and lower each weight under control."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps_per_side": [8, 12], "rest_seconds": 90},
+        "muscle_growth": {"sets": [2, 3], "reps_per_side": [8, 12], "rest_seconds": 90},
+        "strength_building": {"sets": [2, 3], "reps_per_side": [6, 8], "rest_seconds": 120}
+      },
+      "limitations": ["Repetition target is per arm; UI and backend should avoid presenting alternating left-plus-right movements as one rep unless that counting convention is explicitly chosen."]
+    },
+    {
+      "id": "bodyweight_squat",
+      "display_name": "Bodyweight squat",
+      "recognition_class": "squat",
+      "variation_id": "bodyweight",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": [],
+      "equipment_optional": [],
+      "movement_patterns": ["squat"],
+      "primary_muscle_groups": ["legs", "hips"],
+      "secondary_muscle_groups": ["trunk"],
+      "prescription_type": "compound",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Side view for the current analyzer; keep hip, knee, and ankle visible.",
+      "setup_and_coaching": [
+        "Use a clear, stable area and a comfortable stance.",
+        "Descend only through a comfortable range and stand back up with control; do not force depth or coach through pain."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [8, 12], "rest_seconds": 120},
+        "muscle_growth": {"sets": [2, 3], "reps": [8, 12], "rest_seconds": 120},
+        "strength_building": {"sets": [2, 3], "reps": [6, 8], "rest_seconds": 180}
+      },
+      "limitations": ["Only the bodyweight variation is included; do not relabel a loaded squat as this analyzed exercise."]
+    },
+    {
+      "id": "standing_dumbbell_shoulder_press",
+      "display_name": "Standing dumbbell shoulder press",
+      "recognition_class": "shoulder_press",
+      "variation_id": "standing_dumbbell",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": ["dumbbell_pair"],
+      "equipment_optional": [],
+      "movement_patterns": ["vertical_push"],
+      "primary_muscle_groups": ["shoulders"],
+      "secondary_muscle_groups": ["arms", "trunk"],
+      "prescription_type": "compound",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Front or slight front-oblique view; keep both arms visible throughout the press.",
+      "setup_and_coaching": [
+        "Stand with a stable stance and one dumbbell in each hand at shoulder level.",
+        "Press through a comfortable overhead range without forcing the shoulders or leaning back; lower with control."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [8, 12], "rest_seconds": 120},
+        "muscle_growth": {"sets": [2, 3], "reps": [8, 12], "rest_seconds": 120},
+        "strength_building": {"sets": [2, 3], "reps": [6, 8], "rest_seconds": 180}
+      },
+      "limitations": ["Do not treat the pose model as a shoulder-pain or injury screen."]
+    },
+    {
+      "id": "overhead_dumbbell_triceps_extension",
+      "display_name": "Overhead dumbbell triceps extension",
+      "recognition_class": "triceps_extension",
+      "variation_id": "overhead_dumbbell",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": ["single_dumbbell"],
+      "equipment_optional": [],
+      "movement_patterns": ["elbow_extension"],
+      "primary_muscle_groups": ["arms"],
+      "secondary_muscle_groups": ["shoulders"],
+      "prescription_type": "accessory",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Side or front-oblique view; keep shoulder, elbow, and wrist visible.",
+      "setup_and_coaching": [
+        "Hold one dumbbell securely with both hands overhead.",
+        "Bend and extend the elbows smoothly through a comfortable range; keep the torso stable and do not force the bottom position."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [8, 12], "rest_seconds": 90},
+        "muscle_growth": {"sets": [2, 3], "reps": [8, 12], "rest_seconds": 90},
+        "strength_building": {"sets": [2, 3], "reps": [6, 8], "rest_seconds": 120}
+      },
+      "limitations": ["Requires a secure two-handed grip and enough overhead clearance."]
+    },
+    {
+      "id": "bent_over_dumbbell_row",
+      "display_name": "Bent-over dumbbell row",
+      "recognition_class": "row",
+      "variation_id": "bent_over_dumbbell",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": ["dumbbell_pair"],
+      "equipment_optional": [],
+      "movement_patterns": ["horizontal_pull", "hip_hinge"],
+      "primary_muscle_groups": ["back"],
+      "secondary_muscle_groups": ["arms", "shoulders"],
+      "prescription_type": "compound",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Side or slight oblique view; keep shoulder, elbow, and wrist visible.",
+      "setup_and_coaching": [
+        "Hold dumbbells, hinge at the hips, and keep a stable, comfortable torso position.",
+        "Pull the elbows back under control and lower the weights smoothly; do not use momentum or force a hinge depth."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [8, 12], "rest_seconds": 120},
+        "muscle_growth": {"sets": [2, 3], "reps": [8, 12], "rest_seconds": 120},
+        "strength_building": {"sets": [2, 3], "reps": [6, 8], "rest_seconds": 180}
+      },
+      "limitations": ["A bent-over position may not suit every user; honor stated movement restrictions and do not diagnose back safety from camera pose."]
+    },
+    {
+      "id": "standard_push_up",
+      "display_name": "Standard push-up",
+      "recognition_class": "push_up",
+      "variation_id": "standard",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": [],
+      "equipment_optional": [],
+      "movement_patterns": ["horizontal_push"],
+      "primary_muscle_groups": ["chest", "arms"],
+      "secondary_muscle_groups": ["shoulders", "trunk"],
+      "prescription_type": "compound",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Side view; keep shoulder, elbow, and wrist visible.",
+      "setup_and_coaching": [
+        "Start in the standard plank position on a stable surface with hands under or slightly wider than the shoulders.",
+        "Lower and press through a comfortable range while maintaining a steady body position; stop if pain occurs."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [8, 12], "rest_seconds": 120},
+        "muscle_growth": {"sets": [2, 3], "reps": [8, 12], "rest_seconds": 120},
+        "strength_building": {"sets": [2, 3], "reps": [6, 8], "rest_seconds": 180}
+      },
+      "limitations": ["Incline, knee, and weighted variations are not included because the supported model variation is standard push-up; do not claim live analysis for an untrained variation."]
+    },
+    {
+      "id": "standing_dumbbell_side_bend",
+      "display_name": "Standing dumbbell side bend",
+      "recognition_class": "side_bend",
+      "variation_id": "standing_dumbbell",
+      "training_source": "Multi-View",
+      "plan_eligible": true,
+      "equipment_required": ["single_dumbbell"],
+      "equipment_optional": [],
+      "movement_patterns": ["lateral_trunk_flexion"],
+      "primary_muscle_groups": ["trunk"],
+      "secondary_muscle_groups": [],
+      "prescription_type": "accessory",
+      "rep_unit": "per_side",
+      "camera_guidance": "Front view; keep shoulder and hip landmarks visible.",
+      "setup_and_coaching": [
+        "Stand tall holding one light, user-confirmed dumbbell at the side.",
+        "Move slowly through a small comfortable side bend and return upright; avoid twisting or leaning forward/back."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps_per_side": [8, 12], "rest_seconds": 90},
+        "muscle_growth": {"sets": [2, 3], "reps_per_side": [8, 12], "rest_seconds": 90},
+        "strength_building": {"sets": [2, 3], "reps_per_side": [6, 8], "rest_seconds": 120}
+      },
+      "limitations": ["This movement covers lateral trunk flexion only; it does not represent complete abdominal or core training.", "Honor user-stated back or trunk restrictions; the model does not assess injury risk."]
+    },
+    {
+      "id": "conventional_deadlift",
+      "display_name": "Conventional deadlift",
+      "recognition_class": "deadlift",
+      "variation_id": "conventional",
+      "training_source": "Weggry",
+      "plan_eligible": true,
+      "equipment_required": ["barbell", "weight_plates"],
+      "equipment_optional": ["lifting_platform"],
+      "movement_patterns": ["hip_hinge"],
+      "primary_muscle_groups": ["hips", "legs", "back"],
+      "secondary_muscle_groups": ["trunk", "forearms"],
+      "prescription_type": "compound",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Side view; keep hip, knee, and ankle visible. The camera cannot assess spinal curvature, bracing, bar load, or injury risk.",
+      "setup_and_coaching": [
+        "Use a clear lifting area and a barbell with user-confirmed plates.",
+        "Begin with the bar close to the body and lift smoothly; use a load and range the user can control.",
+        "Do not treat the model's rep count or relative movement observations as proof of safe technique."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [6, 10], "rest_seconds": 150},
+        "muscle_growth": {"sets": [2, 3], "reps": [6, 10], "rest_seconds": 150},
+        "strength_building": {"sets": [2, 3], "reps": [4, 8], "rest_seconds": 180}
+      },
+      "limitations": ["The model analyzes conventional deadlift only when this variation is selected.", "Do not infer or recommend a starting load; user confirms load.", "Romanian deadlift is a rejection example, not a selectable catalog exercise."]
+    },
+    {
+      "id": "sumo_deadlift",
+      "display_name": "Sumo deadlift",
+      "recognition_class": "deadlift",
+      "variation_id": "sumo",
+      "training_source": "Weggry",
+      "plan_eligible": true,
+      "equipment_required": ["barbell", "weight_plates"],
+      "equipment_optional": ["lifting_platform"],
+      "movement_patterns": ["hip_hinge"],
+      "primary_muscle_groups": ["hips", "legs", "back"],
+      "secondary_muscle_groups": ["trunk", "forearms"],
+      "prescription_type": "compound",
+      "rep_unit": "per_repetition",
+      "camera_guidance": "Side view for the current analyzer; keep hip, knee, and ankle visible. Side view does not capture all technique details.",
+      "setup_and_coaching": [
+        "Use a clear lifting area and a barbell with user-confirmed plates.",
+        "Select a stance the user has practiced and can control; lift smoothly without forcing stance width or range.",
+        "Do not treat the model's rep count or relative movement observations as proof of safe technique."
+      ],
+      "prescriptions": {
+        "fitness": {"sets": 2, "reps": [6, 10], "rest_seconds": 150},
+        "muscle_growth": {"sets": [2, 3], "reps": [6, 10], "rest_seconds": 150},
+        "strength_building": {"sets": [2, 3], "reps": [4, 8], "rest_seconds": 180}
+      },
+      "limitations": ["The model's hip-angle counter needs validation on sumo footage before live rep counts or form cues are presented as reliable.", "Do not infer or recommend a starting load; user confirms load.", "Romanian deadlift is a rejection example, not a selectable catalog exercise."]
+    }
+  ],
+  "recognition_rejection_examples": [
+    {
+      "name": "Romanian deadlift",
+      "recognition_class": "other",
+      "training_source": "Weggry",
+      "plan_eligible": false,
+      "reason": "Use as a negative/reject example for the supported conventional and sumo deadlift classes; it is not a selectable exercise or deadlift variation in this catalog."
+    }
+  ],
+  "coverage_notes": [
+    "This is a list of model-supported demo movements, not a complete weekly program for all major muscle groups.",
+    "The set does not include a dedicated calf exercise or a complete trunk/core program.",
+    "Do not describe a plan built only from this catalog as a complete balanced program unless the missing coverage is addressed."
+  ]
+}

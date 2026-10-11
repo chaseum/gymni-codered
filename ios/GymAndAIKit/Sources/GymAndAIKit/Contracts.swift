@@ -195,7 +195,17 @@ public struct HeartRateSample: Codable, Sendable {
 /// The fields of a v1 Observation the session needs; the rest of the payload is ignored.
 public struct CameraObservation: Codable, Sendable {
     public struct CompletedRep: Codable, Sendable { public var repIndex: Int; public var durationMs: Double? }
-    public struct Issue: Codable, Sendable { public var code: String }
+    public struct Issue: Codable, Sendable { public var code: String; public var evidence: [String: MeasurementValue]? }
+    public var sessionId: String?
+    public var setId: String?
+    public var clipId: String?
+    public var timeBase: String?
+    public var sourceTimestampMs: Double?
+    public var measurements: [String: MeasurementValue]?
+    public var measurementBasis: String?
+    public var modelVersion: String?
+    public var inferenceProvenance: String?
+    public var exerciseConfidence: Double?
     public var observationId: String
     public var source: InputSource
     public var exercise: String          // recognized id; may be "other"/"unknown", which never counts

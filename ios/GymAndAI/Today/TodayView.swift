@@ -5,6 +5,7 @@ struct TodayView: View {
     let session: WorkoutSession
     @Binding var showsPlan: Bool
     let openSettings: () -> Void
+    @Environment(OnboardingStore.self) private var onboarding
     @State private var mascotState = MascotState.idle
     @State private var celebration: Task<Void, Never>?
 
@@ -19,6 +20,12 @@ struct TodayView: View {
                     Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day())
                         .font(.subheadline)
                         .foregroundStyle(GymTheme.muted)
+                }
+                if let profile = onboarding.profile {
+                    Text("Your focus · \(profile.focus.title)")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(GymTheme.accentText)
+                        .accessibilityIdentifier("training-focus-summary")
                 }
                 TodayWorkoutCard(
                     exercise: session.exercise,

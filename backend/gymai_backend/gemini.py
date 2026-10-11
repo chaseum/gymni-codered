@@ -1,6 +1,7 @@
 """Gemini-backed conversational coach for Gym&I."""
 
 import asyncio
+from contextlib import asynccontextmanager
 import os
 import uuid
 from collections import defaultdict
@@ -33,6 +34,7 @@ async def send_coach_message(
     message: str,
     thread_id: str | None = None,
     profile_id: str | None = None,
+    *, history: list[dict] | None = None, assistant_id: str | None = None,
 ) -> dict:
     """Send a turn to Gemini, enriching it with Backboard memories when available."""
     api_key = os.getenv("GEMINI_API_KEY")
@@ -46,9 +48,9 @@ async def send_coach_message(
 
     memories: list[str] = []
     memory_status = "not_requested"
-    if profile_id:
+    if profile_id or assistant_id:
         try:
-            memories = await search_profile_memories(profile_id, message)
+            memories = await search_profile_memories(profile_id or "", message, assistant_id=assistant_id)
             memory_status = "used" if memories else "no_matches"
         except RuntimeError:
             memory_status = "not_configured"
@@ -66,8 +68,9 @@ async def send_coach_message(
             f"{saved_facts}"
         )
 
-    async with CONVERSATION_LOCKS[thread_id]:
-        history = CONVERSATIONS.get(thread_id, [])
+    stateless = history is not None
+    async with _no_lock() if stateless else CONVERSATION_LOCKS[thread_id]:
+        history = history if stateless else CONVERSATIONS.get(thread_id, [])
         contents = [
             *history,
             {"role": "user", "parts": [{"text": message}]},
@@ -93,10 +96,11 @@ async def send_coach_message(
         if not reply:
             raise ValueError("Gemini returned no text for this message.")
 
-        CONVERSATIONS[thread_id] = [
-            *contents,
-            {"role": "model", "parts": [{"text": reply}]},
-        ][-MAX_HISTORY_MESSAGES:]
+        if not stateless:
+            CONVERSATIONS[thread_id] = [
+                *contents,
+                {"role": "model", "parts": [{"text": reply}]},
+            ][-MAX_HISTORY_MESSAGES:]
 
     return {
         "reply": reply,
@@ -104,3 +108,8 @@ async def send_coach_message(
         "memory_status": memory_status,
         "memories_used": len(memories),
     }
+
+
+@asynccontextmanager
+async def _no_lock():
+    yield

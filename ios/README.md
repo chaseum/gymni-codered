@@ -1,140 +1,63 @@
-# Gym&AI iPhone app
+# Gym&I iPhone app
 
-Open **`GymAndAI.xcodeproj`**, select the **GymAndAI** scheme, choose an iPhone simulator, and run. The project links the existing local `GymAndAIKit` package. It targets iOS 17+ and uses Swift 6, tested with the installed Xcode 26.4 toolchain. No additional Swift frameworks need installing.
+Open **GymAndAI.xcodeproj** in Xcode, select the **GymAndAI** scheme, choose your iPhone, and run. The app targets iOS 17+ with Swift 6 and the installed Xcode 26.4 toolchain. Select your development team in Signing & Capabilities for a physical device. No provider keys or signing secrets belong in the iOS project.
 
-For a physical iPhone, select your development team in Signing & Capabilities and choose a unique bundle identifier. No team or signing secrets are committed.
+## Onboarding
 
-## Implemented first slice
+First launch opens personal measurements and eight training questions after the upward logo animation. The review matches Atlas to strength, Flex to muscle growth, and Pip to fitness; you can change the match before confirming. Answers stay on the iPhone, unfinished progress resumes, and Settings → Training profile lets you edit. See [onboarding behavior](../docs/ios/ONBOARDING.md).
 
-- Today, exercise selection/plan details, settings, and a lightweight last-session Progress screen.
-- Two modes: **iPhone camera** (positioning only; reps unmeasured) and **Pi / laptop camera** (the camera device runs the model and posts to this iPhone, which counts reps and coaches). Workout → explicit pause/rest → resume → recap.
-- **Reps | Camera** display switch. Both views share the same session, coach caption, and controls. Switching never changes the count or session state.
-- Camera opens edge to edge in landscape. Apple Watch heart rate sits at the upper left, completed/target reps at the upper right, and coaching plus Reps/Mute/Pause/End controls overlay the bottom. Returning to Reps, rest, or recap restores portrait. The video preserves its aspect ratio so joints are not cropped to fill the screen.
-- The Watch tile displays BPM only for `apple_watch` samples marked live and timestamped within ten seconds. Missing, stale, or unrelated-source samples show Unavailable. The Watch bridge still needs implementing.
-- Pi / laptop camera mode runs the session on the phone (`HubSession`, a port of the backend's session rules) and accepts the camera device's observations on port 8000 (`HubServer`). Rest timer expiry never resumes the workout.
-- Optional camera-device **MJPEG preview** (`fitness-ml --preview-port`). Missing or stale video has an explicit unavailable state. Preview parsing runs away from the main actor with bounded frame buffering. The preview does not perform inference.
-- Spoken captions and form corrections use native speech synthesis with temporary audio ducking. Audio can be muted; current cues stop on pause/end.
-- Dynamic Type, scrolling layouts, labeled controls, and touch targets of at least 44 points.
-- Native Liquid Glass on iOS 26+: Watch/rep tiles and the floating coach caption use regular glass; primary buttons use lime-tinted glass and secondary buttons use neutral glass. Camera controls sit directly over the video, with no enclosing glass panel. Reduce Transparency uses opaque tiles and standard buttons; older iOS versions use material tiles and standard buttons. The deployment baseline stays iOS 17.
-- Settings → Apple Health → **Connect Apple Health** requests permission to read heart rate through the native HealthKit sheet. It requests no write permission, reads no samples, and sends no health data to the laptop. Completion is reported as “Permission request finished”; HealthKit does not reveal denial of read access. Errors and unavailable-device states remain visible.
-- Choose Pip, Atlas or Flex in Settings > Companion. The selected bundled 3D companion coaches, rests on pause, and celebrates at recap. Tap it on Today for a brief celebration.
+## Main workout setup
 
-## Simulator: one-command live demo
+The main app defaults to **Camera device** mode on both Simulator and iPhone. Old saved demo, phone-only, and laptop choices migrate to this mode on normal launch. Settings contains the Pi preview, hosted API URL, audio, companion, Health, and Watch controls. Product settings offer no demo/laptop mode selector.
 
-On the Mac, with the ignored model bundle in `ml/models/`:
+See [Pi + iPhone + Vercel setup](../docs/PI_IPHONE_VERCEL.md) for deployment and camera commands:
 
-```bash
-python3.11 -m venv .venv
-.venv/bin/pip install -e 'ml[gru]'
-bash scripts/run_simulator_demo.sh curl
-```
+1. Vercel deploys the root `main.py` FastAPI app with ElevenLabs, Gemini, and Backboard keys from `.env` in its environment.
+2. In Settings → Hosted coach, enter the HTTPS deployment URL and check the connection.
+3. Start a workout. The app displays this iPhone's Wi-Fi address while waiting for the Pi.
+4. On the Pi, run `fitness-ml run --source live --exercise curl --post http://IPHONE_IP:8000 --session phone` with the trained model bundle installed. Use the exercise selected on iPhone.
 
-The script builds and opens the app in an iPhone Simulator in Pi / laptop camera mode, waits for its listener on `127.0.0.1:8000`, then streams live webcam inference into it. Allow camera access for the terminal on first use; close the model window with `q` to stop. An optional second argument picks the Simulator, e.g. `bash scripts/run_simulator_demo.sh squat "iPhone 17"`.
+The Pi and iPhone must share a network. Allow Local Network access and keep the app open. Backgrounding an active workout pauses it. Only ready, recognized, trusted observations commit reps. No timer simulates movement and no connection failure starts a demo.
 
-## Camera device mode (iPhone as the hub)
+## Voice and local storage
 
-The Pi or laptop runs only the camera and model; the iPhone runs the session, counts reps, and coaches. No backend.
+All production workout speech plays ElevenLabs MP3 clips from the stateless hosted gateway. Form codes, measured count milestones, and sustained pace changes choose approved short captions on iPhone. Workout coaching uses **zero Gemini tokens**. Gemini is available for conversation through the hosted API; a conversation/onboarding screen is separate work.
 
-1. Phone: Settings → Mode → **Camera device**, then start the workout. The screen shows `Waiting for camera · send to <phone-ip>:8000`.
-2. Camera device, same Wi-Fi (any session id works):
-   ```bash
-   .venv/bin/fitness-ml run --source live --camera 0 --exercise curl --post http://<phone-ip>:8000 --session phone --preview-port 8081
-   ```
-3. Optional video: phone Settings → camera preview URL `<camera-device-ip>:8081`.
+The phone caches clips under Application Support `GymAndAI/Voice` for reuse across launches. A configuration revision invalidates selection after a hosted voice/model change. Missing audio keeps captions visible and reports the problem; there is no native speech fallback. Slow count/correction responses are discarded after six seconds or when the relevant rep/set/issue/tracking changes. Mute, pause, end, and scene changes cancel pending playback.
 
-Keep Gym&I open during the set (iOS stops the listener in the background). Simulator: `xcrun simctl launch <sim> com.chasebeeler.gymandai --gymni-hub --exercise curl`, then post to `http://127.0.0.1:8000`.
+Application Support `GymAndAI/Workouts/<UUID>.json` stores sets and committed reps, including target/actual counts, active time excluding pauses, measured rep durations, source timestamps, model evidence and measurements, and selected captions. Writes are serialized, atomic, and flushed on workout end. The voice endpoint receives only approved cue codes and count/target numbers, never camera frames or workout journals.
 
-## Camera integration contract
+## Workout UI
 
-Settings accepts an optional HTTP(S) MJPEG URL. The publisher must return status 200 and `Content-Type: multipart/x-mixed-replace; boundary=...`, followed by JPEG parts. Use the same participant, source, and webcam frames as the active analyzer; retain the Recorded label for prerecorded footage.
+Today, exercise selection, Settings, last-session Progress, explicit pause/rest/resume, and recap remain available. Reps and Camera views share the same local workout state. The optional Pi MJPEG preview only displays video; it does not count reps or run inference. Missing/stale preview is shown as unavailable, while observations can continue independently. Landscape Camera view returns to portrait for Reps, rest, and recap.
 
-**The current FastAPI backend does not publish this feed.** Tyler/Chase should add publishing to the existing capture pipeline rather than opening the camera from a second process. Until then Laptop Camera view honestly shows unavailable. The app does not access the phone camera. Preview authorization is not implemented; use only a permitted trusted local feed for this prototype. Backend tokens are never forwarded to a separately configured preview host.
+Dynamic Type, scrolling layouts, accessible control labels, and 44-point touch targets remain supported. Settings → Companion selects Pip, Atlas, or Flex; companion selection does not change measured counting policy.
 
-The preview connection starts when Camera view is visible, stops when it leaves, and reconnects on returning. This affects video display only. Analysis, rep counting, and coaching continue on the laptop.
+## Apple Health and Watch
 
-## Validation
+Settings → Apple Health requests permission to read heart rate using HealthKit. A completed permission request does not establish that read access was granted. The iPhone and Watch targets retain their HealthKit entitlements. Install the companion on the paired Watch and enable **Use Watch heart rate**. Missing, stale, invalid, or unrelated samples show unavailable; no synthetic BPM is produced.
 
-```bash
-cd ios/GymAndAIKit
-swift test
-```
-
-From the repo root:
-
-```bash
-xcodebuild -project ios/GymAndAI.xcodeproj -scheme GymAndAI \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
-  -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- test
-```
-
-Tests cover contract decoding/deduplication, display switching preserving session state, cancellation of delayed demo starts, rest expiry requiring explicit resume, stale/missing heart rate, bounded multipart parsing, the native workout journey, landscape/portrait transitions, corner overlay placement, and large-text control access.
-
-Simulator tests use local ad-hoc signing so HealthKit receives its entitlement. `HealthAccessTests` verifies the Settings permission flow and neutral completion after declining access. Apple may omit the sheet on later runs when the choice is already recorded.
-
-`LaptopConnectionTests` runs against a local backend on port 8000 and skips when it is unavailable. It creates an isolated test session, sends a recorded fixture observation, checks the displayed rep event, and exercises actual REST/WebSocket pause/resume/end. It does not measure ML accuracy or capture a camera.
-
-Simulator screenshots are saved under `../docs/design/native/` and the updated mockup views under `../docs/design/`.
-
-## Apple Health permission setup
-
-The iPhone target uses `GymAndAI/GymAndAI.entitlements` with HealthKit enabled. The read/write purpose descriptions are in `GymAndAI-Info.plist`; the write description is reserved for later workout saving.
-
-Run the app, open Settings, and tap **Connect Apple Health**. On the native sheet, choose Heart Rate access and finish. If you previously answered, Apple may complete without showing another sheet; review Gym&AI’s permissions in the Health app to change your choice. A completed request does not prove read access was granted and does not start live Watch delivery.
-
-One HealthKit store is owned by the app's root state and retained across Settings presentations. The permission flow uses `HKHealthStore.requestAuthorization(toShare: [], read: [HKQuantityType(.heartRate)])` after checking availability. It never automatically asks at launch.
+Live Activity updates and Watch synchronization remain attached to workout state. Neither the Pi nor Vercel owns the phone's rest timer or local workout lifecycle.
 
 ## Music during coaching
 
-Native speech announcements use the system-managed speech audio session. ElevenLabs MP3 cues use a temporary playback session with ducking; both stop on pause, mute, or end. No long-lived ducking session is activated for the workout.
+MP3 playback temporarily ducks other audio and releases the audio session on completion/cancellation. Physical-device verification is needed for music/AirPods routing: play music, start a Pi workout, hear a measured cue, then mute/pause/end and confirm audio stops and the music returns. Simulator checks do not establish physical audio routing.
 
-To check on a physical iPhone:
+## Verification
 
-1. Start music in Apple Music or Spotify on that iPhone, using the phone speaker or connected AirPods.
-2. Open Gym&AI, leave Spoken coaching enabled, and start a workout to hear a native speech announcement.
-3. Check that music becomes quieter while the cue is audible, then returns afterward.
-4. Mute the coach while a cue is playing and verify speech stops and music returns. Pause/end should cancel the current cue; their short transition announcement may then duck music again.
-5. Switch Reps/Camera and confirm no extra announcement or music interruption occurs just from switching views.
-
-iOS determines the ducking amount. Music playing on a separate device is outside this mechanism. Real music playback and AirPods routing require physical-device verification; a Simulator journey test does not verify audible ducking.
-
-Reference: [Apple's speech audio-session documentation](https://developer.apple.com/documentation/avfaudio/avspeechsynthesizer/usesapplicationaudiosession).
-
-## ElevenLabs spoken correction cues
-
-The approved correction phrases can be generated ahead of time with ElevenLabs and saved as MP3s under `assets/audio/`. The phone downloads and plays the matching file from the laptop; missing files fall back to native iPhone speech. Normal session start, pause, and status announcements continue to use native speech. Dynamic mode is optional: Gemini rephrases only the backend-approved action, ElevenLabs voices it, and the laptop serves the resulting MP3 to the phone.
-
-Install the optional providers and configure the project-root `.env` with `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`:
-
-```bash
-python -m pip install -e 'backend[audio]'
-python generate_audio.py
+```sh
+swift test --package-path ios/GymAndAIKit
+.venv/bin/python -m pytest backend/tests
+.venv/bin/python contracts/validate.py
 ```
 
-For dynamic cues, install `backend[dynamic-cues]`, configure `GEMINI_API_KEY`, set `GYMAI_DYNAMIC_CUES=1` in `.env`, and restart the backend. The first time each approved issue/action is used with a selected Gemini model, ElevenLabs model, and voice, the backend generates and caches one MP3 under `assets/audio/dynamic/`. Later occurrences reuse that clip without another Gemini or ElevenLabs call. The short Gemini request contains only the approved action (no user profile or movement measurements), caps output at 24 tokens, and falls back to the fixed approved cue if a provider is unavailable or times out. Keep provider keys on the laptop; the iPhone only downloads MP3s from the configured backend.
+`MainHubTests` exercises the actual main-app defaults, absence of a demo picker, zero reps without observations, measured count/form captions, ElevenLabs playback state, pause/end, and large-text settings. Run the hosted app locally on port 18081 with `.env` configured to enable that integration check:
 
-## Next integration work
+```sh
+.venv/bin/uvicorn main:app --host 127.0.0.1 --port 18081
+xcodebuild -project ios/GymAndAI.xcodeproj -scheme GymAndAI \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
+  -only-testing:GymAndAIUITests/MainHubTests test
+```
 
-- Build the personalized-planning path: goal interview and profile editing, deterministic filtering/validation from the reviewed exercise catalog, plan acceptance/versioning, then launch sessions from the accepted plan. Current Gemini and Backboard endpoints provide coach chat and user-confirmed memories; they do not yet create or accept plans.
-- Generate ElevenLabs cue assets using the selected voice, confirm its redistribution terms, and keep the files local unless redistribution is allowed.
-- Add narrow phone speech commands and publish/validate the optional live webcam preview.
-- Watch heart-rate forwarding is deferred until a later integration pass. iPhone HealthKit permission is present, but live HR is unavailable without a real sample path.
-- Tiger persistence is deferred until account/login work defines stable user identities; profile IDs are currently demo identifiers.
-- Test physical iPhone/AirPods, event-network behavior, and preview latency using the real hardware.
-
-Skills used: `code-tips-skill` and `swiftui-pro`. Deployment/toolchain settings follow the existing package and installed SDK rather than unsupported newer APIs.
-
-## Animated companions
-
-Choose **Pip**, **Atlas** or **Flex** in **Settings > Companion**. The saved choice applies to every existing `PipView(state:)`. The synchronized Xcode app folder includes `Mascot/Resources/Pip.usdz`, `AtlasAnimated.usdz`, `FlexAnimated.usdz`, and `CompanionClips.json` automatically: **4.27 MB combined**. Transparent fallback previews are in the asset catalog. Blender sources, GLBs and review renders are not app resources.
-
-`PipMotion` now trims the imported skeletal timeline with RealityKit's AnimationView. `.idle` plays idle, `.coaching` plays encouraging, `.celebrate` plays celebration, and `.rest` plays rest. `.happy` and `.sad` are available to callers; sad is not automatically triggered by poor form. Idle/rest loop; other clips play once and return to idle unless state changes. The procedural transform driver is replaced. Models are fitted to the existing studio framing. The scene uses no AR session or camera permissions.
-
-USDZ and reflection resources load asynchronously and are cached; each visible mascot gets its own entity clone. Changing companion recreates its scene. Hidden/backgrounded views stop playback and cancel pending completion tasks. Failed loading uses the selected companion's preview. Reduce Motion evaluates a paused neutral idle frame and disables overlays.
-
-`CompanionEffectsView` adds one 2.4-second burst of 18 confetti pieces for celebration, or three floating Z letters for rest. Its SwiftUI Canvas requests at most 30 updates per second, pauses after confetti, ignores taps, and is hidden from accessibility. No new textures or dependencies are required.
-
-Run `python scripts/validate_companion_bundle.py` from the repository root to check shipped resources, all 18 clip definitions, fallback assets and Xcode inclusion. The generated assets also passed skin-weight, 30 Hz sample, endpoint, size and Blender USDZ reimport checks. Authoring instructions are in `../blender-companions/animated/README.md`; generated authoring/review outputs are ignored by Git.
-
-`PipMascotTests` checks selection/loading of all three companions, tapping and returning to idle, static fallback, Reduce Motion, background/tab restoration, and rest/recap navigation. Debug-only `-PipForceFallback` and `-PipReduceMotion` arguments exercise those branches. Existing workout journey checks still cover camera/reps switching, orientation, and large-text control access. Native compilation and UI tests require a Mac and were not run in this Windows integration session.
-
-Before judging, run on a physical iPhone and check: glossy appearance, idle/ring movement, speech-linked gestures ending on mute, rest/resume/recap, Reduce Motion, background/foreground restoration, and performance alongside the real video feed. Music/AirPods ducking needs the existing manual audio check. No physical device was connected during this implementation.
+Fixture observations are labeled `fixture`; tests do not measure real Pi camera/model accuracy. The iPhone camera positioning mode remains available to UI tests (`--gymni-ui-testing`); `--gymni-hub` starts a live camera-device session. Demo and laptop-backend modes have been removed. Local HTTP hosted URLs are limited to localhost/127.0.0.1. Normal app operation requires no laptop Python backend.

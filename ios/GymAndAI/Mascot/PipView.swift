@@ -10,7 +10,7 @@ struct PipView: View {
     }
 }
 
-private struct CompanionSceneView: View {
+struct CompanionSceneView: View {
     let state: MascotState
     let companion: CompanionKind
     @Environment(\.scenePhase) private var scenePhase

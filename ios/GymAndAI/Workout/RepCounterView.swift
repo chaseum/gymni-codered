@@ -3,6 +3,7 @@ import SwiftUI
 struct RepCounterView: View {
     let count: Int
     let target: Int?
+    var compact = false
     @ScaledMetric(relativeTo: .largeTitle) private var numberSize = 88
 
     var body: some View {
@@ -16,7 +17,7 @@ struct RepCounterView: View {
                 .font(.title3).foregroundStyle(GymTheme.muted)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, GymTheme.Space.section)
+        .padding(.vertical, compact ? GymTheme.Space.small : GymTheme.Space.section)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(target.map { "\(count) of \($0) completed reps" } ?? "\(count) completed reps")
     }

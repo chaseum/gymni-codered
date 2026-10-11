@@ -18,6 +18,11 @@ struct CoachMessageView: View {
                 Text(message ?? session.coachingMessage).font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("coach-message")
+                if session.audioEnabled, let status = session.voiceStatus {
+                    Text(status).font(.caption).foregroundStyle(GymTheme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("coach-voice-status")
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

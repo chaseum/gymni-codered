@@ -6,9 +6,9 @@ import Foundation
 @MainActor
 public final class HubSession {
     /// Only these issue codes are ever voiced (the backend's CUES table).
-    static let cues: [String: String] = [
+    nonisolated static let cues: [String: String] = [
         "curl.elbow_drift": "Keep your elbows pinned to your sides.",
-        "curl.partial_range": "Let the weight come all the way down.",
+        "curl.partial_range": "Curl a little higher, keeping the movement controlled.",
         "squat.shallow_depth": "Sit a little deeper if it feels comfortable.",
         "deadlift.hips_rise_early": "Push the floor away; let your hips and chest rise together.",
         "shoulder_press.incomplete_lockout": "Press all the way up until your arms are straight overhead.",
@@ -33,12 +33,28 @@ public final class HubSession {
     private var tracking: TrackingStatus?
     private var restEndsAtMs: Int64?
     private var activeIssues: [(code: String, feedbackId: String)] = []
-    // ponytail: grows by one id per camera frame (~100k/hour); bound it if sessions ever run for many hours.
+    // Bound frame deduplication; older committed reps are also protected by their indices.
     private var seenObservations: Set<String> = []
+    private var recentObservationIDs: [String] = []
     private var maxRepIndex = 0
     private var feedbackCount = 0
+    private var repCoach = RepCoach()
+    private var lastFormRep = -3
+    private var formLastSpoken: [String: Int] = [:]
+    private let journal: WorkoutJournal?
+    private let clock: () -> Double
+    public var onHistoryFailure: (() -> Void)?
 
-    public init(sessionId: String) { self.sessionId = sessionId }
+
+    public init(sessionId: String, historyURL: URL? = nil, clock: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime * 1000 }) {
+        self.sessionId = sessionId
+        self.clock = clock
+        journal = historyURL.map(WorkoutJournal.init)
+        journal?.onFailure = { [weak self] in self?.onHistoryFailure?() }
+    }
+
+    public func flushHistory() async { await journal?.flush() }
+
 
     private var setId: String? { setNumber > 0 ? String(format: "set-%03d", setNumber) : nil }
     private var restView: RestView? { restEndsAtMs.map { RestView(status: .resting, endsAtMs: $0) } }
@@ -96,8 +112,20 @@ public final class HubSession {
 
     @discardableResult
     public func observe(_ observation: CameraObservation) -> IngestAck {
+        guard observation.source == source, observation.sessionId == nil || observation.sessionId == sessionId,
+              observation.setId == nil || observation.setId == setId else {
+            return IngestAck(accepted: true, duplicate: false, ignored: "wrong_source_or_set")
+        }
+        guard observation.completedRep?.durationMs == nil || (observation.completedRep!.durationMs!.isFinite && observation.completedRep!.durationMs! > 0) else {
+            return IngestAck(accepted: false, duplicate: false, ignored: "invalid_duration")
+        }
         guard seenObservations.insert(observation.observationId).inserted else {
             return IngestAck(accepted: true, duplicate: true, ignored: nil)
+        }
+        recentObservationIDs.append(observation.observationId)
+        if recentObservationIDs.count >= 8192 {
+            recentObservationIDs.removeFirst(4096)
+            seenObservations = Set(recentObservationIDs)
         }
         guard state == .active else {
             // Still consume rep indices so reps done while paused never count after resume.
@@ -105,6 +133,7 @@ public final class HubSession {
             return IngestAck(accepted: true, duplicate: false, ignored: "not_active")
         }
         if observation.trackingStatus != tracking {
+            if observation.trackingStatus != .ready { repCoach.resetTiming() }
             tracking = observation.trackingStatus
             emit(.tracking(TrackingPayload(status: observation.trackingStatus, source: observation.source)))
         }
@@ -113,32 +142,57 @@ public final class HubSession {
         }
         maxRepIndex = rep.repIndex
         guard tracking == .ready, let exercise, let setId, observation.exercise == exercise.rawValue else {
+            repCoach.resetTiming()
             return IngestAck(accepted: true, duplicate: false, ignored: "rep_not_trusted")
         }
         repCount += 1
         emit(.repCompleted(RepCompleted(exercise: exercise, setId: setId, repCount: repCount,
                                         targetReps: targetReps, durationMs: rep.durationMs)))
-        var issues: [String] = []
-        for code in observation.issues.map(\.code) where Self.cues[code] != nil && !issues.contains(code) {
-            issues.append(code)
-        }
-        for code in issues where !activeIssues.contains(where: { $0.code == code }) {
-            feedbackCount += 1
-            let feedbackId = "fb-\(feedbackCount)"
-            activeIssues.append((code, feedbackId))
-            // No cue id: the phone speaks the approved text (no bundled audio yet).
-            emit(.feedbackIssued(FeedbackIssued(feedbackId: feedbackId, issueCode: code, cueId: nil,
-                                                text: Self.cues[code]!, setId: setId, repCount: repCount)))
-        }
+        let issues = Set(observation.issues.filter {
+            guard Self.cues[$0.code] != nil, $0.code.hasPrefix(exercise.rawValue + ".") else { return false }
+            if let probability = $0.evidence?["probability"] {
+                guard let value = probability.number, (0.8...1).contains(value) else { return false }
+            }
+            return true
+        }.map(\.code))
         for issue in activeIssues where !issues.contains(issue.code) {
-            emit(.feedbackImproved(FeedbackImproved(feedbackId: issue.feedbackId, issueCode: issue.code,
-                                                    setId: setId, repCount: repCount)))
+            emit(.feedbackImproved(FeedbackImproved(feedbackId: issue.feedbackId, issueCode: issue.code, setId: setId, repCount: repCount)))
         }
         activeIssues.removeAll { !issues.contains($0.code) }
+        let now = clock()
+        var formText: String?
+        let ordered = issues.sorted {
+            let left = formLastSpoken[$0] ?? -3, right = formLastSpoken[$1] ?? -3
+            return left == right ? $0 < $1 : left < right
+        }
+        if let code = ordered.first, repCount - lastFormRep >= 3,
+           repCoach.lastCueMs == nil || now - repCoach.lastCueMs! >= RepCoach.cooldownMs {
+            let feedbackId: String
+            if let active = activeIssues.first(where: { $0.code == code }) { feedbackId = active.feedbackId }
+            else {
+                feedbackCount += 1; feedbackId = "fb-\(feedbackCount)"
+                activeIssues.append((code, feedbackId))
+            }
+            lastFormRep = repCount; formLastSpoken[code] = repCount; repCoach.lastCueMs = now
+            formText = Self.cues[code]!
+            emit(.feedbackIssued(FeedbackIssued(feedbackId: feedbackId, issueCode: code, cueId: code,
+                                               text: formText!, setId: setId, repCount: repCount,
+                                               utteranceId: "\(feedbackId)-\(repCount)")))
+        }
+        let coaching = repCoach.select(observation, count: repCount, target: targetReps,
+                                       hasIssues: !observation.issues.isEmpty, clockMs: now)
+        journal?.append(observation, count: repCount, baseline: repCoach.baselineMs,
+                        text: formText ?? coaching?.text, at: Self.nowMs())
+        if let coaching {
+            emit(.coachingCue(CoachingCue(cueId: "coach-\(setId)-\(repCount)", kind: coaching.kind,
+                                          text: coaching.text, setId: setId, repCount: repCount)))
+        }
         return IngestAck(accepted: true, duplicate: false, ignored: nil)
     }
 
     private func setState(_ newState: SessionState) {
+        if newState != .active { repCoach.resetTiming() }
+        journal?.transition(newState)
         state = newState
         emit(.sessionState(SessionStatePayload(state: newState)))
     }
@@ -150,10 +204,13 @@ public final class HubSession {
         load = args?.load
         repCount = 0
         activeIssues = []
+        repCoach = RepCoach(); lastFormRep = -3; formLastSpoken = [:]
+        journal?.begin(setId: setId!, exercise: exercise!, expectedReps: targetReps, at: Self.nowMs())
         emit(.exerciseChanged(ExerciseChanged(exercise: exercise!, setId: setId!, targetReps: targetReps)))
     }
 
     private func finishSet() {
+        journal?.finish(at: Self.nowMs())
         guard let setId, let exercise, repCount > 0 else { return }
         emit(.setCompleted(SetCompleted(setId: setId, exercise: exercise, repCount: repCount, load: load)))
     }

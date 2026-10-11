@@ -2,21 +2,20 @@ import SwiftUI
 import GymAndAIKit
 
 struct AppRootView: View {
+    @State private var onboarding: OnboardingStore
+    private let bypassOnboarding: Bool
     @State private var session: WorkoutSession
     @State private var watch = WatchConnectionController()
     @State private var healthAccess = HealthAccessController()
     @State private var showsSettings = false
     @State private var showsPlan = false
-    @State private var showsIntro = true
+    @State private var showsIntro: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        #if targetEnvironment(simulator)
-        let defaultMode: WorkoutMode = .hub  // the simulator has no camera; the Pi / laptop session runs without one
-        #else
-        let defaultMode: WorkoutMode = .phone
-        #endif
+        let testing = arguments.contains("--gymni-ui-testing")
+        let defaultMode: WorkoutMode = .hub
         let preferences: UserDefaults?
         if let flag = arguments.firstIndex(of: "--gymni-preferences-suite"), arguments.indices.contains(flag + 1) {
             preferences = UserDefaults(suiteName: arguments[flag + 1])
@@ -24,8 +23,15 @@ struct AppRootView: View {
             preferences = arguments.contains("--gymni-ui-testing") ? nil : .standard
         }
         let workout = WorkoutSession(defaultMode: defaultMode, preferences: preferences)
+        if !testing { workout.useMainAppConfiguration() }
         #if targetEnvironment(simulator)
         workout.configureSimulatorLaunch(arguments: arguments)
+        #endif
+        _onboarding = State(initialValue: OnboardingStore(preferences: preferences ?? .standard))
+        #if DEBUG
+        bypassOnboarding = (testing && !arguments.contains("--gymni-onboarding-testing")) || arguments.contains("--gymni-skip-onboarding") || workout.shouldAutoStartSimulatorSession
+        #else
+        bypassOnboarding = false
         #endif
         _session = State(initialValue: workout)
         _showsIntro = State(initialValue: !workout.shouldAutoStartSimulatorSession)
@@ -34,7 +40,14 @@ struct AppRootView: View {
     var body: some View {
         @Bindable var session = session
         ZStack {
-            dashboard(session: session)
+            if onboarding.needsOnboarding && !bypassOnboarding {
+                NavigationStack {
+                    OnboardingFlowView(store: onboarding, onComplete: {})
+                        .toolbar(.hidden, for: .navigationBar)
+                }
+            } else {
+                dashboard(session: session)
+            }
 
             if showsIntro && !reduceMotion {
                 GymLogoIntroView {
@@ -62,6 +75,7 @@ struct AppRootView: View {
         } message: {
             Text(session.errorMessage ?? "Please try again.")
         }
+        .environment(onboarding)
     }
 
     private func dashboard(session: WorkoutSession) -> some View {

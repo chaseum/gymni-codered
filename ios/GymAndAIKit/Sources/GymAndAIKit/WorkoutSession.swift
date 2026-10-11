@@ -4,8 +4,21 @@ import Observation
 @MainActor @Observable
 public final class WorkoutSession {
     public var display: WorkoutDisplay = .reps
-    public var mode: WorkoutMode = .phone { didSet { saveConfiguration() } }
+    public var mode: WorkoutMode = .hub { didSet { saveConfiguration() } }
     public var exercise: Exercise = .curl { didSet { saveConfiguration() } }
+    public var hostedAPIAddress = "" {
+        didSet {
+            saveConfiguration()
+            voiceStatus = hostedAPIAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "Add the hosted API URL in Settings to enable ElevenLabs."
+                : "Check voice connection to enable ElevenLabs."
+        }
+    }
+    public var voiceStatus: String? = "Add the hosted API URL in Settings to enable ElevenLabs."
+    public private(set) var workoutHistoryURL: URL?
+    @ObservationIgnored private var hostedCoach: HostedCoachClient?
+    @ObservationIgnored private var voiceWarmTask: Task<Void, Never>?
+    public var token = ""
     public var previewAddress = "" { didSet { saveConfiguration() } }
     public var audioEnabled = true { didSet { saveConfiguration() } }
     public var usesAppleWatch = true { didSet { saveConfiguration() } }
@@ -26,13 +39,13 @@ public final class WorkoutSession {
     @ObservationIgnored private var phone = PhoneWorkoutSource()
     @ObservationIgnored private var lastWatchMessageAtMs: Int64 = 0
     @ObservationIgnored private var watchSampleNotBeforeMs: Int64 = 0
-    @ObservationIgnored private var sessionMode: WorkoutMode = .phone
+    @ObservationIgnored private var sessionMode: WorkoutMode = .hub
     @ObservationIgnored private var hub: HubSession?
     @ObservationIgnored private var hubServer: HubServer?
     @ObservationIgnored private let preferences: UserDefaults?
     @ObservationIgnored private var isRestoringConfiguration = true
 
-    public init(defaultMode: WorkoutMode = .phone, preferences: UserDefaults? = nil) {
+    public init(defaultMode: WorkoutMode = .hub, preferences: UserDefaults? = nil) {
         self.preferences = preferences
         store = WorkoutStore(sessionId: "phone")
         mode = defaultMode
@@ -40,6 +53,7 @@ public final class WorkoutSession {
            let saved = try? JSONDecoder().decode(WorkoutConfiguration.self, from: data) {
             mode = saved.mode
             exercise = saved.exercise
+            hostedAPIAddress = saved.hostedAPIAddress ?? ""
             previewAddress = saved.previewAddress
             audioEnabled = saved.audioEnabled
             usesAppleWatch = saved.usesAppleWatch
@@ -49,6 +63,7 @@ public final class WorkoutSession {
 
     /// `--gymni-hub [--exercise curl]`: start a camera-device session that a local fitness-ml can post to.
     public func configureSimulatorLaunch(arguments: [String]) {
+        if let address = Self.argument(after: "--hosted-api-url", in: arguments) { hostedAPIAddress = address }
         guard arguments.contains("--gymni-hub") else { return }
         mode = .hub
         if let exerciseID = Self.argument(after: "--exercise", in: arguments),
@@ -78,7 +93,7 @@ public final class WorkoutSession {
 
     private func saveConfiguration() {
         guard !isRestoringConfiguration, let preferences else { return }
-        let settings = WorkoutConfiguration(mode: mode, exercise: exercise, previewAddress: previewAddress,
+        let settings = WorkoutConfiguration(mode: mode, exercise: exercise, hostedAPIAddress: hostedAPIAddress, previewAddress: previewAddress,
                                             audioEnabled: audioEnabled, usesAppleWatch: usesAppleWatch)
         if let data = try? JSONEncoder().encode(settings) {
             preferences.set(data, forKey: WorkoutConfiguration.preferencesKey)
@@ -191,7 +206,12 @@ public final class WorkoutSession {
 
     /// The phone runs the session; the camera device (Pi or laptop) only POSTs observations to it.
     private func startHub() throws {
-        let hub = HubSession(sessionId: "phone")
+        let history = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appending(path: "GymAndAI/Workouts/\(UUID().uuidString).json")
+        workoutHistoryURL = history
+        let hub = HubSession(sessionId: "phone", historyURL: history)
+        hub.onHistoryFailure = { [weak self] in self?.errorMessage = "Workout history could not be saved on this iPhone." }
+
         store = WorkoutStore(sessionId: hub.sessionId)
         hub.onEvent = { [weak self] event in self?.store.apply(event) }
         store.apply(hub.snapshot())
@@ -199,13 +219,59 @@ public final class WorkoutSession {
             await MainActor.run { hub?.observe(observation) } ?? IngestAck(accepted: false, duplicate: false, ignored: "no_session")
         }
         self.hub = hub
+        configureHostedCoach(warmWorkout: true)
         hubAddress = HubServer.wifiAddress().map { "\($0):\(HubServer.defaultPort)" }
         hub.command(.start, args: CommandArgs(exercise: exercise, targetReps: 8, source: .live))
         isPositioning = false
         presentsWorkout = true
     }
 
+    /// Normal product launch always uses Pi observations; saved camera choices are migrated.
+    public func useMainAppConfiguration() {
+        mode = .hub
+    }
+
+    public func configureHostedCoach(warmWorkout: Bool = false) {
+        voiceWarmTask?.cancel()
+        hostedCoach = nil
+        guard let url = Self.networkURL(hostedAPIAddress),
+              url.scheme == "https" || ["localhost", "127.0.0.1"].contains(url.host ?? "") else {
+            voiceStatus = "Add the hosted API URL in Settings to enable ElevenLabs."
+            return
+        }
+        let client = HostedCoachClient(baseURL: url, token: token.isEmpty ? nil : token)
+        hostedCoach = client
+        voiceStatus = "Connecting to ElevenLabs…"
+        voiceWarmTask = Task { [weak self] in
+            do {
+                try await client.prepare()
+                guard !Task.isCancelled, let self else { return }
+                voiceStatus = nil
+                if warmWorkout { await client.warm(exercise: exercise, target: 8) }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.voiceStatus = "ElevenLabs is unavailable. Saved clips and captions remain available."
+            }
+        }
+    }
+
+    public func fetchHostedAudio(_ request: HostedVoiceRequest) async throws -> Data {
+        guard let hostedCoach else { throw URLError(.badURL) }
+        do {
+            let data = try await hostedCoach.audio(for: request)
+            if !Task.isCancelled { voiceStatus = nil }
+            return data
+        } catch {
+            if !Task.isCancelled { voiceStatus = "ElevenLabs audio is unavailable. Follow the captions." }
+            throw error
+        }
+    }
+
+    public func reportVoicePlaybackFailure() { voiceStatus = "Coach audio could not play. Follow the captions." }
+
     private func stopHub() {
+        voiceWarmTask?.cancel()
+        voiceWarmTask = nil
         hubServer?.stop()
         hubServer = nil
         hub = nil
@@ -222,6 +288,7 @@ public final class WorkoutSession {
         } else if let error = hub?.command(intent, args: args) {
             errorMessage = "The coach could not accept that action (\(error))."
         }
+        if intent == .end { await hub?.flushHistory() }
     }
 
     private func applyPhoneCommand(_ intent: Intent, args: CommandArgs?) {

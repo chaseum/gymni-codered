@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Boot animation: the lifter raises the bar, then pushes the whole screen up to reveal Today.
+/// Boot animation: the lifter raises the bar, then moves up to reveal onboarding or Today.
 struct GymLogoIntroView: View {
     let onComplete: () -> Void
 
@@ -12,8 +12,7 @@ struct GymLogoIntroView: View {
             let logoSize = min(geometry.size.width * 0.78, geometry.size.height * 0.68)
 
             ZStack {
-                LinearGradient(colors: [GymTheme.background, GymTheme.charcoal], startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea()
+                GymTheme.background.ignoresSafeArea()
 
                 Image("GymLogo")
                     .resizable()
@@ -29,17 +28,17 @@ struct GymLogoIntroView: View {
             .contentShape(Rectangle())
             .onTapGesture(perform: onComplete)
             .task {
-                try? await Task.sleep(for: .milliseconds(500))
+                do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
                 withAnimation(.spring(response: 0.48, dampingFraction: 0.72)) {
                     liftProgress = 1
                 }
 
-                try? await Task.sleep(for: .milliseconds(520))
+                do { try await Task.sleep(for: .milliseconds(520)) } catch { return }
                 withAnimation(.easeInOut(duration: 0.58)) {
                     isLeaving = true
                 }
 
-                try? await Task.sleep(for: .milliseconds(600))
+                do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
                 onComplete()
             }
         }

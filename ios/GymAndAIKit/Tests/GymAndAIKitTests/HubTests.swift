@@ -35,7 +35,7 @@ private func observation(_ id: String, rep: Int? = nil, exercise: String = "curl
     #expect(store.snapshot?.repCount == 1)
     #expect(store.snapshot?.trackingStatus == .ready)
     #expect(store.snapshot?.activeIssues == ["curl.partial_range"])
-    #expect(store.lastFeedback?.text == "Let the weight come all the way down.")
+    #expect(store.lastFeedback?.text == "Curl a little higher, keeping the movement controlled.")
 
     #expect(hub.observe(observation("o1", rep: 6)).duplicate)                       // same observation id
     #expect(hub.observe(observation("o2", rep: 5)).ignored == nil)                 // stale rep index

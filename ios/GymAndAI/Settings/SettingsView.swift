@@ -5,12 +5,43 @@ struct SettingsView: View {
     @Bindable var session: WorkoutSession
     let healthAccess: HealthAccessController
     let watch: WatchConnectionController
+    @Environment(OnboardingStore.self) private var onboarding
+    @State private var showsProfileEditor = false
     @Environment(\.dismiss) private var dismiss
     @AppStorage("companion") private var companion = CompanionKind.pip
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Training profile") {
+                    if let profile = onboarding.profile {
+                        LabeledContent("Focus", value: profile.focus.title)
+                        Text("Matched companion: \(profile.focus.companion.capitalized)")
+                            .foregroundStyle(GymTheme.muted)
+                    } else {
+                        Text("Your training profile hasn’t been set up yet.").foregroundStyle(GymTheme.muted)
+                    }
+                    Button(onboarding.profile == nil ? "Set up training profile" : "Edit training profile") {
+                        onboarding.beginEditing()
+                        showsProfileEditor = true
+                    }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("edit-training-profile")
+                }
+                .listRowBackground(GymTheme.surface)
+                Section("Hosted coach") {
+                    TextField("Vercel API URL", text: $session.hostedAPIAddress, prompt: Text("https://your-app.vercel.app").foregroundStyle(GymTheme.muted))
+                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .accessibilityIdentifier("hosted-api-url")
+                    SecureField("App access token (if required)", text: $session.token, prompt: Text("App access token (if required)").foregroundStyle(GymTheme.muted))
+                    Button("Check voice connection") { session.configureHostedCoach() }
+                        .frame(minHeight: 44)
+                    if let status = session.voiceStatus { Text(status).foregroundStyle(GymTheme.muted) }
+                    else { Label("Voice API connected", systemImage: "checkmark.circle").foregroundStyle(GymTheme.accentText) }
+                    Text("ElevenLabs supplies the voice. Gemini and Backboard run on the hosted API. Your workout measurements stay on this iPhone.")
+                        .foregroundStyle(GymTheme.muted)
+                }
+                .listRowBackground(GymTheme.surface)
                 Section("Companion") {
                     Picker("Companion", selection: $companion) {
                         ForEach(CompanionKind.allCases) { choice in
@@ -21,12 +52,18 @@ struct SettingsView: View {
                     .accessibilityIdentifier("companion-choice")
                 }
                 .listRowBackground(GymTheme.surface)
-                Section("Workout mode") {
-                    Picker("Mode", selection: $session.mode) {
-                        ForEach(WorkoutMode.allCases) { Text($0.rawValue).tag($0) }
+                Section("Pi camera") {
+                    Text("Your Pi runs the camera and movement model. Start a workout, then connect the Pi to the iPhone address shown on screen.")
+                        .foregroundStyle(GymTheme.muted)
+                    Text("Reps count only while the model recognizes your exercise and tracking is ready.")
+                        .foregroundStyle(GymTheme.muted)
+                    TextField("Pi preview URL (optional)", text: $session.previewAddress, prompt: Text("Pi preview URL (optional)").foregroundStyle(GymTheme.muted))
+                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    if ProcessInfo.processInfo.arguments.contains("--gymni-ui-testing") {
+                        Picker("Mode", selection: $session.mode) {
+                            ForEach(WorkoutMode.allCases) { Text($0.rawValue).tag($0) }
+                        }.pickerStyle(.segmented)
                     }
-                    .pickerStyle(.segmented)
-                    Text(modeDetail).foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
                 HealthAccessSection(healthAccess: healthAccess)
@@ -40,17 +77,10 @@ struct SettingsView: View {
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
-                Section("Pi or laptop camera preview") {
-                    TextField("Camera preview address, like 192.168.1.30:8081", text: $session.previewAddress)
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Text("Run the camera with --preview-port 8081 and enter its address. Reps still count without a preview.")
-                        .foregroundStyle(GymTheme.muted)
-                }
-                .listRowBackground(GymTheme.surface)
                 Section("Spoken coaching") {
                     Toggle("Spoken coaching", isOn: $session.audioEnabled)
                         .tint(GymTheme.accent)
-                    Text("Form corrections are spoken with the iPhone voice. Captions remain visible when muted.")
+                    Text("Measured reps select form corrections, pace reminders, and count milestones. ElevenLabs clips are saved for reuse. Captions stay visible when muted or voice is unavailable.")
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)
@@ -59,13 +89,14 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { Button("Done", action: dismiss.callAsFunction) }
+            .sheet(isPresented: $showsProfileEditor) {
+                NavigationStack {
+                    OnboardingFlowView(store: onboarding, isEditing: true) { showsProfileEditor = false }
+                        .toolbar(.hidden, for: .navigationBar)
+                }
+                .interactiveDismissDisabled()
+            }
         }
     }
 
-    private var modeDetail: String {
-        switch session.mode {
-        case .phone: "iPhone uses this phone’s camera. Rep and form analysis awaits the trained model."
-        case .hub: "A Pi or laptop runs only the camera and model and sends what it sees to this iPhone, which counts reps and coaches."
-        }
-    }
 }

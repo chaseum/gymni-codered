@@ -1,7 +1,7 @@
 # gymni-codered
 repo for codered orion 2026
 
-**Gym&I**: an iPhone-first, hands-free fitness coach. The laptop webcam is the vision sensor (Python + MediaPipe), a FastAPI backend on the laptop owns the session, and the SwiftUI iPhone app (plus Watch HR, plus a Pico button/display) renders the backend's state. Plan: [`GYM_AND_AI_TEAM_BRIEF_REVISED.md`](GYM_AND_AI_TEAM_BRIEF_REVISED.md). Wire protocol: [`contracts/protocol.md`](contracts/protocol.md).
+**Gym&I**: an iPhone-first, hands-free fitness coach. The Raspberry Pi runs the camera and movement model. The SwiftUI iPhone app owns counting, workout state, and local history. Vercel hosts the ElevenLabs voice gateway, Gemini conversation API, and Backboard memory integration. No laptop is required for a workout. Plan: [`GYM_AND_AI_TEAM_BRIEF_REVISED.md`](GYM_AND_AI_TEAM_BRIEF_REVISED.md). Wire protocol: [`contracts/protocol.md`](contracts/protocol.md).
 
 Shared planner exercise data and healthy-adult prescription notes: [`contracts/exercise_catalog.json`](contracts/exercise_catalog.json) and [`docs/exercise_catalog.md`](docs/exercise_catalog.md).
 
@@ -13,13 +13,17 @@ Model handoff and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](docs
 |---|---|---|
 | `contracts/` | everyone (change only together) | v1 schema + fixtures, validated |
 | `ml/` → `fitness_ml` | Chase | MediaPipe pipeline, rep counting, form checks, training CLI ([`ml/README.md`](ml/README.md)); local trained artifacts are in ignored `ml/models/`; **not yet evaluated on real video** |
-| `backend/` → `gymai_backend` | Tyler | session state machine, REST, WebSocket, Gemini coach chat, Backboard profile memory; personalized plan API not implemented |
-| `ios/` | Bryan | SwiftUI iPhone app, `GymAndAIKit` contracts/networking, Demo and Laptop workout modes → [`ios/README.md`](ios/README.md) |
+| `backend/` → `gymai_backend` | Tyler | stateless hosted ElevenLabs/Gemini/Backboard API, plus legacy laptop session tools; personalized plan API not implemented |
+| `ios/` | Bryan | SwiftUI iPhone app, phone-owned Pi workouts/history, cached hosted voice, `GymAndAIKit` contracts/networking → [`ios/README.md`](ios/README.md) |
 | `firmware/` | Taher | serial protocol + README; **no drivers** until hardware is identified |
 | `assets/audio/` | Tyler | ElevenLabs phrase generation and local MP3 cue playback; correction files can be generated with `python generate_audio.py` |
 | `demo/` | everyone | clip/log rules |
 
-## Setup (laptop)
+## Run the main app
+
+See [Pi + iPhone + Vercel setup](docs/PI_IPHONE_VERCEL.md). The main app opens in Camera device mode, waits for real Pi observations, and uses ElevenLabs for spoken coaching. Normal workouts make zero Gemini calls. Demo and laptop flows are retained only for explicit test launch configurations.
+
+## Legacy development setup (laptop)
 
 Python 3.11 or 3.12 (MediaPipe doesn't ship for 3.13+ reliably).
 

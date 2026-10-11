@@ -1,6 +1,6 @@
 # Gym&AI onboarding — visual concept v1
 
-Status: visual mockup only. No SwiftUI onboarding, persistence, or planner integration is implemented by this deliverable. Example selections and plan details are illustrative.
+Historical concept. The native flow is now implemented; see [current onboarding](../ios/ONBOARDING.md). The board below remains the original visual mockup. No SwiftUI onboarding, persistence, or planner integration is implemented by this deliverable. Example selections and plan details are illustrative.
 
 ## Direction
 

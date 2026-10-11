@@ -3,7 +3,7 @@ import Testing
 @testable import GymAndAIKit
 
 @MainActor @Test func displaySwitchPreservesBackendSnapshot() throws {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     #expect(session.targetReps == nil)
     let events = try steps("catalog.json", kind: "event").map { try Contracts.decoder.decode(WorkoutEvent.self, from: $0) }
     events.forEach(session.store.apply)
@@ -25,7 +25,7 @@ import Testing
 }
 
 @MainActor @Test func restExpiryRequiresExplicitResumeAndPauseCancelsPositioning() async {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     await session.start()
     #expect(session.isPositioning)
     await session.pause()
@@ -40,7 +40,7 @@ import Testing
 }
 
 @MainActor @Test func missingAndExpiredHeartRateNeverShowFreshBPM() throws {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     #expect(session.heartRateText(at: .now) == "Heart rate unavailable")
     let events = try steps("catalog.json", kind: "event").map { try Contracts.decoder.decode(WorkoutEvent.self, from: $0) }
     events.forEach(session.store.apply)
@@ -62,7 +62,7 @@ import Testing
 }
 
 @MainActor @Test func lastRecapKeepsItsSourceAfterSetupChanges() async {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     session.exercise = .squat
     await session.start()
     #expect(session.completedMode == nil)
@@ -77,7 +77,7 @@ import Testing
 }
 
 @MainActor @Test func invalidBackendHeartRateIsUnavailable() {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     let phone = PhoneWorkoutSource()
     session.store.apply(phone.initialSnapshot(exercise: .curl))
     let now = Date.now
@@ -90,7 +90,7 @@ import Testing
 }
 
 @MainActor @Test func laptopAddressAcceptsBareIP() {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     session.previewAddress = " 172.17.0.5:8000 "
     #expect(session.previewURL?.absoluteString == "http://172.17.0.5:8000")
     session.previewAddress = "https://laptop.local:8000"

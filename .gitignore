@@ -55,3 +55,6 @@ xcuserdata/
 !/blender-companions/animated/manifest.json
 !/blender-companions/animated/validation.json
 !/blender-companions/animated/usd-roundtrip-validation.json
+
+# Vercel local project/account metadata
+.vercel/

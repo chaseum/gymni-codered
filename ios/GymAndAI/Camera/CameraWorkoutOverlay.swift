@@ -13,7 +13,7 @@ struct CameraWorkoutOverlay: View {
                 ScrollView {
                     VStack(spacing: GymTheme.Space.inset) {
                         CameraWorkoutMetrics(session: session)
-                        CameraCoachCaption(message: message, status: session.isPhone ? nil : session.trackingMessage)
+                        CameraCoachCaption(message: message, status: captionStatus)
                     }
                     .padding(.vertical, 2)
                 }
@@ -21,13 +21,18 @@ struct CameraWorkoutOverlay: View {
             } else {
                 CameraWorkoutMetrics(session: session)
                 Spacer(minLength: GymTheme.Space.small)
-                CameraCoachCaption(message: message, status: session.isPhone ? nil : session.trackingMessage)
+                CameraCoachCaption(message: message, status: captionStatus)
             }
             if session.isSending { PendingWorkoutActionView() }
             CameraWorkoutControls(session: session, camera: camera, toggleAudio: toggleAudio)
         }
         .padding(.horizontal, GymTheme.Space.section)
         .padding(.vertical, GymTheme.Space.related)
+    }
+
+    private var captionStatus: String? {
+        if session.audioEnabled, let status = session.voiceStatus { return status }
+        return session.isPhone ? nil : session.trackingMessage
     }
 
     private var message: String {

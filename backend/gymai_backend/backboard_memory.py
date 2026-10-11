@@ -68,36 +68,43 @@ def _save_assistant(profile_key: str, assistant_id: str) -> None:
 
 async def get_profile_assistant(profile_id: str) -> str:
     """Return this profile's Backboard assistant, creating it once if needed."""
-    api_key = _api_key()
+    _api_key()
     profile_key = _profile_key(profile_id)
     async with PROFILE_LOCKS[profile_key]:
         existing = _lookup_assistant(profile_key)
         if existing:
             return existing
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{BASE_URL}/assistants",
-                headers={"X-API-Key": api_key},
-                json={
-                    "name": "Gym&I Profile Memory",
-                    "system_prompt": ASSISTANT_PROMPT,
-                    "tok_k": 5,
-                    "custom_fact_extraction_prompt": FACT_EXTRACTION_PROMPT,
-                    "custom_update_memory_prompt": MEMORY_UPDATE_PROMPT,
-                },
-            )
-            response.raise_for_status()
-            assistant_id = response.json().get("assistant_id")
-
-        if not isinstance(assistant_id, str) or not assistant_id:
-            raise ValueError("Backboard did not return an assistant_id.")
+        assistant_id = await create_profile_assistant()
         _save_assistant(profile_key, assistant_id)
         return assistant_id
 
 
-async def search_profile_memories(profile_id: str, query: str, limit: int = 5) -> list[str]:
-    assistant_id = await get_profile_assistant(profile_id)
+async def create_profile_assistant() -> str:
+    """Cloud callers keep the returned ID on the phone; no server database needed."""
+    api_key = _api_key()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"{BASE_URL}/assistants",
+            headers={"X-API-Key": api_key},
+            json={
+                "name": "Gym&I Profile Memory",
+                "system_prompt": ASSISTANT_PROMPT,
+                "tok_k": 5,
+                "custom_fact_extraction_prompt": FACT_EXTRACTION_PROMPT,
+                "custom_update_memory_prompt": MEMORY_UPDATE_PROMPT,
+            },
+        )
+        response.raise_for_status()
+        assistant_id = response.json().get("assistant_id")
+
+    if not isinstance(assistant_id, str) or not assistant_id:
+        raise ValueError("Backboard did not return an assistant_id.")
+    return assistant_id
+
+
+async def search_profile_memories(profile_id: str, query: str, limit: int = 5, *, assistant_id: str | None = None) -> list[str]:
+    assistant_id = assistant_id or await get_profile_assistant(profile_id)
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.post(
             f"{BASE_URL}/assistants/{quote(assistant_id, safe='')}/memories/search",
@@ -109,8 +116,8 @@ async def search_profile_memories(profile_id: str, query: str, limit: int = 5) -
     return [item["content"] for item in items if isinstance(item.get("content"), str)]
 
 
-async def add_profile_memory(profile_id: str, content: str) -> str | None:
-    assistant_id = await get_profile_assistant(profile_id)
+async def add_profile_memory(profile_id: str, content: str, *, assistant_id: str | None = None) -> str | None:
+    assistant_id = assistant_id or await get_profile_assistant(profile_id)
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.post(
             f"{BASE_URL}/assistants/{quote(assistant_id, safe='')}/memories",
@@ -122,8 +129,8 @@ async def add_profile_memory(profile_id: str, content: str) -> str | None:
     return result.get("memory_id") or result.get("id")
 
 
-async def list_profile_memories(profile_id: str) -> list[dict]:
-    assistant_id = await get_profile_assistant(profile_id)
+async def list_profile_memories(profile_id: str, *, assistant_id: str | None = None) -> list[dict]:
+    assistant_id = assistant_id or await get_profile_assistant(profile_id)
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.get(
             f"{BASE_URL}/assistants/{quote(assistant_id, safe='')}/memories",
@@ -135,8 +142,8 @@ async def list_profile_memories(profile_id: str) -> list[dict]:
     return result.get("memories", [])
 
 
-async def delete_profile_memory(profile_id: str, memory_id: str) -> None:
-    assistant_id = await get_profile_assistant(profile_id)
+async def delete_profile_memory(profile_id: str, memory_id: str, *, assistant_id: str | None = None) -> None:
+    assistant_id = assistant_id or await get_profile_assistant(profile_id)
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.delete(
             f"{BASE_URL}/assistants/{quote(assistant_id, safe='')}/memories/{quote(memory_id, safe='')}",

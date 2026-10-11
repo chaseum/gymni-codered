@@ -46,14 +46,14 @@ struct TodayWorkoutSourceView: View {
     private var title: String {
         switch mode {
         case .phone: "iPhone camera · Unmeasured"
-        case .hub: "Pi or laptop camera · This iPhone counts"
+        case .hub: "Pi camera · Live reps"
         }
     }
 
     private var detail: String {
         switch mode {
         case .phone: "Set your phone down and get in frame. Rep and form analysis are pending."
-        case .hub: "A Pi or laptop camera sends movement to this iPhone."
+        case .hub: "Your Pi measures movement. This iPhone counts reps and saves your workout."
         }
     }
 }

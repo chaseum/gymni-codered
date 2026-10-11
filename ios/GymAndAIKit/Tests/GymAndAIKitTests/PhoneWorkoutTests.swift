@@ -3,7 +3,7 @@ import Testing
 @testable import GymAndAIKit
 
 @MainActor @Test func phoneWorkoutRequiresManualStartAndNeverSimulatesReps() async {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     session.mode = .phone
     await session.start()
     #expect(session.isPositioning)
@@ -47,7 +47,7 @@ import Testing
 
 @MainActor @Test func pauseAndNewWorkoutRejectOldWatchHeartRate() async {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     session.mode = .phone
     await session.start()
     session.beginPhoneSet()
@@ -72,7 +72,7 @@ import Testing
 }
 
 @MainActor @Test func lateWatchStopCannotOverwriteNewerLiveTelemetry() async {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     session.mode = .phone
     await session.start()
     let now = Date.now
@@ -91,7 +91,7 @@ import Testing
 }
 
 @MainActor @Test func resumedWorkoutRequiresHeartRateMeasuredAfterResume() async {
-    let session = WorkoutSession()
+    let session = WorkoutSession(defaultMode: .phone)
     session.mode = .phone
     await session.start()
     session.beginPhoneSet()

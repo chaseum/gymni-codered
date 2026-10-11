@@ -26,13 +26,13 @@ struct ActiveWorkoutView: View {
                     }
                     UnmeasuredRepsView()
                 } else {
-                    RepCounterView(count: session.repCount, target: session.targetReps)
+                    RepCounterView(count: session.repCount, target: session.targetReps, compact: true)
                 }
                 if let setID = session.snapshot?.setId {
                     Text("Set \(setID)").font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
                 }
             }
-            .padding(GymTheme.Space.section)
+            .padding(GymTheme.Space.inset)
             .modifier(GymSurface())
             CoachMessageView(session: session, mascotState: mascotState,
                              message: session.isPhone && camera.state != .ready ? camera.state.message : nil)

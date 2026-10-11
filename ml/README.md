@@ -1,5 +1,7 @@
 # fitness_ml (Chase)
 
+Model intake and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](../docs/GYM_AND_I_MODEL_HANDOFF.md).
+
 Webcam/MP4 → MediaPipe Tasks Pose Landmarker (VIDEO mode, CPU) → per-frame features → rep state machine → per-rep form checks → `contracts/` observations.
 
 ```bash

@@ -5,6 +5,8 @@ repo for codered orion 2026
 
 Shared planner exercise data and healthy-adult prescription notes: [`contracts/exercise_catalog.json`](contracts/exercise_catalog.json) and [`docs/exercise_catalog.md`](docs/exercise_catalog.md).
 
+Model handoff and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](docs/GYM_AND_I_MODEL_HANDOFF.md).
+
 ## Who owns what
 
 | Path | Owner | Status |

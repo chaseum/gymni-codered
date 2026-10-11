@@ -7,12 +7,14 @@ Shared planner exercise data and healthy-adult prescription notes: [`contracts/e
 
 Model handoff and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](docs/GYM_AND_I_MODEL_HANDOFF.md).
 
+Model handoff and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](docs/GYM_AND_I_MODEL_HANDOFF.md).
+
 ## Who owns what
 
 | Path | Owner | Status |
 |---|---|---|
 | `contracts/` | everyone (change only together) | v1 schema + fixtures, validated |
-| `ml/` → `fitness_ml` | Chase | MediaPipe pipeline, rep counting, form checks, training CLI ([`ml/README.md`](ml/README.md)); **not yet run on real video, no trained model** |
+| `ml/` → `fitness_ml` | Chase | MediaPipe pipeline, rep counting, form checks, training CLI ([`ml/README.md`](ml/README.md)); local trained artifacts are in ignored `ml/models/`; **not yet evaluated on real video** |
 | `backend/` → `gymai_backend` | Tyler | session state machine, REST, WebSocket, fixture simulator; minimal coaching |
 | `ios/` | Bryan | `GymAndAIKit` Swift package (contract + networking); **Xcode app project not created yet** → [`ios/README.md`](ios/README.md) |
 | `firmware/` | Taher | serial protocol + README; **no drivers** until hardware is identified |

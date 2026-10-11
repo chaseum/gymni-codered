@@ -5,12 +5,14 @@ Model intake and integration contract: [`docs/GYM_AND_I_MODEL_HANDOFF.md`](../do
 Webcam/MP4 → MediaPipe Tasks Pose Landmarker (VIDEO mode, CPU) → per-frame features → rep state machine → per-rep form checks → `contracts/` observations.
 
 ```bash
-.venv/bin/pip install -e 'ml[train,dev]'
+.venv/bin/pip install -e 'ml[train,gru,dev]'
 ```
 
 ```bash
 .venv/bin/fitness-ml download-model
 ```
+
+Chase's model bundle is installed locally under `ml/models/`, which is the default model directory and is ignored by git. It includes `pose_landmarker_lite.task`, so skip `download-model` unless that file is missing. The `gru` extra is required to load the delivered PyTorch models.
 
 `--variant full` or `--variant heavy` gives the larger models. Install exactly one OpenCV: MediaPipe pulls `opencv-contrib-python`, so don't also install `opencv-python` (both write the same `cv2` folder; uninstalling one breaks the other).
 

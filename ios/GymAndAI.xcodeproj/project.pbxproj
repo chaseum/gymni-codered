@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 110;
+	objectVersion = 71;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -53,7 +53,7 @@
 		B00000000000000000000036 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolder = Product;
+			dstSubfolderSpec = 16;
 			files = (
 				B00000000000000000000023 /* GymAndAIWatch.app in Embed Watch Content */,
 			);
@@ -262,7 +262,7 @@
 			packageReferences = (
 				A00000000000000000000020 /* XCLocalSwiftPackageReference "GymAndAIKit" */,
 			);
-			preferredProjectObjectVersion = 110;
+			preferredProjectObjectVersion = 71;
 			productRefGroup = A00000000000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";

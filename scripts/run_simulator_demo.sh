@@ -12,7 +12,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 PYTHON="$REPO_ROOT/.venv/bin/python"
 BACKEND_URL="http://127.0.0.1:8000"
-BUNDLE_ID="com.gymandai.hackathon"
 DERIVED_DATA="$REPO_ROOT/ios/DerivedData"
 LOG_DIR="$REPO_ROOT/demo/logs"
 SESSION_ID="sim-$(date +%s)-$$"
@@ -115,6 +114,7 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO build
 
 APP_PATH="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/GymAndAI.app"
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
 xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
 xcrun simctl terminate "$SIMULATOR_ID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 xcrun simctl launch "$SIMULATOR_ID" "$BUNDLE_ID" \

@@ -97,6 +97,15 @@ public struct WorkoutEvent: Decodable, Sendable {
 
     enum CodingKeys: String, CodingKey { case schemaVersion, eventId, sessionId, timestampMs, type, payload }
 
+    init(schemaVersion: Int, eventId: Int, sessionId: String, timestampMs: Int64, type: String, payload: EventPayload) {
+        self.schemaVersion = schemaVersion
+        self.eventId = eventId
+        self.sessionId = sessionId
+        self.timestampMs = timestampMs
+        self.type = type
+        self.payload = payload
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)

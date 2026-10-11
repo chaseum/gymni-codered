@@ -18,6 +18,7 @@ public final class WorkoutStore {
     public let sessionId: String
     private let token: String?
     private var task: Task<Void, Never>?
+    private var socket: URLSessionWebSocketTask?
 
     public init(baseURL: URL, sessionId: String, token: String? = nil) {
         self.baseURL = baseURL; self.sessionId = sessionId; self.token = token
@@ -25,6 +26,7 @@ public final class WorkoutStore {
 
     public func connect() {
         task?.cancel()
+        socket?.cancel(with: .goingAway, reason: nil)
         task = Task { [weak self] in
             var delay: UInt64 = 500_000_000
             while !Task.isCancelled, let self {
@@ -36,25 +38,33 @@ public final class WorkoutStore {
         }
     }
 
-    public func disconnect() { task?.cancel(); task = nil; connection = .disconnected }
+    public func disconnect() {
+        task?.cancel()
+        socket?.cancel(with: .goingAway, reason: nil)
+        task = nil
+        socket = nil
+        connection = .disconnected
+    }
 
     private func listenOnce() async {
         var comps = URLComponents(url: baseURL.appending(path: "ws/workout"), resolvingAgainstBaseURL: false)!
         comps.scheme = baseURL.scheme == "https" ? "wss" : "ws"
         comps.queryItems = [URLQueryItem(name: "session_id", value: sessionId)] + (token.map { [URLQueryItem(name: "token", value: $0)] } ?? [])
         let ws = URLSession.shared.webSocketTask(with: comps.url!)
+        socket = ws
         connection = .connecting
         ws.resume()
         defer { ws.cancel(with: .goingAway, reason: nil) }
         do {
             while !Task.isCancelled {
                 let msg = try await ws.receive()
+                guard !Task.isCancelled else { return }
                 connection = .connected
                 guard case .string(let text) = msg else { continue }
                 apply(try Contracts.decoder.decode(WorkoutEvent.self, from: Data(text.utf8)))
             }
         } catch {
-            connection = .failed(error.localizedDescription)
+            if !Task.isCancelled { connection = .failed(error.localizedDescription) }
         }
     }
 
@@ -69,8 +79,8 @@ public final class WorkoutStore {
         guard var s = snapshot else { return }
         switch event.payload {
         case .sessionState(let p): s.state = p.state
-        case .exerciseChanged(let p): s.exercise = p.exercise; s.setId = p.setId; s.targetReps = p.targetReps; s.repCount = 0; s.activeIssues = []
-        case .tracking(let p): s.trackingStatus = p.status
+        case .exerciseChanged(let p): s.exercise = p.exercise; s.setId = p.setId; s.targetReps = p.targetReps; s.repCount = 0; s.activeIssues = []; lastFeedback = nil
+        case .tracking(let p): s.trackingStatus = p.status; s.source = p.source
         case .repCompleted(let p): s.repCount = p.repCount
         case .coach(let p): coach = p.coach
         case .feedbackIssued(let p): lastFeedback = p; s.activeIssues.append(p.issueCode)

@@ -1,0 +1,39 @@
+Use case: ui-mockup.
+Create one high-resolution landscape design-review board, roughly 3:2 aspect ratio, containing THREE matching portrait iPhone app mockups side by side, front-facing and flat, fully visible, identical size and aligned. This is a polished, implementable native SwiftUI UI concept for the original app "Gym&AI", inspired by Apple Fitness's dark, clear, glanceable visual hierarchy. No Apple logo or Activity rings. No photographic gym background, decorative props, tilted devices, excessive gradients, glassmorphism or watermarks.
+
+Board backdrop: dark slate #111315. Small clean heading "Gym&AI" and subtitle "A coach that stays with you." Above each phone place a modest label: "01  TODAY", "02  WORKOUT", "03  REST". At the bottom of the board, clearly render "VISUAL PROTOTYPE • ALL METRICS AND WORKOUT DETAILS ARE ILLUSTRATIVE". Give the phones enough space that all UI text remains readable at high resolution.
+
+Shared visual system: app backgrounds near-black #080A0C, simple charcoal surfaces #1C1F23, white #F5F7F8 text, muted gray #A5ABB3 secondary text, bright lime #D7FC42 filled primary buttons with near-black text, restrained pale cyan #8DE4EB companion accent. SF Pro-like native iPhone sans serif typography, bold large headings, tabular metric digits, generous spacing, rounded buttons and a restrained panel radius. Never rely on color alone for status. Large tap targets visually at least 44 logical points. Standard minimal iPhone status bar and home indicator. All 3 screens have a subtle small "Prototype data" label beneath the top navigation. No dense dashboard, charts or numeric form score.
+
+Companion: one ORIGINAL tiny octopus-like Octobuddy, consistent across all 3 screens. Soft rounded cyan head, short rounded tentacles, two tiny dark eyes and subtle mouth, sophisticated simple softly shaded illustration, no costume or limbs holding objects. It must look like the SAME character across screens. Small friendly presence on Today; very small focused companion beside the coaching cue in Workout; small calm sleepy companion on Rest. Do not make the mascot dominate any screen.
+
+LEFT PHONE — TODAY:
+Header "Gym&AI" at top left, a simple settings gear on the right.
+Main headline on two lines "Ready when" / "you are."
+Small friendly Octobuddy with a concise greeting "Let's make time for you."
+ONE understated charcoal recommendation panel with small label "TODAY'S WORKOUT", title "Curl practice", metadata "20 min · Dumbbells", and a simple "View plan" text action with chevron. No extra exercise tiles.
+Near lower portion, one wide prominent lime button "Start workout".
+Bottom tab bar with ONLY "Today" (selected) and "Progress". Use simple home and bar-chart icons.
+Keep the page airy; no floating chat composer.
+
+MIDDLE PHONE — ACTIVE WORKOUT:
+Top header "Biceps curl", secondary "Set 1 of 3".
+Small clear tracking status with icon AND words "Tracking ready".
+The HERO metric is HUGE white "6", with smaller muted "of 10 reps" below it. This is the dominant element.
+Below, one calm charcoal coaching panel with a tiny focused Octobuddy and the exact single cue "Keep your upper arm steady." Small cyan label "COACH".
+Compact heart rate row: small pink heart icon, white "112 bpm", gray "Updated 2s ago". Do not imply a heart-rate safety zone.
+Lower controls: wide lime "Pause" button with pause icon, then visible outlined "End workout" control.
+No camera preview, graphs, bottom tabs, ring or chat history.
+
+RIGHT PHONE — REST:
+Header "Rest".
+Main headline "Take a breath."
+Small calm resting Octobuddy.
+Large white countdown "00:45", smaller text "Rest remaining".
+Supportive sentence "Continue when ready."
+One short muted optional reminder "Water if you need it."
+Near bottom, wide lime "Resume workout" button.
+Below it, two large outlined secondary controls "More time" and "End workout".
+No automatic-resume claim, graphs, bottom navigation or stacked metrics.
+
+Render every quoted UI label verbatim and legibly. Keep consistent margins, native-feeling controls, typography and mascot design across the three screens. The hierarchy must make Start/Pause/Resume unmistakable while keeping secondary information quiet. This is a mockup board, not a functional app screenshot.

@@ -1,0 +1,56 @@
+Use case: ui-mockup.
+Create one high-resolution polished visual design board for Gym&AI iPhone onboarding, ideally 3840x2160 landscape. Five evenly spaced matching portrait iPhone mockups in one row, with thin understated dark device frames, all screens fully visible, generous margins. Board title at top: "Gym&AI". Subtitle: "Meet your coach. Make a plan that fits." Above phones label "01 GOAL", "02 EXPERIENCE", "03 SCHEDULE", "04 EQUIPMENT", "05 PREVIEW".
+Visual system: Apple Fitness-inspired premium native SwiftUI feel. Near-black #080A0C app backgrounds; charcoal #1C1F23 option surfaces; warm white #F5F7F8 large SF Pro-like system typography; muted #A5ABB3 supporting text; lime #D7FC42 selected outlines, check indicators, primary full-width Continue buttons with black text; restrained cyan #8DE4EB mascot. Subtle native glass edge highlights on navigation/primary action, but opaque readable question choices. No busy decorative gradients, no clutter, no excessive icons.
+Original Octobuddy mascot: same tiny softly rounded cyan octopus on every screen, big round head, two shiny black oval eyes and little curved smile, a small cluster of short rounded cyan tentacles; calm, friendly, matching the existing Gym&AI companion appearance. Keep mascot modest so copy and controls dominate.
+Each of the first four phones: top "Gym&AI", small back chevron, visible small progress bar and exact step label, compact mascot, left-aligned large question with comfortable wrapping, options with clear selected text/check plus lime border (not only color), generous spacing, anchored bottom "Continue" primary button and below "Skip for now". All touch targets conceptually at least 44pt, safe areas, no bottom tabs.
+SCREEN 1 exact text:
+"Step 1 of 4"
+"What would you like to work toward?"
+"Get stronger"
+"Build muscle"
+"Build a routine" [selected]
+"General fitness"
+"Continue"
+"Skip for now"
+SCREEN 2 exact text:
+"Step 2 of 4"
+"How familiar are you with strength training?"
+"Just starting" [selected], small description "New to strength training"
+"Getting back into it", description "Returning after a break"
+"Training regularly", description "Already have a routine"
+"Continue"
+"Skip for now"
+SCREEN 3 exact text:
+"Step 3 of 4"
+"What fits your week?"
+"Days per week"
+Three equal segmented options "2", "3" [selected], "4"
+"Time per workout"
+Three equal segmented options "15 min", "30 min" [selected], "45 min"
+"We'll work around your schedule."
+"Continue"
+"Skip for now"
+SCREEN 4 exact text:
+"Step 4 of 4"
+"What can you work out with?"
+"Choose all that apply."
+"Bodyweight" [not selected]
+"Dumbbells" [selected]
+"Barbell and plates" [not selected]
+"Continue"
+"Skip for now"
+SCREEN 5: top Gym&AI, back chevron, happy same original mascot, no step counter. Exact text:
+"Your starting plan"
+"Based on your answers"
+One clean spacious summary panel with text:
+"Focus" / "Build a routine"
+"Experience" / "Just starting"
+"Schedule" / "3 days a week"
+"Session length" / "30 minutes"
+"Equipment" / "Dumbbells"
+Small visible label "Illustrative plan preview"
+Secondary text action "Edit answers"
+Anchored lime primary "Use this plan"
+Supporting footer "You can change this anytime."
+Do not invent an actual workout list or medical claims, don't label as a generated AI plan. Board footer outside phones exact: "VISUAL PROTOTYPE · EXAMPLE ANSWERS AND PLAN DETAILS"
+Priority: sharp readable accurate spelling, all requested controls fully visible, hierarchy with questions most prominent, consistent mascot and spacing. No watermarks, no giant mascot obscuring choices. This is a raster visual concept only, not functional app screens.

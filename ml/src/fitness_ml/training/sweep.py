@@ -19,8 +19,12 @@ ALL_TASKS = [("recognition", None)] + FORM_TASKS
 
 
 def sweep(manifest: Path, cache: Path, split: Path, task: str, exercise: str | None, out_root: Path,
-          grid: dict[str, list], seed: int, device: str, epochs: int, patience: int) -> Path:
-    """`grid` maps GRUParams fields (and "window_ms") to candidate values."""
+          grid: dict[str, list], seed: int, device: str, epochs: int, patience: int, form_segment: str = "rep") -> Path:
+    """`grid` maps GRUParams fields (and "window_ms") to candidate values. Form tasks are cut per rep by default
+    (what they see live); window length then only matters for fallback videos, so only its first value is tried."""
+    segment = "window" if task == "recognition" else form_segment
+    if segment == "rep":
+        grid = {**grid, "window_ms": grid["window_ms"][:1]}
     configs = [dict(zip(grid, values)) for values in itertools.product(*grid.values())]
     print(f"### sweep {task} {exercise or ''}: {len(configs)} configs", flush=True)
     results = []
@@ -28,7 +32,8 @@ def sweep(manifest: Path, cache: Path, split: Path, task: str, exercise: str | N
         params = {k: v for k, v in config.items() if k != "window_ms"}
         print(f"--- [{n}/{len(configs)}] {config}", flush=True)
         out = train(manifest, cache, split, task, exercise, "gru", out_root, config["window_ms"],
-                    stride_for(config["window_ms"]), seed, device, epochs, patience, gru=GRUParams(**params))
+                    stride_for(config["window_ms"]), seed, device, epochs, patience, gru=GRUParams(**params),
+                    segment=segment)
         meta = json.loads((out / "metadata.json").read_text())
         results.append((meta["best_val_macro_f1"], out, config))
     results.sort(key=lambda r: r[0], reverse=True)

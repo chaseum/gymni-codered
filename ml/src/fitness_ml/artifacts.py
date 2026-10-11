@@ -6,7 +6,8 @@ from pathlib import Path
 
 import numpy as np
 
-from .features import FEATURE_NAMES, aggregate, resample
+from .features import FEATURE_NAMES, aggregate
+from .sequence import gru_inputs, input_size, resample_seen
 
 @dataclass(frozen=True)
 class GRUParams:
@@ -17,6 +18,11 @@ class GRUParams:
     lr: float = 1e-3
     batch: int = 64
     steps: int = 48     # each window is resampled to this many time steps
+    mask: bool = False           # add a "joint was actually seen" channel per feature
+    velocity: bool = False       # add step-to-step change per feature
+    bidirectional: bool = False  # read the window forwards and backwards
+    attention: bool = False      # weight time steps instead of using only the final state
+    augment: bool = False        # training only: mirror / tilt / hidden-limb / noise variants each epoch
 
     @classmethod
     def from_meta(cls, meta: dict) -> "GRUParams":
@@ -96,7 +102,7 @@ class Artifact:
         import torch
         state = torch.load(self.dir / "model.pt", map_location="cpu", weights_only=True)
         self._params = GRUParams.from_meta(self.meta)
-        self._net = build_gru(len(FEATURE_NAMES), len(self.labels), self._params)
+        self._net = build_gru(len(self.labels), self._params)
         self._net.load_state_dict(state)
         self._net.eval()
         self._mean = np.array(self.meta["norm_mean"])
@@ -104,9 +110,10 @@ class Artifact:
 
     def _gru_proba(self, matrix, timestamps_ms):
         import torch
-        seq = (resample(matrix, timestamps_ms, self._params.steps) - self._mean) / self._std
+        values, seen = resample_seen(matrix, timestamps_ms, self._params.steps)
+        x = gru_inputs(values, seen, self._mean, self._std, self._params.mask, self._params.velocity)
         with torch.no_grad():
-            logits = self._net(torch.tensor(seq[None], dtype=torch.float32))
+            logits = self._net(torch.tensor(x[None]))
         return torch.softmax(logits / self.meta.get("temperature", 1.0), -1)[0].numpy()
 
 
@@ -142,20 +149,32 @@ def side_angles(matrix: np.ndarray, side: str) -> np.ndarray:
     return matrix[:, [FEATURE_NAMES.index(n) for n in names]]
 
 
-def build_gru(n_features: int, n_labels: int, params: GRUParams):
+def build_gru(n_labels: int, params: GRUParams):
+    import torch
     import torch.nn as nn
+
+    directions = 2 if params.bidirectional else 1
+    width = params.hidden * directions
 
     class GRUClassifier(nn.Module):
         def __init__(self):
             super().__init__()
-            self.gru = nn.GRU(n_features, params.hidden, num_layers=params.layers, batch_first=True,
+            self.gru = nn.GRU(input_size(params.mask, params.velocity), params.hidden, num_layers=params.layers,
+                              batch_first=True, bidirectional=params.bidirectional,
                               dropout=params.dropout if params.layers > 1 else 0.0)
+            if params.attention:
+                self.score = nn.Linear(width, 1)
             self.drop = nn.Dropout(params.dropout)  # no weights: older state dicts still load
-            self.head = nn.Linear(params.hidden, n_labels)
+            self.head = nn.Linear(width, n_labels)
 
         def forward(self, x):
-            _, h = self.gru(x)
-            return self.head(self.drop(h[-1]))
+            out, h = self.gru(x)
+            if params.attention:
+                weights = torch.softmax(self.score(out).squeeze(-1), dim=1)
+                pooled = (weights.unsqueeze(-1) * out).sum(1)
+            else:
+                pooled = torch.cat([h[-2], h[-1]], dim=-1) if params.bidirectional else h[-1]
+            return self.head(self.drop(pooled))
 
     return GRUClassifier()
 

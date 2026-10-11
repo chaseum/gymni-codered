@@ -8,6 +8,35 @@ Code: `ml/src/fitness_ml/training/` (CLI `fitness-train`). The laptop demo loads
 
 **Status: datasets downloaded and parsed; nothing trained yet.** Report only numbers from `metrics_*.json`.
 
+## Fresh machine (e.g. the RTX 3070 desktop)
+
+```bash
+python -m venv .venv
+```
+
+Activate it, then install the **CUDA** build of PyTorch with the command from https://pytorch.org/get-started/locally/ (PyPI's Windows wheel is CPU-only). Then:
+
+```bash
+pip install -e "ml[train,gru]"
+```
+
+```bash
+fitness-train setup
+```
+
+`setup` downloads the 3 datasets and the pose model, checking each file against its host's hash. It then builds the manifest, extracts landmarks on all CPU cores, and makes the same 70/15/15 split (seed 13). Re-running it skips whatever is already done. It needs about 7 GB free during the Multi-View unzip.
+
+```bash
+fitness-train sweep --task all --device cuda
+```
+
+Defaults:
+- 2 window lengths × 2 hidden sizes × augmentation on/off, with the joint mask, joint speeds and bidirectional GRU with attention switched on.
+- Form models are trained on single reps cut by the live rep counter (`--form-segment rep`).
+- Any switch can be swept as `0,1`, e.g. `--attention 0,1 --velocity 0,1`.
+
+Afterwards, run `fitness-train evaluate --artifact ml/models/<winner>` once per winner, then `fitness-train export`.
+
 ## Data (already in place, git-ignored)
 
 | Path | Source (CC BY 4.0) | Contents |

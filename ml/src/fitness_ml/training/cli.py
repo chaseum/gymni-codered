@@ -24,6 +24,10 @@ def main() -> int:
     args = _parser().parse_args()
     if args.cmd == "ingest":
         return _ingest(args)
+    if args.cmd == "setup":
+        from .setup import setup
+        setup(DATA, args.workers)
+        return 0
     if args.cmd == "merge":
         from .manifest import read, summary, write
         rows = [r for p in args.manifests for r in read(Path(p))]
@@ -63,11 +67,12 @@ def main() -> int:
     elif args.cmd == "sweep":
         from .sweep import ALL_TASKS, sweep
         grid = {"window_ms": args.window_ms, "hidden": args.hidden, "layers": args.layers, "dropout": args.dropout,
-                "lr": args.lr, "batch": args.batch, "steps": args.steps}
+                "lr": args.lr, "batch": args.batch, "steps": args.steps, "augment": args.augment, "mask": args.mask,
+                "velocity": args.velocity, "bidirectional": args.bidirectional, "attention": args.attention}
         tasks = ALL_TASKS if args.task == "all" else [(args.task, args.exercise)]
         for task, exercise in tasks:
             sweep(Path(args.manifest), Path(args.cache), Path(args.split), task, exercise, Path(args.out_dir), grid,
-                  args.seed, args.device, args.epochs, args.patience)
+                  args.seed, args.device, args.epochs, args.patience, args.form_segment)
     elif args.cmd == "calibrate-reject":
         from .evaluate import calibrate_reject
         calibrate_reject(Path(args.artifact), args.target_accuracy)
@@ -78,6 +83,12 @@ def main() -> int:
         from .evaluate import evaluate
         evaluate(Path(args.artifact), Path(args.manifest), Path(args.cache), args.split_name)
     return 0
+
+
+def _flag(text: str) -> bool:
+    if text not in ("0", "1"):
+        raise ValueError(f"expected 0 or 1, got {text!r}")
+    return text == "1"
 
 
 def _ingest(args) -> int:
@@ -96,6 +107,9 @@ def _ingest(args) -> int:
 def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="fitness-train", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+
+    st = sub.add_parser("setup", help="fresh machine: download + verify datasets, build manifest, extract, split")
+    st.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
 
     ing = sub.add_parser("ingest", help="build a manifest CSV from a dataset folder")
     ing.add_argument("dataset", choices=["multiview", "kaggle_workout", "weggry_deadlift", "csv"],
@@ -166,9 +180,12 @@ def _parser() -> argparse.ArgumentParser:
     sw.add_argument("--exercise", choices=list(EXERCISES), help="for a single form task")
     for name, kind, default in (("window-ms", float, "2000,3000"), ("hidden", int, "64,128"), ("layers", int, "1,2"),
                                 ("dropout", float, "0.2"), ("lr", float, "0.001"), ("batch", int, "128"),
-                                ("steps", int, "48")):
+                                ("steps", int, "48"), ("augment", _flag, "0,1"), ("mask", _flag, "1"),
+                                ("velocity", _flag, "1"), ("bidirectional", _flag, "1"), ("attention", _flag, "1")):
         sw.add_argument(f"--{name}", type=lambda text, kind=kind: [kind(v) for v in text.split(",")],
                         default=[kind(v) for v in default.split(",")], help=f"comma list (default {default})")
+    sw.add_argument("--form-segment", choices=["rep", "window"], default="rep",
+                    help="cut form-task videos into reps (as used live) or fixed windows")
     sw.add_argument("--manifest", default=str(DEFAULTS["manifest"]))
     sw.add_argument("--cache", default=str(DEFAULTS["cache"]))
     sw.add_argument("--split", default=str(DEFAULTS["split"]))

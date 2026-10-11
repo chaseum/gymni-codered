@@ -15,7 +15,8 @@ from pathlib import Path
 import numpy as np
 
 from ..config import REPO
-from ..features import AGG_NAMES, FEATURE_NAMES, aggregate, resample
+from ..features import AGG_NAMES, FEATURE_NAMES, aggregate
+from ..sequence import augment, gru_inputs, resample_seen
 from ..artifacts import GRUParams
 from .dataset import Window, load_split, sha256, windows_for
 from .manifest import read
@@ -24,7 +25,7 @@ from .manifest import read
 def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: str | None, model: str,
           out_root: Path, window_ms: float, stride_ms: float, seed: int, device: str = "auto",
           epochs: int = 100, patience: int = 10, exclude_labels: tuple[str, ...] = (),
-          gru: GRUParams = GRUParams()) -> Path:
+          gru: GRUParams = GRUParams(), segment: str = "window") -> Path:
     """`exclude_labels` keeps those classes out of training only; evaluate still sees them in test, which
     measures whether the model rejects movement it never learned instead of forcing a known label."""
     if task != "recognition" and not exercise:
@@ -32,10 +33,10 @@ def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: st
     split = load_split(split_path)
     if split["manifest_sha256"] != sha256(manifest):
         raise ValueError("manifest changed since the split was made; re-run `fitness-train split`")
-    train_w = [w for w in _windows(manifest, cache, frozenset(split["train"]), task, exercise, window_ms, stride_ms)
-               if w.label not in exclude_labels]
-    val_w = [w for w in _windows(manifest, cache, frozenset(split["val"]), task, exercise, window_ms, stride_ms)
-             if w.label not in exclude_labels]
+    train_w = [w for w in _windows(manifest, cache, frozenset(split["train"]), task, exercise, window_ms, stride_ms,
+                                   segment) if w.label not in exclude_labels]
+    val_w = [w for w in _windows(manifest, cache, frozenset(split["val"]), task, exercise, window_ms, stride_ms,
+                                 segment) if w.label not in exclude_labels]
     if not train_w:
         raise ValueError("no training windows: check task/exercise labels in the manifest")
     labels = sorted({w.label for w in train_w})
@@ -51,6 +52,7 @@ def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: st
     else:
         _train_sklearn(train_w, model, seed, out)
     meta["excluded_labels"] = list(exclude_labels)
+    meta["segment"] = segment
     (out / "metadata.json").write_text(json.dumps(meta, indent=2))
     print(f"saved {out}")
     return out
@@ -60,8 +62,8 @@ def train(manifest: Path, cache: Path, split_path: Path, task: str, exercise: st
 # features per split); a fresh process always rebuilds, so a changed cache/manifest can't go stale across runs.
 @lru_cache(maxsize=16)
 def _windows(manifest: Path, cache: Path, people: frozenset, task: str, exercise: str | None,
-             window_ms: float, stride_ms: float) -> tuple[Window, ...]:
-    return tuple(windows_for(read(manifest), set(people), cache, task, exercise, window_ms, stride_ms))
+             window_ms: float, stride_ms: float, segment: str) -> tuple[Window, ...]:
+    return tuple(windows_for(read(manifest), set(people), cache, task, exercise, window_ms, stride_ms, segment))
 
 
 def _train_sklearn(train_w: list[Window], model: str, seed: int, out: Path) -> None:
@@ -94,22 +96,25 @@ def _train_gru(train_w, val_w, labels, out, seed, device, epochs, patience, para
     dev = torch.device(device)
     index = {label: i for i, label in enumerate(labels)}
 
-    def tensors(ws):
-        seqs = np.array([resample(w.matrix, w.ts, params.steps) for w in ws])
-        return seqs, np.array([index.get(w.label, -1) for w in ws])
+    def sequences(ws):
+        pairs = [resample_seen(w.matrix, w.ts, params.steps) for w in ws]
+        return (np.array([p[0] for p in pairs]), np.array([p[1] for p in pairs]),
+                np.array([index.get(w.label, -1) for w in ws]))
 
-    x_train, y_train = tensors(train_w)
-    mean = x_train.reshape(-1, x_train.shape[-1]).mean(0)
-    std = x_train.reshape(-1, x_train.shape[-1]).std(0)
+    v_train, s_train, y_train = sequences(train_w)
+    mean = v_train.reshape(-1, v_train.shape[-1]).mean(0)
+    std = v_train.reshape(-1, v_train.shape[-1]).std(0)
     std[std < 1e-6] = 1.0
-    x_val, y_val = tensors(val_w) if val_w else (x_train, y_train)  # no val people -> early-stop on train (logged)
+    v_val, s_val, y_val = sequences(val_w) if val_w else (v_train, s_train, y_train)  # no val people: train (logged)
     keep = y_val >= 0  # val windows of a class unseen in training can't be scored
-    def normalized(a):
-        return torch.tensor((a - mean) / std, dtype=torch.float32, device=dev)
 
-    xt, yt, xv = normalized(x_train), torch.tensor(y_train, device=dev), normalized(x_val[keep])
+    def inputs(values, seen):
+        return torch.tensor(gru_inputs(values, seen, mean, std, params.mask, params.velocity), device=dev)
 
-    net = build_gru(len(FEATURE_NAMES), len(labels), params).to(dev)
+    rng = np.random.default_rng(seed)
+    xt, yt, xv = inputs(v_train, s_train), torch.tensor(y_train, device=dev), inputs(v_val[keep], s_val[keep])
+
+    net = build_gru(len(labels), params).to(dev)
     counts = np.bincount(y_train, minlength=len(labels))
     loss_fn = torch.nn.CrossEntropyLoss(weight=torch.tensor(len(y_train) / (len(labels) * np.maximum(counts, 1)),
                                                             dtype=torch.float32, device=dev))
@@ -117,6 +122,8 @@ def _train_gru(train_w, val_w, labels, out, seed, device, epochs, patience, para
     best, best_state, stale, history = -1.0, None, 0, []
     gen = torch.Generator(device="cpu").manual_seed(seed)
     for epoch in range(epochs):
+        if params.augment:  # a fresh mirrored / tilted / occluded variant of every training window each epoch
+            xt = inputs(*augment(v_train, s_train, mean, std, rng))
         net.train()
         for batch in torch.randperm(len(xt), generator=gen).split(params.batch):
             opt.zero_grad()

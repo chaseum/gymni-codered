@@ -17,7 +17,7 @@ def evaluate(artifact_dir: Path, manifest: Path, cache: Path, split_name: str = 
     art = Artifact(artifact_dir)
     meta = art.meta
     windows = windows_for(read(manifest), set(meta["split"][split_name]), cache, meta["task"], meta["exercise"],
-                          meta["window_ms"], meta["stride_ms"])
+                          meta["window_ms"], meta["stride_ms"], meta.get("segment", "window"))
     if not windows:
         raise ValueError(f"no {split_name} windows")
     proba = np.array([art.predict_proba(w.matrix, w.ts) for w in windows])

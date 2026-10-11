@@ -14,7 +14,7 @@ struct CameraHeartRateView: View {
                 .font(isFresh ? .largeTitle.bold() : .headline)
                 .monospacedDigit()
                 .fixedSize(horizontal: false, vertical: true)
-            if isFresh || !dynamicTypeSize.isAccessibilitySize {
+            if let freshness, !dynamicTypeSize.isAccessibilitySize {
                 Text(freshness).font(.subheadline).foregroundStyle(GymTheme.muted)
             }
         }
@@ -34,7 +34,7 @@ struct CameraHeartRateView: View {
         guard rate?.source == "apple_watch", rate?.status == .live,
               let bpm = rate?.bpm, bpm.isFinite, (20...250).contains(bpm),
               let age = sampleAge else { return false }
-        return age >= 0 && age <= 10
+        return age >= 0 && age <= HeartRateView.maxSampleAge
     }
 
     private var reading: String {
@@ -42,8 +42,8 @@ struct CameraHeartRateView: View {
         return "\(Int(bpm.rounded())) bpm"
     }
 
-    private var freshness: String {
-        if isFresh, let age = sampleAge { return "Updated \(Int(age))s ago" }
+    private var freshness: String? {
+        if isFresh { return nil }
         if rate?.source == "apple_watch", rate?.status != .unavailable { return "Waiting for a fresh sample" }
         return "No fresh Watch reading"
     }

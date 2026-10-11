@@ -34,7 +34,7 @@ import Testing
     let valid = WatchTelemetry(workoutID: "current", bpm: 110, sampleDate: now.addingTimeInterval(-2), isRunning: true, message: "Live")
     #expect(valid.heartRate(for: "current", at: now).bpm == 110)
     #expect(valid.heartRate(for: "old", at: now).status == .unavailable)
-    #expect(valid.heartRate(for: "current", at: now.addingTimeInterval(11)).status == .unavailable)
+    #expect(valid.heartRate(for: "current", at: now.addingTimeInterval(HeartRateView.maxSampleAge + 1)).status == .unavailable)
     for value in [0.0, 19, 251, .infinity, .nan] {
         let invalid = WatchTelemetry(workoutID: "current", bpm: value, sampleDate: now, isRunning: true, message: "Live")
         #expect(invalid.heartRate(for: "current", at: now).status == .unavailable)
@@ -58,7 +58,7 @@ import Testing
     let older = WatchTelemetry(workoutID: id, bpm: 90, sampleDate: now.addingTimeInterval(-1), isRunning: true, message: "Live")
     session.receiveWatchTelemetry(older, at: now)
     #expect(session.heartRate.bpm == 115)
-    #expect(!session.heartRateText(at: now.addingTimeInterval(11)).contains("bpm"))
+    #expect(!session.heartRateText(at: now.addingTimeInterval(HeartRateView.maxSampleAge + 1)).contains("bpm"))
     await session.pause()
     session.receiveWatchTelemetry(live, at: now)
     #expect(session.heartRate.status == .unavailable)

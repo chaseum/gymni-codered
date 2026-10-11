@@ -16,17 +16,17 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>WKApplication</key>
-	<true/>
-	<key>WKCompanionAppBundleIdentifier</key>
-	<string>com.gymandai.hackathon</string>
-	<key>WKBackgroundModes</key>
-	<array>
-		<string>workout-processing</string>
-	</array>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Gym&amp;I reads your heart rate during your workout and sends current readings to your paired iPhone.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Gym&amp;I saves your strength-training workout and heart-rate samples to Apple Health.</string>
+	<key>WKApplication</key>
+	<true/>
+	<key>WKBackgroundModes</key>
+	<array>
+		<string>workout-processing</string>
+	</array>
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>com.chasebeeler.gymandai</string>
 </dict>
 </plist>

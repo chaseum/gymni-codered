@@ -1,6 +1,7 @@
 @preconcurrency import WatchConnectivity
 import HealthKit
 import Observation
+import os
 import GymAndAIKit
 
 @MainActor @Observable
@@ -14,6 +15,7 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
     @ObservationIgnored private weak var workout: WorkoutSession?
     @ObservationIgnored private var lastMessage: WatchWorkoutMessage?
     @ObservationIgnored private var launchedWorkoutID: String?
+    @ObservationIgnored private var healthQuery: HKAnchoredObjectQuery?
 
     override init() {
         connection = WCSession.isSupported() ? .default : nil
@@ -44,6 +46,7 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
             transmit(message)
         }
         refresh()
+        if isPaired, !isInstalled, state != .complete, state != .paused { await startHealthFallback() }
         guard state != .complete, state != .paused, isPaired, isInstalled,
               launchedWorkoutID != message.workoutID else { return }
         launchedWorkoutID = message.workoutID
@@ -76,6 +79,8 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
         }
         lastMessage = nil
         launchedWorkoutID = nil
+        if let healthQuery { healthStore.stop(healthQuery) }
+        healthQuery = nil
         workout?.clearWatchHeartRate()
     }
 
@@ -92,6 +97,32 @@ final class WatchConnectionController: NSObject, WCSessionDelegate {
                 }
             }
         } catch { status = "Couldn’t send Watch state: \(error.localizedDescription)" }
+    }
+
+    /// Without Gym&AI on the Watch, read heart rate the built-in Workout app syncs to Apple Health.
+    private func startHealthFallback() async {
+        guard healthQuery == nil else { return }
+        let heartRate = HKQuantityType(.heartRate)
+        try? await healthStore.requestAuthorization(toShare: [], read: [heartRate])
+        guard healthQuery == nil else { return }
+        let handler: @Sendable (HKAnchoredObjectQuery, [HKSample]?, [HKDeletedObject]?, HKQueryAnchor?, Error?) -> Void = { _, samples, _, _, _ in
+            guard let sample = (samples as? [HKQuantitySample])?.max(by: { $0.endDate < $1.endDate }) else { return }
+            let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+            let date = sample.endDate
+            Logger(subsystem: "GymAndAI", category: "HeartRate")
+                .info("Health sample \(Int(bpm)) bpm, \(Int(Date().timeIntervalSince(date)))s old, batch of \(samples?.count ?? 0)")
+            Task { @MainActor [weak self] in
+                guard let self, let workout = self.workout else { return }
+                self.receive(WatchTelemetry(workoutID: workout.store.sessionId, bpm: bpm, sampleDate: date,
+                                            isRunning: true, message: "Heart rate via Apple Health · Start a Workout on your Watch"))
+            }
+        }
+        let query = HKAnchoredObjectQuery(type: heartRate, predicate: HKQuery.predicateForSamples(withStart: .now.addingTimeInterval(-HeartRateView.maxSampleAge), end: nil),
+                                          anchor: nil, limit: HKObjectQueryNoLimit, resultsHandler: handler)
+        query.updateHandler = handler
+        healthQuery = query
+        healthStore.execute(query)
+        status = "Gym&AI isn’t on your Watch · Start a Workout in the Watch’s Workout app for heart rate"
     }
 
     private func receive(_ telemetry: WatchTelemetry) {

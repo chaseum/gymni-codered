@@ -64,11 +64,12 @@ class Runner:
         if args.form_model:
             form_dirs[args.exercise] = Path(args.form_model)
         recognizer = None
-        if recognizer_dir:
+        auto = args.exercise == "auto"
+        # Manual mode reports the planned exercise: a recognizer label there makes the backend drop the rep.
+        if recognizer_dir and (auto or args.recognizer):
             artifact = Artifact(recognizer_dir)  # a threshold calibrated on validation beats the generic default
             recognizer = Recognizer(artifact, artifact.meta.get("window_ms", cfg.recognition_window_ms),
                                     cfg.recognition_stride_ms, artifact.meta.get("reject_below", cfg.reject_below))
-        auto = args.exercise == "auto"
         if auto and recognizer is None:
             raise SystemExit("--exercise auto needs a trained recognizer in ml/models (or pass --exercise curl etc.)")
         first = "curl" if auto else args.exercise
@@ -77,7 +78,7 @@ class Runner:
         self.selector = ExerciseSelector(self.analyzer, form_dirs, auto)
         self.selector.choose(first)
         self.verdict, self.verdict_detail = None, []
-        print(f"recognizer: {recognizer_dir.name if recognizer_dir else 'none'}; form models: "
+        print(f"recognizer: {recognizer_dir.name if recognizer else 'none'}; form models: "
               f"{', '.join(sorted(form_dirs)) or 'none'}; mode: {'auto' if auto else 'manual'}")
         self.observations = JsonlWriter(args.observations) if args.observations else None
         self.debug_log = JsonlWriter(args.debug_log) if args.debug_log else None

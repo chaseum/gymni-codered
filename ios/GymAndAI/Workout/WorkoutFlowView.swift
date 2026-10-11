@@ -53,7 +53,14 @@ struct WorkoutFlowView: View {
             else { camera.stop() }
         }
         .task(id: session.snapshot?.state) { await watch.synchronize(session) }
+        .task(id: WorkoutLiveActivity.state(for: session)) {
+            await WorkoutLiveActivity.update(WorkoutLiveActivity.state(for: session), exercise: session.exercise.rawValue.capitalized)
+        }
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            let finalState = WorkoutLiveActivity.state(for: session)
+            Task { await WorkoutLiveActivity.end(finalState) }
             audio.stop()
             camera.stop()
             watch.stop()

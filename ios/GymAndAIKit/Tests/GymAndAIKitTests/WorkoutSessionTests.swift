@@ -58,7 +58,7 @@ import Testing
     let timestamp = try #require(session.snapshot?.heartRate.sampleTimestampMs)
     let sampleDate = Date(timeIntervalSince1970: Double(timestamp) / 1_000)
     #expect(session.heartRateText(at: sampleDate).contains("bpm"))
-    #expect(!session.heartRateText(at: sampleDate.addingTimeInterval(11)).contains("bpm"))
+    #expect(!session.heartRateText(at: sampleDate.addingTimeInterval(HeartRateView.maxSampleAge + 1)).contains("bpm"))
 }
 
 @Test func multipartDecoderHandlesSplitFramesAndBoundsCorruptInput() {
@@ -108,4 +108,14 @@ import Testing
         session.store.apply(demo.event(.heartRate(rate)))
         #expect(session.heartRateText(at: now) == "Heart rate unavailable")
     }
+}
+
+@MainActor @Test func laptopAddressAcceptsBareIP() {
+    let session = WorkoutSession()
+    session.previewAddress = " 172.17.0.5:8000 "
+    #expect(session.previewURL?.absoluteString == "http://172.17.0.5:8000")
+    session.previewAddress = "https://laptop.local:8000"
+    #expect(session.previewURL?.absoluteString == "https://laptop.local:8000")
+    session.previewAddress = ""
+    #expect(session.previewURL == nil)
 }

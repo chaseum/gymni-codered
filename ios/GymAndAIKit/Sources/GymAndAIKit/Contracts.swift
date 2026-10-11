@@ -32,6 +32,9 @@ public struct HeartRateView: Codable, Sendable, Equatable {
     public var sampleId: String?
     public var sampleTimestampMs: Int64?
     public var source: String?
+    /// Apple Health syncs Watch samples in irregular batches, so readings can be minutes old on arrival.
+    // ponytail: one window for all sources; split per source if the Gym&AI Watch app ever installs again.
+    public static let maxSampleAge: TimeInterval = 600
     public static let unavailable = HeartRateView(status: .unavailable, bpm: nil, sampleId: nil, sampleTimestampMs: nil, source: nil)
 }
 

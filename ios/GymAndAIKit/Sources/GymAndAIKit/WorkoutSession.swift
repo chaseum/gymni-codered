@@ -168,12 +168,13 @@ public final class WorkoutSession {
               bpm.isFinite, (20...250).contains(bpm),
               let timestamp = rate.sampleTimestampMs else { return "Heart rate unavailable" }
         let age = date.timeIntervalSince1970 - Double(timestamp) / 1_000
-        guard rate.status == .live, age >= 0, age <= 10 else { return "Heart rate unavailable · Stale sample" }
-        return "\(Int(bpm.rounded())) bpm · Updated \(Int(age))s ago"
+        guard rate.status == .live, age >= 0, age <= HeartRateView.maxSampleAge else { return "Heart rate unavailable · Stale sample" }
+        return "\(Int(bpm.rounded())) bpm"
     }
 
     private static func networkURL(_ address: String) -> URL? {
-        guard let url = URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines)),
+        let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed.contains("://") ? trimmed : "http://\(trimmed)"),
               ["http", "https"].contains(url.scheme), url.host != nil else { return nil }
         return url
     }
@@ -185,7 +186,7 @@ public final class WorkoutSession {
 
     private func startBackend() async throws {
         guard let baseURL = Self.networkURL(backendAddress) else {
-            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Enter a valid laptop URL, including http:// or https://."])
+            throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Enter the laptop address, like 192.168.1.20:8000."])
         }
         let sessionId = backendSessionId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !sessionId.isEmpty, !sessionId.contains("/"), !sessionId.contains("?") else {

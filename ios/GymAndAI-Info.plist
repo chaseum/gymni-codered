@@ -20,15 +20,19 @@
 	<string>1</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsLocalNetworking</key>
+		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Gym&amp;I connects to your laptop coach and webcam preview.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Gym&amp;I uses your camera to show your workout live. Movement analysis will be enabled when the trained model is available.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Gym&amp;I reads your heart rate during workouts to display your current effort and support coaching.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Gym&amp;I saves completed workouts to Apple Health.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Gym&amp;I connects to your laptop coach and webcam preview.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -42,7 +46,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>Gym&amp;I uses your camera to show your workout live. Movement analysis will be enabled when the trained model is available.</string>
 </dict>
 </plist>

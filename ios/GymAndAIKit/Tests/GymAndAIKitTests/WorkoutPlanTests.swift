@@ -66,8 +66,8 @@ private func workout(_ results: [ExerciseResult]) -> CompletedWorkout {
 @Test func memoriesAndWrittenLinesStayShortAndFactual() {
     let history = [workout([ExerciseResult(exercise: .curl, reps: [12, 14], low: 10, high: 15, corrections: ["Keep your elbows pinned.": 2])])]
     let facts = Coach.memories(profile: nil, history: history).map(\.text)
-    #expect(facts.contains("Keep your elbows pinned · 2×"))
-    #expect(facts.contains("Biceps curl · 14 reps"))
+    #expect(facts.contains("Most common cue: keep your elbows pinned (2×)"))
+    #expect(facts.contains("Best biceps curl set: 14 reps"))
     #expect(Coach.clean("**Great work, Chase.** Add weight next time. What days do you train?") == "Great work, Chase.")
     #expect(Coach.clean("How was it?") == nil)
     let line = Coach.restLine(name: "Chase", result: history[0].results![0], set: 2, next: nil)

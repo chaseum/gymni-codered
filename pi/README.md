@@ -23,6 +23,8 @@ No IP address or website entry is required. Wi-Fi credentials are saved once dur
 
 The attached Pi has current ML source under `/home/tamousta/gymni/ml/src` and the selected repository models under `ml/models`. `gymni-tripod.service` starts `pi/start.py` at boot and restarts after camera/process failures. The saved `gymni-hotspot` NetworkManager profile reconnects automatically and prefers the hotspot over maintenance Ethernet.
 
+The installed Pi also has a persistent `gymni-maintenance` Ethernet profile. Its IPv6 link-local connection stays available when the Mac does not provide DHCP, so wired maintenance does not require Internet Sharing. This profile reconnects automatically at boot; the phone hotspot remains the workout connection.
+
 The saved hotspot profile probes the known SSID when it is hidden, retries autoconnection indefinitely, and disables Wi-Fi power saving. Apply these settings during pairing with `sudo nmcli connection modify gymni-hotspot 802-11-wireless.hidden yes connection.autoconnect-retries 0 802-11-wireless.powersave 2`. If preview cannot connect, check iPhone Settings → Privacy & Security → Local Network → Gym&I. Receiving observations alone does not prove the phone has permission to open a camera connection.
 
 The interpreter is the verified Python 3.12 / MediaPipe 0.10.18 / OpenCV 4.11 / Torch CPU environment. Its location is under the older software directory, but `start.py` imports **this checkout's** `fitness_ml`, never Taher's application. The older environment/applications are preserved. Discovery dependencies are installed separately under ignored `pi/vendor`.
@@ -43,7 +45,7 @@ journalctl -u gymni-tripod -n 50 --no-pager
 sudo systemctl restart gymni-tripod
 ```
 
-Capture is 640×480; inference resizes to 480 pixels wide and is capped at 8 FPS. The phone receives clean camera frames without the desktop debug panel or skeleton. Its full-screen preview crops to fill the display; analysis still uses the whole camera frame. Actual speed and accuracy depend on framing, visibility, movement, and model quality. A real exercise trial remains required.
+Capture and preview are 1280×720, with JPEG quality 85. Inference resizes a separate image to 480 pixels wide and is capped at 8 FPS, so preview retains detail without increasing the model's input size. Linux USB capture uses MJPEG and reapplies these settings after a camera reconnect. The phone receives clean camera frames without the desktop debug panel or skeleton. Its full-screen preview crops to fill the display. Tap the framing arrows to show the entire camera image instead; this choice is remembered. Analysis always uses the whole camera frame. Actual speed and accuracy depend on framing, visibility, movement, and model quality. A real exercise trial remains required.
 
 ## Connection and data behavior
 

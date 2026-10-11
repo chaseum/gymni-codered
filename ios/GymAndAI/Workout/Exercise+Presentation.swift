@@ -9,11 +9,20 @@ extension Exercise {
         }
     }
 
+    /// Fitness's own workout glyphs.
     var symbol: String {
         switch self {
         case .curl: "dumbbell.fill"
         case .squat: "figure.strengthtraining.functional"
         case .deadlift: "figure.strengthtraining.traditional"
+        }
+    }
+
+    var muscles: String {
+        switch self {
+        case .curl: "Biceps"
+        case .squat: "Quads and glutes"
+        case .deadlift: "Hamstrings and back"
         }
     }
 }
@@ -24,5 +33,5 @@ extension WorkoutPlan.Item {
 }
 
 extension WorkoutPlan.Step {
-    var label: String { "\(exercise.title) · Set \(set) of \(sets)" }
+    var label: String { "\(exercise.title), set \(set) of \(sets)" }
 }

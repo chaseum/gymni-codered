@@ -12,9 +12,7 @@ struct WeightControl: View {
                 HStack(spacing: GymTheme.Space.inset) {
                     Button("Lighter", systemImage: "minus") { step(kg, by: -1) }
                         .buttonStyle(RoundButtonStyle(size: 40))
-                    Text(TrainingLoad.text(kg, imperial: session.usesImperial))
-                        .font(.title3.bold())
-                        .monospacedDigit()
+                    Metric(kg: kg, imperial: session.usesImperial, font: .system(.title2, design: .rounded).bold())
                         .contentTransition(.numericText())
                         .frame(minWidth: 96)
                         .accessibilityIdentifier("weight-value")

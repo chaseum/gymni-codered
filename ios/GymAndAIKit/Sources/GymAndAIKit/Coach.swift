@@ -73,7 +73,7 @@ public enum Coach {
         var facts: [Memory] = []
         if let profile {
             var line = profile.focus.title
-            if let days = profile.answers[OnboardingQuestion.days.rawValue].flatMap(Int.init) { line += " · \(days)× a week" }
+            if let days = profile.answers[OnboardingQuestion.days.rawValue].flatMap(Int.init) { line += ", \(days) days a week" }
             facts.append(Memory(symbol: "target", text: line))
             if let equipment = OnboardingQuestion.equipment.choices.first(where: { $0.id == profile.answers[OnboardingQuestion.equipment.rawValue] }) {
                 facts.append(Memory(symbol: "dumbbell.fill", text: equipment.title))
@@ -83,18 +83,18 @@ public enum Coach {
         var cues: [String: Int] = [:]
         for result in results { cues.merge(result.corrections, uniquingKeysWith: +) }
         if let (cue, count) = cues.max(by: { $0.value < $1.value }), count > 1 {
-            facts.append(Memory(symbol: "exclamationmark.bubble.fill", text: "\(cue.trimmingCharacters(in: .punctuationCharacters)) · \(count)×"))
+            facts.append(Memory(symbol: "exclamationmark.bubble.fill", text: "Most common cue: \(cue.trimmingCharacters(in: .punctuationCharacters).lowercased()) (\(count)×)"))
         }
         for exercise in Exercise.allCases {
             let mine = results.filter { $0.exercise == exercise }
             if let heaviest = mine.compactMap(\.lastWeight).max() {
-                facts.append(Memory(symbol: "trophy.fill", text: "\(exercise.displayName) · \(TrainingLoad.text(heaviest, imperial: imperial))"))
+                facts.append(Memory(symbol: "trophy.fill", text: "Heaviest \(exercise.displayName.lowercased()): \(TrainingLoad.text(heaviest, imperial: imperial))"))
             } else if let best = mine.flatMap(\.reps).max() {
-                facts.append(Memory(symbol: "trophy.fill", text: "\(exercise.displayName) · \(best) reps"))
+                facts.append(Memory(symbol: "trophy.fill", text: "Best \(exercise.displayName.lowercased()) set: \(best) reps"))
             }
         }
         let fortnight = history.filter { now.timeIntervalSince($0.date) < 14 * 86_400 }.count
-        if fortnight > 0 { facts.append(Memory(symbol: "flame.fill", text: "\(fortnight) workout\(fortnight == 1 ? "" : "s") in two weeks")) }
+        if fortnight > 0 { facts.append(Memory(symbol: "flame.fill", text: "\(fortnight) workout\(fortnight == 1 ? "" : "s") in the last two weeks")) }
         return facts
     }
 
@@ -105,9 +105,9 @@ public enum Coach {
         if let cue = result.topCorrection?.cue {
             return "\(reps) reps\(you). Next set, think: \(cue.lowercased().trimmingCharacters(in: .punctuationCharacters))."
         }
-        if reps >= result.high { return "\(reps) clean reps\(you). That set looked strong." }
-        if reps < result.low { return "\(reps) reps\(you). Take the full rest before the next one." }
-        return "\(reps) reps in the range\(you). Same again on the next set."
+        if reps >= result.high { return "\(reps) of \(result.high)\(you). Top of the range." }
+        if reps < result.low { return "\(reps) reps\(you), under \(result.low). Take the full rest." }
+        return "\(reps) reps\(you), in the \(result.low)–\(result.high) range."
     }
 
     /// Instant recap line, before (or instead of) a written one.
@@ -116,14 +116,14 @@ public enum Coach {
         let sets = results.reduce(0) { $0 + $1.reps.count }
         guard sets > 0 else { return "Every session counts\(you)." }
         let inRange = results.reduce(0) { total, result in total + result.reps.filter { $0 >= result.low }.count }
-        return inRange == sets ? "\(sets) sets, all in range. Strong work\(you)." : "\(sets) sets done. Next plan adjusts to fit\(you)."
+        return inRange == sets ? "All \(sets) sets in range\(you)." : "\(inRange) of \(sets) sets in range\(you). The next plan adjusts."
     }
 
     /// The prompt for the hosted writer: facts only, one or two sentences back.
     public static func prompt(task: String, name: String?, profile: TrainingProfile?, results: [ExerciseResult],
                               adjustments: [PlanAdjustment] = []) -> String {
         var lines = ["You write short lines inside the Gym&I workout app, speaking directly to the person.",
-                     "Rules: \(task) One sentence, at most 14 words. Warm and specific, plain words, no questions, no emojis, no medical advice."]
+                     "Rules: \(task) One sentence, at most 14 words, and it must mention one real number from the data. Specific, plain words, no questions, no emojis, no medical advice."]
         if let name, !name.isEmpty { lines.append("Name: \(name)") }
         if let profile { lines.append("Goal: \(profile.focus.title)") }
         for result in results {

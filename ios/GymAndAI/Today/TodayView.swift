@@ -24,8 +24,7 @@ struct TodayView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button(action: celebrate) {
-                    CompanionStage(state: mascotState, progress: weekProgress)
-                        .frame(maxWidth: 340)
+                    CompanionStage(state: mascotState, progress: weekProgress, pulse: mascotState == .celebrate ? 1 : 0)
                 }
                 .buttonStyle(.plain)
                 .disabled(mascotState == .celebrate)
@@ -38,7 +37,7 @@ struct TodayView: View {
                     .foregroundStyle(GymTheme.muted)
 
                 if let coachLine {
-                    (Text("\(companion.name)  ").bold().foregroundStyle(GymTheme.accentText) + Text(coachLine))
+                    (Text("\(companion.name)  ").bold().foregroundStyle(GymTheme.muted) + Text(coachLine))
                         .font(.subheadline)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
@@ -51,10 +50,17 @@ struct TodayView: View {
                     HStack(spacing: GymTheme.Space.related) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(session.plan.title).font(.headline)
-                            Text("\(session.plan.items.count) exercises · \(session.plan.minutes) min")
+                            Text("\(session.plan.items.count) exercises, \(session.plan.minutes) min")
                                 .font(.subheadline).foregroundStyle(GymTheme.muted)
                         }
                         Spacer()
+                        HStack(spacing: -10) {  // today's exercises, overlapped like Fitness workout stacks
+                            ForEach(session.plan.items) { item in
+                                ExerciseIcon(exercise: item.exercise, size: 34)
+                                    .background(GymTheme.surface, in: .circle)
+                                    .overlay(Circle().stroke(GymTheme.surface, lineWidth: 2))
+                            }
+                        }
                         Image(systemName: "chevron.right")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(GymTheme.muted)
@@ -102,8 +108,8 @@ struct TodayView: View {
         if let note = session.history.first?.note { return note }
         let kept = session.nextAdjustments.filter { !session.adjustmentsOff.contains($0.exercise) }
         guard let first = kept.first else { return nil }
-        let weight = first.load.map { " · \(TrainingLoad.text($0, imperial: session.usesImperial))" } ?? ""
-        return "\(first.exercise.title): \(first.title.lowercased())\(weight)"
+        guard let load = first.load else { return "\(first.exercise.title): \(first.title.lowercased())" }
+        return "\(first.exercise.title) today: \(TrainingLoad.text(load, imperial: session.usesImperial))"
     }
 
     private var weekProgress: Double {

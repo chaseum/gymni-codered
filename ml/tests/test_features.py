@@ -51,9 +51,11 @@ def test_webcam_reconnects_after_a_dropout_and_raises_a_clear_error_if_it_stays_
 
     class FakeCap:
         script = []  # shared: each read() pops the next result (True = frame, False = dropout)
+        opened = []
 
         def __init__(self, index):
-            pass
+            self.settings = {}
+            FakeCap.opened.append(self)
 
         def isOpened(self):
             return True
@@ -62,21 +64,26 @@ def test_webcam_reconnects_after_a_dropout_and_raises_a_clear_error_if_it_stays_
             ok = FakeCap.script.pop(0) if FakeCap.script else False
             return ok, (np.zeros((4, 4, 3), np.uint8) if ok else None)
 
-        def set(self, *a):
-            pass
+        def set(self, prop, value):
+            self.settings[prop] = value
 
         def release(self):
             pass
 
     monkeypatch.setattr(sources.cv2, "VideoCapture", FakeCap)
+    monkeypatch.setattr(sources.sys, "platform", "linux")
     monkeypatch.setattr(sources.time, "sleep", lambda s: None)
-    cam = sources.Webcam(0)
+    cam = sources.Webcam(0, width=1280, height=720)
     cam.RECONNECT_S = 0.05
 
     FakeCap.script = [True, True, False, True, True]  # dropout, then the camera comes back
     frames = cam.frames()
     got = [next(frames).index for _ in range(4)]
     assert got == [0, 1, 2, 3]
+    for cap in FakeCap.opened:
+        assert cap.settings[sources.cv2.CAP_PROP_FRAME_WIDTH] == 1280
+        assert cap.settings[sources.cv2.CAP_PROP_FRAME_HEIGHT] == 720
+        assert cap.settings[sources.cv2.CAP_PROP_FOURCC] == sources.cv2.VideoWriter_fourcc(*"MJPG")
 
     FakeCap.script = [True]                            # one frame, then gone for good
     frames = cam.frames()

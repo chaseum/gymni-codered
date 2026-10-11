@@ -33,13 +33,26 @@ struct WorkoutFlowView: View {
             .toolbar {
                 if session.snapshot?.state == .active {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Live camera", systemImage: "video.fill") { session.display = .camera }
-                            .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityIdentifier("show-camera")
+                        Button { session.display = .camera } label: {
+                            TimelineView(.periodic(from: .now, by: 2)) { _ in
+                                // A small live dot, like a signal indicator: the camera is (or isn't) sending.
+                                Image(systemName: "video.fill")
+                                    .overlay(alignment: .topTrailing) {
+                                        Circle()
+                                            .fill(session.cameraConnected ? GymTheme.accent : GymTheme.muted)
+                                            .frame(width: 7, height: 7)
+                                            .offset(x: 5, y: -3)
+                                    }
+                            }
+                        }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityLabel("Live camera")
+                        .accessibilityValue(session.cameraConnected ? "Connected" : "Not connected")
+                        .accessibilityIdentifier("show-camera")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(session.audioEnabled ? "Mute coach" : "Unmute coach", systemImage: session.audioEnabled ? "speaker.wave.2" : "speaker.slash", action: toggleAudio)
+                    Button(session.audioEnabled ? "Mute coach" : "Unmute coach", systemImage: session.audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill", action: toggleAudio)
                         .labelStyle(.iconOnly)
                         .accessibilityValue(audio.lastPlayedCue.map { "\(audio.isSpeaking ? "ElevenLabs voice playing" : "Last spoken cue"): \($0)" } ?? "Voice idle")
                         .frame(minWidth: 44, minHeight: 44)

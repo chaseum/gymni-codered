@@ -42,7 +42,7 @@ struct ProgressViewScreen: View {
                         Label {
                             Text(memory.text)
                         } icon: {
-                            Image(systemName: memory.symbol).foregroundStyle(GymTheme.accent)
+                            Image(systemName: memory.symbol).foregroundStyle(GymTheme.muted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -52,7 +52,7 @@ struct ProgressViewScreen: View {
                         HistoryView(session: session)
                     } label: {
                         HStack {
-                            Label("All Workouts", systemImage: "clock.arrow.circlepath")
+                            Label("All workouts", systemImage: "clock.fill")
                             Spacer()
                             Text("\(session.history.count)").foregroundStyle(GymTheme.muted)
                             Image(systemName: "chevron.right").font(.footnote.bold()).foregroundStyle(GymTheme.muted)
@@ -81,14 +81,14 @@ struct ProgressViewScreen: View {
                 }
                 .frame(width: 64, height: 64)
                 .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("This Week").font(.subheadline).foregroundStyle(GymTheme.muted)
-                    Text("\(done) of \(goal)").font(.system(.title, design: .rounded).bold()).monospacedDigit()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This Week").font(.headline)
+                    HStack(alignment: .top, spacing: GymTheme.Space.section) { weekMetrics }
                 }
                 Spacer(minLength: 0)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("This week, \(done) of \(goal) workouts")
+            .accessibilityLabel("This week, \(done) of \(goal) workouts, \(weekMinutes) minutes")
             if let note = session.history.first?.note, !note.isEmpty {
                 Text(note)
                     .font(.subheadline)
@@ -96,6 +96,36 @@ struct ProgressViewScreen: View {
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    /// Labeled stats like Fitness summaries: small label above, number with a quiet unit.
+    @ViewBuilder private var weekMetrics: some View {
+        weekStat("Workouts", Metric(value: "\(done)/\(goal)", unit: "", font: statFont))
+        if weekVolume > 0 {
+            weekStat("Volume", Metric(value: TrainingLoad.value(weekVolume, imperial: session.usesImperial).formatted(.number.precision(.fractionLength(0))),
+                                      unit: session.usesImperial ? "lb" : "kg", font: statFont))
+        }
+        weekStat("Time", Metric(value: "\(weekMinutes)", unit: "min", font: statFont))
+    }
+
+    private var statFont: Font { .system(.title3, design: .rounded).bold() }
+
+    private func weekStat(_ label: String, _ metric: Metric) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label).font(.caption).foregroundStyle(GymTheme.muted)
+            metric
+        }
+    }
+
+    private var thisWeek: [CompletedWorkout] {
+        session.history.filter { Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .weekOfYear) }
+    }
+    private var weekMinutes: Int { thisWeek.reduce(0) { $0 + $1.durationSeconds } / 60 }
+    /// Weight × reps lifted this week, in kg.
+    private var weekVolume: Double {
+        thisWeek.flatMap { $0.results ?? [] }.reduce(0) { total, result in
+            total + zip(result.reps, result.weights ?? []).reduce(0) { $0 + Double($1.0) * ($1.1 ?? 0) }
         }
     }
 
@@ -134,11 +164,7 @@ struct AdjustmentRow: View {
 
     var body: some View {
         HStack(spacing: GymTheme.Space.related) {
-            Image(systemName: change.symbol)
-                .font(.title2)
-                .foregroundStyle(change.color)
-                .frame(width: 40)
-                .accessibilityHidden(true)
+            ExerciseIcon(exercise: change.exercise, size: 40)
             VStack(alignment: .leading, spacing: 1) {
                 Text(change.exercise.title).font(.headline)
                 Text(change.title).font(.subheadline.bold()).foregroundStyle(change.color)
@@ -146,8 +172,7 @@ struct AdjustmentRow: View {
             }
             Spacer(minLength: GymTheme.Space.small)
             if let load = change.load {
-                Text(TrainingLoad.text(load, imperial: imperial))
-                    .font(.headline).monospacedDigit()
+                Metric(kg: load, imperial: imperial, font: .system(.title3, design: .rounded).bold())
                     .foregroundStyle(isOn ? GymTheme.text : GymTheme.muted)
             }
             if let toggle {
@@ -171,11 +196,12 @@ private struct SetBars: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: GymTheme.Space.small) {
-            HStack {
+            HStack(spacing: GymTheme.Space.related) {
+                ExerciseIcon(exercise: result.exercise, size: 32)
                 Text(result.exercise.title).font(.headline)
                 Spacer()
                 if let weight = result.lastWeight {
-                    Text(TrainingLoad.text(weight, imperial: imperial)).font(.subheadline.bold()).foregroundStyle(GymTheme.muted)
+                    Metric(kg: weight, imperial: imperial, font: .system(.headline, design: .rounded).bold())
                 }
             }
             HStack(alignment: .bottom, spacing: GymTheme.Space.small) {
@@ -192,7 +218,7 @@ private struct SetBars: View {
             }
             .frame(height: 76, alignment: .bottom)
             if let top = result.topCorrection {
-                Label("\(top.cue.trimmingCharacters(in: .punctuationCharacters)) · \(top.count)×", systemImage: "exclamationmark.bubble")
+                Label("\(top.cue.trimmingCharacters(in: .punctuationCharacters)) (\(top.count)×)", systemImage: "exclamationmark.bubble.fill")
                     .font(.subheadline).foregroundStyle(GymTheme.muted).lineLimit(1)
             }
         }
@@ -213,7 +239,7 @@ private struct HistoryView: View {
                     Spacer()
                     Text(workout.date, format: .dateTime.month(.abbreviated).day()).foregroundStyle(GymTheme.muted)
                 }
-                Text("\(workout.sets) sets · \(workout.reps) reps · \(Duration.seconds(workout.durationSeconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+                Text("\(workout.sets) sets, \(workout.reps) reps, \(Duration.seconds(workout.durationSeconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
                     .font(.subheadline).foregroundStyle(GymTheme.muted)
             }
             .listRowBackground(GymTheme.surface)
@@ -221,7 +247,7 @@ private struct HistoryView: View {
         }
         .scrollContentBackground(.hidden)
         .background(GymTheme.background.ignoresSafeArea())
-        .navigationTitle("All Workouts")
+        .navigationTitle("All workouts")
     }
 }
 

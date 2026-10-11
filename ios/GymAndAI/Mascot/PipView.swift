@@ -23,6 +23,7 @@ struct CompanionSceneView: View {
             Image(companion.preview)
                 .resizable().scaledToFit()
                 .opacity(controller.loadState == .ready && rendersScene ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: controller.loadState == .ready)
             if rendersScene {
                 PipRealityView(controller: controller, companion: companion, state: state,
                                reducesMotion: effectiveReducedMotion)

@@ -8,8 +8,8 @@ extension WorkoutSession {
     var coachingMessage: String {
         switch coachingTrackingReady {
         case true: break
-        case false: return cameraConnected ? "Step into view so I can see you." : "Waiting for camera"
-        default: return "Finding your position…"
+        case false: return cameraConnected ? "Step into view so I can see you." : "Connecting to your camera"
+        default: return cameraConnected ? "Step into view so I can see you." : "Connecting to your camera"
         }
         if let feedback = store.lastFeedback,
            feedback.setId == snapshot?.setId,
@@ -18,7 +18,9 @@ extension WorkoutSession {
             return given >= 2 ? "Again: \(feedback.text)" : feedback.text  // it keeps coming up; say so
         }
         if let cue = store.lastCoachingCue, cue.isCurrent(in: snapshot) { return cue.text }
-        return "Nice and steady."
+        guard let target = targetReps else { return "\(repCount) reps" }
+        let left = target - repCount
+        return left > 0 ? "\(left) to go" : "Last one done"
     }
 }
 

@@ -30,6 +30,18 @@ final class TripodHardwareTests: XCTestCase {
         screenshot.name = "Pi camera full screen"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+        let framing = app.buttons["camera-framing"]
+        XCTAssertTrue(framing.exists)
+        let previousValue = framing.value as? String
+        framing.tap()
+        XCTAssertNotEqual(framing.value as? String, previousValue)
+        XCTAssertTrue(frame.waitForExistence(timeout: 5))
+        let adjustedScreenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        adjustedScreenshot.name = "Pi camera adjusted framing"
+        adjustedScreenshot.lifetime = .keepAlways
+        add(adjustedScreenshot)
+        framing.tap()
+        XCTAssertEqual(framing.value as? String, previousValue)
         app.buttons["camera-back-to-reps"].tap()
         XCTAssertTrue(camera.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Pause"].exists)

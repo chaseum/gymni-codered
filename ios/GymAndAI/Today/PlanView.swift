@@ -12,7 +12,7 @@ struct PlanView: View {
                     VStack(alignment: .leading, spacing: GymTheme.Space.tight) {
                         Text(session.plan.title).font(.largeTitle.bold())
                             .accessibilityAddTraits(.isHeader)
-                        Text("\(session.plan.items.count) exercises · About \(session.plan.minutes) min")
+                        Text("\(session.plan.items.count) exercises, about \(session.plan.minutes) min")
                             .foregroundStyle(GymTheme.muted)
                     }
                     .listRowBackground(Color.clear)
@@ -21,22 +21,18 @@ struct PlanView: View {
                 Section {
                     ForEach(session.plan.items) { item in
                         HStack(spacing: GymTheme.Space.inset) {
-                            Image(systemName: item.exercise.symbol)
-                                .font(.title3)
-                                .foregroundStyle(GymTheme.accent)
-                                .frame(width: 44, height: 44)
-                                .background(GymTheme.accent.opacity(0.15), in: .circle)
-                                .accessibilityHidden(true)
+                            ExerciseIcon(exercise: item.exercise)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.exercise.title).font(.headline)
-                                Text(item.weight.map { "\(item.sets) × \(item.rangeText) · \(TrainingLoad.text($0, imperial: session.usesImperial))" }
-                                     ?? "\(item.sets) sets × \(item.rangeText) reps").foregroundStyle(GymTheme.muted)
+                                Text(item.exercise.muscles).font(.footnote).foregroundStyle(GymTheme.muted)
+                                Text(item.weight.map { "\(item.sets) × \(item.rangeText) at \(TrainingLoad.text($0, imperial: session.usesImperial))" }
+                                     ?? "\(item.sets) sets of \(item.rangeText) reps").font(.subheadline)
                                 if let note = item.note {
                                     Text(note).font(.subheadline.bold()).foregroundStyle(GymTheme.accentText)
                                 }
                             }
                             Spacer()
-                            Text(Duration.seconds(item.restSeconds).formatted(.units(allowed: [.minutes, .seconds], width: .narrow)))
+                            Text(Duration.seconds(item.restSeconds).formatted(.time(pattern: .minuteSecond)))
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundStyle(GymTheme.muted)
                                 .accessibilityLabel("Rest \(Duration.seconds(item.restSeconds).formatted(.units(allowed: [.minutes, .seconds], width: .wide)))")

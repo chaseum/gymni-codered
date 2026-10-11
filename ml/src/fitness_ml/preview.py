@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import cv2
 
-PREVIEW_WIDTH = 640  # phone-sized; keeps each JPEG small over Wi-Fi
+PREVIEW_WIDTH = 1280  # HD preview; independent of the smaller inference input
 
 
 class PreviewServer:
@@ -22,7 +22,7 @@ class PreviewServer:
         height, width = bgr.shape[:2]
         if width > PREVIEW_WIDTH:
             bgr = cv2.resize(bgr, (PREVIEW_WIDTH, round(height * PREVIEW_WIDTH / width)))
-        ok, buffer = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        ok, buffer = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 85])
         if ok:
             with self._changed:
                 self._jpeg = buffer.tobytes()

@@ -1,3 +1,4 @@
+import Combine
 import Observation
 import RealityKit
 import UIKit
@@ -13,6 +14,7 @@ final class PipSceneController {
     @ObservationIgnored private var reducesMotion = false
     @ObservationIgnored private var attachmentID = 0
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var firstFrames: Cancellable?
 
     /// Sets up the studio, then loads the companion. Loading starts here, not in a separate SwiftUI task, so it
     /// can never run before the attach it belongs to (that race left the scene stuck on the static preview).
@@ -76,7 +78,14 @@ final class PipSceneController {
             view.scene.addAnchor(anchor)
             motion = try PipMotion(character: character, companion: companion)
             motion?.configure(state: state, reducesMotion: reducesMotion)
-            loadState = .ready
+            // Swap the static preview out only once the scene is actually drawing, so the circle is never empty.
+            var frames = 0
+            firstFrames = view.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
+                frames += 1
+                guard frames == 3, let self, attachment == self.attachmentID else { return }
+                self.loadState = .ready
+                self.firstFrames = nil
+            }
         } catch is CancellationError {
             if attachment == attachmentID { detach() }
         } catch {
@@ -98,6 +107,8 @@ final class PipSceneController {
         loadTask = nil
         motion?.stop()
         motion = nil
+        firstFrames?.cancel()
+        firstFrames = nil
         view?.scene.anchors.removeAll()
         view = nil
     }

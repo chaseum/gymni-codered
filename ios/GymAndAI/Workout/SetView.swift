@@ -27,19 +27,19 @@ struct SetView: View {
                     .font(.title2.bold())
                     .accessibilityAddTraits(.isHeader)
                 if let step = session.currentStep {
-                    Text("Set \(step.set) of \(step.sets)").font(.subheadline).foregroundStyle(GymTheme.muted)
+                    Text("Set \(step.set) of \(step.sets), \(step.exercise.muscles.lowercased())")
+                        .font(.subheadline).foregroundStyle(GymTheme.muted)
                 }
             }
-            CompanionStage(state: mascotState, progress: session.repProgress, ringWidth: 14)
-                .frame(maxWidth: 340)
+            CompanionStage(state: mascotState, progress: session.repProgress, pulse: session.repCount)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(session.repCount, format: .number)
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded).bold())
                     .contentTransition(.numericText())
                     .animation(.snappy, value: session.repCount)
                     .accessibilityIdentifier("rep-count")
                 if let target = session.targetReps {
-                    Text("/ \(target) reps").font(.headline).foregroundStyle(GymTheme.muted)
+                    Text("of \(target) reps").font(.subheadline.weight(.semibold)).foregroundStyle(GymTheme.muted)
                 }
             }
             .monospacedDigit()
@@ -48,16 +48,16 @@ struct SetView: View {
             if let exercise = session.currentStep?.exercise { WeightControl(session: session, exercise: exercise) }
             Text(message)
                 .font(.headline)
-                .foregroundStyle(GymTheme.accentText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .animation(.default, value: message)
                 .accessibilityIdentifier("coach-message")
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 HStack(spacing: GymTheme.Space.page) {
-                    Label(session.elapsed(at: context.date), systemImage: "timer")
+                    Label(session.elapsed(at: context.date), systemImage: "stopwatch.fill")
                     if let bpm = session.bpm(at: context.date) {
-                        Label("\(bpm)", systemImage: "heart.fill").accessibilityLabel("\(bpm) beats per minute")
+                        Label { Text("\(bpm)") } icon: { Image(systemName: "heart.fill").foregroundStyle(.red) }
+                            .accessibilityLabel("\(bpm) beats per minute")
                     }
                 }
                 .font(.subheadline.monospacedDigit())
@@ -65,6 +65,7 @@ struct SetView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .sensoryFeedback(.impact(weight: .light), trigger: session.repCount)
     }
 
     /// The coach's line; after a correction lands, it says so.

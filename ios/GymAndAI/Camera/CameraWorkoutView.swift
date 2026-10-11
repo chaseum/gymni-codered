@@ -6,12 +6,13 @@ struct CameraWorkoutView: View {
     @Bindable var session: WorkoutSession
     var mascotState = MascotState.idle
     let toggleAudio: () -> Void
+    @AppStorage("gymni.cameraShowsFullFrame") private var showsFullFrame = false
 
     var body: some View {
         overlay
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
-                PiCameraPreview(url: session.previewURL)
+                PiCameraPreview(url: session.previewURL, fillsScreen: !showsFullFrame)
                     .ignoresSafeArea()
             }
             .background(GymTheme.background.ignoresSafeArea())
@@ -43,8 +44,8 @@ struct CameraWorkoutView: View {
                 .background(.black.opacity(0.45), in: .rect(cornerRadius: 18))
                 .accessibilityElement(children: .combine)
                 Spacer()
-                CompanionStage(state: mascotState, progress: session.repProgress, ringWidth: 7, inset: 0)
-                    .frame(width: 112)
+                CompanionStage(state: mascotState, progress: session.repProgress, size: .small, pulse: session.repCount)
+                    .frame(width: CompanionStage.Size.small.width)
             }
             Spacer()
             Text(session.coachingMessage)
@@ -61,6 +62,13 @@ struct CameraWorkoutView: View {
                 Button(session.audioEnabled ? "Mute Coach" : "Unmute Coach",
                        systemImage: session.audioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill", action: toggleAudio)
                     .buttonStyle(RoundButtonStyle(size: 48))
+                Button(showsFullFrame ? "Fill screen" : "Show full frame",
+                       systemImage: showsFullFrame ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") {
+                    showsFullFrame.toggle()
+                }
+                .buttonStyle(RoundButtonStyle(size: 48))
+                .accessibilityIdentifier("camera-framing")
+                .accessibilityValue(showsFullFrame ? "Full camera frame" : "Fills screen")
                 Spacer()
                 WorkoutControls(session: session, size: 48)
             }
@@ -74,6 +82,7 @@ struct CameraWorkoutView: View {
 /// The Pi's video. Its own view, so new frames redraw only the picture, not the companion's 3D scene.
 struct PiCameraPreview: View {
     let url: URL?
+    var fillsScreen = true
     @State private var stream = CameraPreviewStream()
 
     var body: some View {
@@ -81,7 +90,7 @@ struct PiCameraPreview: View {
             if url != nil, let image = stream.image, let frameDate = stream.frameDate, context.date.timeIntervalSince(frameDate) < 3 {
                 GeometryReader { geometry in
                     Image(image, scale: 1, label: Text("Live Pi camera"))
-                        .resizable().scaledToFill()
+                        .resizable().aspectRatio(contentMode: fillsScreen ? .fill : .fit)
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                         .accessibilityIdentifier("pi-camera-frame")

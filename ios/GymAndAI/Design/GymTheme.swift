@@ -1,4 +1,5 @@
 import SwiftUI
+import GymAndAIKit
 
 enum GymTheme {
     static let background = Color.black
@@ -26,38 +27,87 @@ enum GymTheme {
 }
 
 /// The companion in its circle; the ring shows progress (week, set, or rest) when given.
+/// The circle is flat. It glows briefly only when `pulse` changes (a rep, a celebration): effects mean something.
 struct CompanionStage: View {
+    enum Size {
+        case large, medium, small
+        var width: CGFloat { switch self { case .large: 320; case .medium: 240; case .small: 112 } }
+        var ring: CGFloat { self == .small ? 7 : 12 }
+        var inset: CGFloat { self == .small ? 0 : 18 }
+    }
+
     var state = MascotState.idle
     var progress: Double? = nil
-    var ringWidth: CGFloat = 10
-    /// Space between the ring and the companion; smaller for small stages.
-    var inset: CGFloat = 18
+    var size = Size.large
     /// A specific companion (onboarding's match); otherwise the chosen one.
     var companion: CompanionKind? = nil
+    /// Glows for a moment each time this changes (e.g. the rep count).
+    var pulse: Int = 0
+    @State private var glow = false
 
     var body: some View {
+        let ring = size.ring
         ZStack {
             Circle()
-                .fill(EllipticalGradient(colors: [GymTheme.accent.opacity(0.42), GymTheme.accent.opacity(0.1), GymTheme.surface],
-                                         center: .center, startRadiusFraction: 0, endRadiusFraction: 0.62))
-                .shadow(color: GymTheme.accent.opacity(0.3), radius: 36)
-                .padding(ringWidth * 1.6)
+                .fill(GymTheme.surface)
+                .overlay(Circle().fill(GymTheme.accent.opacity(glow ? 0.28 : 0)))
+                .padding(ring * 1.6)
             if let progress {
-                Circle().stroke(GymTheme.ringTrack, lineWidth: ringWidth)
+                Circle().stroke(GymTheme.ringTrack, lineWidth: ring)
                 Circle()
                     .trim(from: 0, to: min(max(progress, 0), 1))  // empty ring shows only the track
-                    .stroke(GymTheme.accent, style: StrokeStyle(lineWidth: ringWidth, lineCap: .round))
+                    .stroke(GymTheme.accent, style: StrokeStyle(lineWidth: ring, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.smooth, value: progress)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.7), value: progress)
             }
             Group {
                 if let companion { CompanionSceneView(state: state, companion: companion).id(companion) }
                 else { PipView(state: state) }
             }
-            .padding(ringWidth * 1.6 + inset)
+            .padding(ring * 1.6 + size.inset)
         }
-        .padding(ringWidth / 2)
+        .padding(ring / 2)
         .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: size.width)
+        .onChange(of: pulse) {
+            withAnimation(.easeOut(duration: 0.12)) { glow = true }
+            withAnimation(.easeIn(duration: 0.6).delay(0.15)) { glow = false }
+        }
+    }
+}
+
+/// An exercise glyph in a tinted circle, the way Fitness shows workout types.
+struct ExerciseIcon: View {
+    let exercise: Exercise
+    var size: CGFloat = 44
+
+    var body: some View {
+        Image(systemName: exercise.symbol)
+            .font(.system(size: size * 0.46, weight: .semibold))
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(GymTheme.accent)
+            .frame(width: size, height: size)
+            .background(GymTheme.accent.opacity(0.18), in: .circle)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A number with a smaller, quieter unit after it: "62.5 kg", "3 sets".
+struct Metric: View {
+    let value: String
+    let unit: String
+    var font: Font = .system(.title2, design: .rounded).bold()
+
+    var body: some View {
+        (Text(value).font(font) + Text(" " + unit).font(.subheadline.weight(.semibold)).foregroundStyle(GymTheme.muted))
+            .monospacedDigit()
+    }
+}
+
+extension Metric {
+    init(kg: Double, imperial: Bool, font: Font = .system(.title2, design: .rounded).bold()) {
+        let value = TrainingLoad.value(kg, imperial: imperial).formatted(.number.precision(.fractionLength(0...1)))
+        self.init(value: value, unit: imperial ? "lb" : "kg", font: font)
     }
 }
 

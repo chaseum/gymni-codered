@@ -131,13 +131,14 @@ class Runner:
                     return "quit"
                 if self.args.max_fps:
                     time.sleep(max(0, 1 / self.args.max_fps - (time.perf_counter() - last)))
+                preview_image = frame.image
                 if self.args.analysis_width and frame.image.shape[1] > self.args.analysis_width:
                     import cv2
                     height = round(frame.image.shape[0] * self.args.analysis_width / frame.image.shape[1])
                     frame.image = cv2.resize(frame.image, (self.args.analysis_width, height))
                 if self.phone and not self._follow_phone():
                     if self.preview:
-                        self.preview.publish(frame.image)
+                        self.preview.publish(preview_image)
                     last = time.perf_counter()
                     continue
                 step = process(frame, estimator, self.analyzer)
@@ -152,7 +153,7 @@ class Runner:
                 if self.args.realtime and source.source == "recorded":
                     time.sleep(max(0.0, frame.timestamp_ms / 1000 - (now - wall_start)))
                 if self.preview:
-                    self.preview.publish(frame.image)
+                    self.preview.publish(preview_image)
                 if self.window:
                     image = self._overlay(step, fps, paused=False)
                     action = self._key_action(self._show(image))

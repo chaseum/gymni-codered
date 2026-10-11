@@ -4,6 +4,7 @@ Live: monotonic clock since the source opened. Recorded: the container's present
 (CAP_PROP_POS_MSEC) when it moves forward, else frame_index * 1000 / fps. Neither is epoch time.
 """
 import time
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +52,9 @@ class Webcam:
     def _open(self):
         cap = cv2.VideoCapture(self.index)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        if sys.platform == "linux" and (self.width or self.height):
+            # USB cameras can deliver HD much faster in their compressed capture mode.
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         if self.width:
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         if self.height:
@@ -65,8 +69,11 @@ class Webcam:
         deadline = time.monotonic() + self.RECONNECT_S
         while time.monotonic() < deadline:
             time.sleep(0.5)
-            cap = cv2.VideoCapture(self.index)
-            ok, image = cap.read() if cap.isOpened() else (False, None)
+            try:
+                cap = self._open()
+            except CameraLost:
+                continue
+            ok, image = cap.read()
             if ok:
                 print("camera reconnected", flush=True)
                 return cap, image

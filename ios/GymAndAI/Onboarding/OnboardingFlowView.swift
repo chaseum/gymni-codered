@@ -29,7 +29,7 @@ struct OnboardingFlowView: View {
             switch phase {
             case .welcome:
                 page(button: "Get Started", action: { phase = .name }) {
-                    CompanionStage(state: .celebrate).frame(maxWidth: 300)
+                    CompanionStage(state: .celebrate)
                     Text("Gym&I").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                     Text("A training companion that counts every rep and helps your form.")
                         .multilineTextAlignment(.center).foregroundStyle(GymTheme.muted)
@@ -37,7 +37,7 @@ struct OnboardingFlowView: View {
             case .name:
                 page(button: "Continue", action: { name = name.trimmingCharacters(in: .whitespaces); phase = .profile },
                      skip: { name = ""; phase = .profile }) {
-                    CompanionStage(state: .idle).frame(width: 170, height: 170)
+                    CompanionStage(state: .idle, size: .medium).frame(height: CompanionStage.Size.medium.width * 0.7)
                     Text("What should I call you?").font(.largeTitle.bold())
                         .multilineTextAlignment(.center).accessibilityAddTraits(.isHeader)
                     TextField("First name", text: $name)
@@ -211,8 +211,7 @@ struct OnboardingFlowView: View {
 
     private var match: some View {
         VStack(spacing: GymTheme.Space.section) {
-            CompanionStage(state: .celebrate, companion: CompanionKind(rawValue: focus.companion) ?? .pip)
-                .frame(maxWidth: 280)
+            CompanionStage(state: .celebrate, size: .medium, companion: CompanionKind(rawValue: focus.companion) ?? .pip)
             Text("Meet \(focus.companion.capitalized)").font(.largeTitle.bold())
                 .accessibilityIdentifier("onboarding-match-title")
                 .accessibilityAddTraits(.isHeader)

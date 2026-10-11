@@ -21,6 +21,6 @@ from fitness_ml.__main__ import main
 
 if len(sys.argv) == 1:
     sys.argv.extend(["run", "--source", "live", "--exercise", "curl", "--discover-phone", "--no-window",
-                     "--preview-port", "8081", "--capture-width", "640", "--capture-height", "480",
+                     "--preview-port", "8081", "--capture-width", "1280", "--capture-height", "720",
                      "--analysis-width", "480", "--max-fps", "8"])
 sys.exit(main())

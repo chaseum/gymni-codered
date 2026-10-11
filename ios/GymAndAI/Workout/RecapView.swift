@@ -14,8 +14,7 @@ struct RecapView: View {
         VStack(spacing: GymTheme.Space.related) {
             ScrollView {
                 VStack(spacing: GymTheme.Space.section) {
-                    CompanionStage(state: mascotState)
-                        .frame(maxWidth: 260)
+                    CompanionStage(state: mascotState, size: .medium, pulse: 1)
                     VStack(spacing: GymTheme.Space.tight) {
                         Text("Workout Complete").font(.largeTitle.bold())
                             .accessibilityAddTraits(.isHeader)
@@ -23,13 +22,19 @@ struct RecapView: View {
                     }
                     Grid(horizontalSpacing: GymTheme.Space.related) {
                         GridRow {
-                            stat("Time", session.elapsed(at: completedAt))
-                            stat("Sets", "\(session.setsDone)")
-                            stat("Reps", "\(session.totalReps)")
+                            stat("Time", Metric(value: session.elapsed(at: completedAt), unit: ""))
+                            if volume > 0 {
+                                stat("Reps", Metric(value: "\(session.totalReps)", unit: ""))
+                                stat("Volume", Metric(value: TrainingLoad.value(volume, imperial: session.usesImperial).formatted(.number.precision(.fractionLength(0))),
+                                                      unit: session.usesImperial ? "lb" : "kg"))
+                            } else {
+                                stat("Sets", Metric(value: "\(session.setsDone)", unit: ""))
+                                stat("Reps", Metric(value: "\(session.totalReps)", unit: ""))
+                            }
                         }
                     }
                     if let note {
-                        (Text("\(companion.name)  ").bold().foregroundStyle(GymTheme.accentText) + Text(note))
+                        (Text("\(companion.name)  ").bold().foregroundStyle(GymTheme.muted) + Text(note))
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
@@ -38,7 +43,7 @@ struct RecapView: View {
                     }
                     if !nextTime.isEmpty {
                         VStack(alignment: .leading, spacing: GymTheme.Space.related) {
-                            Text("Next Time").font(.headline)
+                            Text("Next time").font(.headline)
                             ForEach(nextTime) { AdjustmentRow(change: $0, imperial: session.usesImperial) }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,13 +79,20 @@ struct RecapView: View {
         session.setNote(written ?? note ?? "", workoutStartedAt: startedAt)
     }
 
-    private func stat(_ label: String, _ value: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value).font(.system(.title, design: .rounded).bold()).monospacedDigit()
-            Text(label).font(.subheadline).foregroundStyle(GymTheme.muted)
+    /// Weight × reps over every set that had a weight, in kg.
+    private var volume: Double {
+        session.results.reduce(0) { total, result in
+            total + zip(result.reps, result.weights ?? []).reduce(0) { $0 + Double($1.0) * ($1.1 ?? 0) }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, GymTheme.Space.inset)
+    }
+
+    private func stat(_ label: String, _ value: Metric) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.subheadline).foregroundStyle(GymTheme.muted)
+            value
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GymTheme.Space.inset)
         .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.radius))
         .accessibilityElement(children: .combine)
     }

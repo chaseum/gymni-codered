@@ -16,25 +16,26 @@ struct RestView: View {
                 Text(session.setFinished ? "Rest" : "Paused")
                     .font(.largeTitle.bold())
                     .accessibilityAddTraits(.isHeader)
-                CompanionStage(state: mascotState, progress: Double(remaining) / Double(max(total, 1)), ringWidth: 12)
-                    .frame(maxWidth: 320)
+                CompanionStage(state: mascotState, progress: Double(remaining) / Double(max(total, 1)))
                 Text(Duration.seconds(remaining).formatted(.time(pattern: .minuteSecond)))
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded).bold())
                     .monospacedDigit()
                     .contentTransition(.numericText(countsDown: true))
                     .accessibilityIdentifier("rest-countdown")
                 if let note {
                     Text(note)
                         .font(.headline)
-                        .foregroundStyle(GymTheme.accentText)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("rest-note")
                 }
                 if session.setFinished, let next = session.nextStep {
-                    VStack(spacing: 2) {
-                        Text("Up Next").font(.subheadline).foregroundStyle(GymTheme.muted)
-                        Text("\(next.exercise.title) · Set \(next.set) of \(next.sets)").font(.headline)
+                    HStack(spacing: GymTheme.Space.related) {
+                        ExerciseIcon(exercise: next.exercise, size: 40)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Up next").font(.subheadline).foregroundStyle(GymTheme.muted)
+                            Text("\(next.exercise.title), set \(next.set) of \(next.sets)").font(.headline)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                 }

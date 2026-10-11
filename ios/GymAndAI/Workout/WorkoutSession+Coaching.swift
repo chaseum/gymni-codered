@@ -11,7 +11,7 @@ extension WorkoutSession {
         case .ready: return "Tracking ready"
         case .lowVisibility: return "Tracking limited · Adjust your position"
         case .unassessable: return "This view cannot be assessed"
-        default: return "Waiting for camera tracking"
+        default: return isHub ? "Waiting for camera · send to \(hubAddress ?? "this iPhone, port 8000")" : "Waiting for camera tracking"
         }
     }
 

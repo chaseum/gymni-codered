@@ -77,6 +77,7 @@ struct SettingsView: View {
         case .phone: "iPhone uses this phone’s camera. Rep and form analysis awaits the trained model."
         case .demo: "Demo simulates reps and coaching. No camera, movement, or heart rate is measured."
         case .backend: "Laptop receives backend events. The laptop owns workout state and rep counting."
+        case .hub: "A Pi or laptop runs only the camera and model and sends what it sees to this iPhone, which counts reps and coaches."
         }
     }
 }

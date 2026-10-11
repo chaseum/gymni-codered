@@ -16,6 +16,7 @@ struct SessionStatusView: View {
     private var sourceText: String {
         if session.isDemo { return "Demo · Simulated data" }
         if session.isPhone { return "iPhone camera · Unmeasured" }
+        if session.isHub { return "Camera device · Counted on this iPhone" }
         switch session.snapshot?.source {
         case .live: return "Laptop · Live input"
         case .recorded: return "Laptop · Recorded input"

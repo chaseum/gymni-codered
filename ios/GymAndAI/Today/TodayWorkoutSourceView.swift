@@ -41,6 +41,7 @@ struct TodayWorkoutSourceView: View {
         case .demo: "play.rectangle"
         case .phone: "iphone.gen3"
         case .backend: "web.camera"
+        case .hub: "camera.on.rectangle"
         }
     }
 
@@ -49,6 +50,7 @@ struct TodayWorkoutSourceView: View {
         case .demo: "Demo · Illustrative data"
         case .phone: "iPhone camera · Unmeasured"
         case .backend: "Laptop · Backend events"
+        case .hub: "Camera device · This iPhone counts"
         }
     }
 
@@ -57,6 +59,7 @@ struct TodayWorkoutSourceView: View {
         case .demo: "Explore the workout flow with simulated reps."
         case .phone: "Set your phone down and get in frame. Rep and form analysis are pending."
         case .backend: "Use your laptop camera or recorded footage."
+        case .hub: "A Pi or laptop camera sends movement to this iPhone."
         }
     }
 }

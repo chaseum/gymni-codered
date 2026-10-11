@@ -34,6 +34,7 @@ struct RecapView: View {
     private var sourceDescription: String {
         if session.isDemo { return "Simulated Demo set" }
         if session.isPhone { return "iPhone camera · Unmeasured" }
+        if session.isHub { return "Camera device · Counted on this iPhone" }
         return session.snapshot?.source == .recorded ? "Laptop · Recorded footage" : "Laptop · Backend events"
     }
 }

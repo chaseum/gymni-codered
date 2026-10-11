@@ -25,6 +25,8 @@ public final class WorkoutSession {
     public private(set) var completedExercise: Exercise?
     public private(set) var completedSource: InputSource?
     public private(set) var watchHeartRate = HeartRateView.unavailable
+    /// Where the camera device posts (`--post http://<this>`) while a camera-device session runs.
+    public private(set) var hubAddress: String?
 
     @ObservationIgnored private var demo = DemoWorkoutSource()
     @ObservationIgnored private var phone = PhoneWorkoutSource()
@@ -32,12 +34,23 @@ public final class WorkoutSession {
     @ObservationIgnored private var lastWatchMessageAtMs: Int64 = 0
     @ObservationIgnored private var watchSampleNotBeforeMs: Int64 = 0
     @ObservationIgnored private var sessionMode: WorkoutMode = .demo
+    @ObservationIgnored private var hub: HubSession?
+    @ObservationIgnored private var hubServer: HubServer?
 
     public init() {
         store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: "phone-demo")
     }
 
     public func configureSimulatorLaunch(arguments: [String]) {
+        if arguments.contains("--gymni-hub") {  // camera device posts to this simulator at localhost:8000
+            mode = .hub
+            if let exerciseID = Self.argument(after: "--exercise", in: arguments),
+               let exercise = Exercise(rawValue: exerciseID) {
+                self.exercise = exercise
+            }
+            shouldAutoStartSimulatorSession = true
+            return
+        }
         guard arguments.contains("--gymni-laptop"),
               let backendAddress = Self.argument(after: "--backend-url", in: arguments),
               let sessionID = Self.argument(after: "--session-id", in: arguments) else { return }
@@ -59,6 +72,7 @@ public final class WorkoutSession {
 
     public var isDemo: Bool { presentsWorkout ? sessionMode == .demo : mode == .demo }
     public var isPhone: Bool { presentsWorkout ? sessionMode == .phone : mode == .phone }
+    public var isHub: Bool { presentsWorkout ? sessionMode == .hub : mode == .hub }
     public var heartRate: HeartRateView {
         if !isDemo, watchHeartRate.status != .unavailable { return watchHeartRate }
         return snapshot?.heartRate ?? .unavailable
@@ -66,7 +80,7 @@ public final class WorkoutSession {
     public var snapshot: Snapshot? { store.snapshot }
     public var repCount: Int { snapshot?.repCount ?? 0 }
     public var targetReps: Int? { snapshot?.targetReps }
-    public var hasConnection: Bool { isDemo || isPhone || store.connection == .connected }
+    public var hasConnection: Bool { isDemo || isPhone || isHub || store.connection == .connected }
     public var canResume: Bool { !isSending && hasConnection }
     public var previewURL: URL? { Self.networkURL(previewAddress) }
 
@@ -87,6 +101,7 @@ public final class WorkoutSession {
         watchSampleNotBeforeMs = 0
         demoTask?.cancel()
         store.disconnect()
+        stopHub()
         do {
             if sessionMode == .demo {
                 demo = DemoWorkoutSource()
@@ -100,6 +115,8 @@ public final class WorkoutSession {
                 store.apply(phone.initialSnapshot(exercise: exercise))
                 isPositioning = true
                 presentsWorkout = true
+            } else if sessionMode == .hub {
+                try startHub()
             } else {
                 try await startBackend()
             }
@@ -129,6 +146,7 @@ public final class WorkoutSession {
         completedSource = snapshot?.source
         demoTask?.cancel()
         store.disconnect()
+        stopHub()
         presentsWorkout = false
     }
 
@@ -211,6 +229,29 @@ public final class WorkoutSession {
         store.connect()
     }
 
+    /// The phone runs the session; the camera device (Pi or laptop) only POSTs observations to it.
+    private func startHub() throws {
+        let hub = HubSession(sessionId: "phone")
+        store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: hub.sessionId)
+        hub.onEvent = { [weak self] event in self?.store.apply(event) }
+        store.apply(hub.snapshot())
+        hubServer = try HubServer { [weak hub] observation in
+            await MainActor.run { hub?.observe(observation) } ?? IngestAck(accepted: false, duplicate: false, ignored: "no_session")
+        }
+        self.hub = hub
+        hubAddress = HubServer.wifiAddress().map { "\($0):\(HubServer.defaultPort)" }
+        hub.command(.start, args: CommandArgs(exercise: exercise, targetReps: 8, source: .live))
+        isPositioning = false
+        presentsWorkout = true
+    }
+
+    private func stopHub() {
+        hubServer?.stop()
+        hubServer = nil
+        hub = nil
+        hubAddress = nil
+    }
+
     private func command(_ intent: Intent, args: CommandArgs? = nil) async {
         guard !isSending else { return }
         errorMessage = nil
@@ -222,6 +263,10 @@ public final class WorkoutSession {
         }
         if sessionMode == .phone {
             applyPhoneCommand(intent, args: args)
+            return
+        }
+        if sessionMode == .hub {
+            if let error = hub?.command(intent, args: args) { errorMessage = "The coach could not accept that action (\(error))." }
             return
         }
         do {

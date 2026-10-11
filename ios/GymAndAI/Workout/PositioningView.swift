@@ -65,6 +65,7 @@ struct PositioningView: View {
     private var sourceTitle: String {
         if session.isPhone { return "iPhone camera · Unmeasured set" }
         if session.isDemo { return "Demo · Simulated set" }
+        if session.isHub { return "Camera device · Counted on this iPhone" }
         return session.snapshot?.source == .recorded ? "Laptop · Recorded footage" : "Laptop · Live input"
     }
 

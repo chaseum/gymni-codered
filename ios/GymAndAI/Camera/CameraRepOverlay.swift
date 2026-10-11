@@ -30,6 +30,7 @@ struct CameraRepOverlay: View {
     private var source: String {
         if session.isDemo { return "Simulated" }
         if session.isPhone { return "Unmeasured" }
+        if session.isHub { return "Camera device" }
         return session.snapshot?.source == .recorded ? "Recorded" : "Laptop"
     }
 }

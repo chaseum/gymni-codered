@@ -22,6 +22,7 @@ struct TodayWorkoutDetails: View {
         case .phone: "Manual set"
         case .demo: "8 demo reps"
         case .backend: "Laptop target"
+        case .hub: "8 reps"
         }
     }
 }

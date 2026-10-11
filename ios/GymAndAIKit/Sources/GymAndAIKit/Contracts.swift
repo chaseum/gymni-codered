@@ -186,3 +186,17 @@ public struct HeartRateSample: Codable, Sendable {
         self.bpm = bpm; self.sampleTimestampMs = Int64(sampleDate.timeIntervalSince1970 * 1000)
     }
 }
+
+// MARK: Camera device (fitness-ml) -> backend or phone hub
+
+/// The fields of a v1 Observation the session needs; the rest of the payload is ignored.
+public struct CameraObservation: Codable, Sendable {
+    public struct CompletedRep: Codable, Sendable { public var repIndex: Int; public var durationMs: Double? }
+    public struct Issue: Codable, Sendable { public var code: String }
+    public var observationId: String
+    public var source: InputSource
+    public var exercise: String          // recognized id; may be "other"/"unknown", which never counts
+    public var trackingStatus: TrackingStatus
+    public var completedRep: CompletedRep?
+    public var issues: [Issue]
+}

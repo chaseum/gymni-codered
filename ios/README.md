@@ -55,6 +55,19 @@ Choose the exercise and Live webcam/Recorded input in View plan, then Start work
 
 Drive observations using the ML CLI documented in `../ml/README.md`. For a fixture replay, clearly describe that the connected backend input is simulated: `source=live` alone does not establish that an observation came from real inference.
 
+## Camera device mode (iPhone as the hub)
+
+The Pi or laptop runs only the camera and model; the iPhone runs the session, counts reps, and coaches. No backend.
+
+1. Phone: Settings → Mode → **Camera device**, then start the workout. The screen shows `Waiting for camera · send to <phone-ip>:8000`.
+2. Camera device, same Wi-Fi (any session id works):
+   ```bash
+   .venv/bin/fitness-ml run --source live --camera 0 --exercise curl --post http://<phone-ip>:8000 --session phone --preview-port 8081
+   ```
+3. Optional video: phone Settings → camera preview URL `<camera-device-ip>:8081`.
+
+Keep Gym&I open during the set (iOS stops the listener in the background). Simulator: `xcrun simctl launch <sim> com.chasebeeler.gymandai --gymni-hub --exercise curl`, then post to `http://127.0.0.1:8000`.
+
 ## Camera integration contract
 
 Settings accepts an optional HTTP(S) MJPEG URL. The publisher must return status 200 and `Content-Type: multipart/x-mixed-replace; boundary=...`, followed by JPEG parts. Use the same participant, source, and webcam frames as the active analyzer; retain the Recorded label for prerecorded footage.

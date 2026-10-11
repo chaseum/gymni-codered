@@ -40,6 +40,7 @@ struct ProgressViewScreen: View {
     private var sourceTitle: String {
         if session.completedUnmeasuredSession { return "iPhone camera · Unmeasured" }
         if session.completedMode == .demo { return "Demo · Simulated reps" }
+        if session.completedMode == .hub { return "Camera device · Counted on this iPhone" }
         return session.completedSource == .recorded ? "Laptop · Recorded footage" : "Laptop · Backend events"
     }
 

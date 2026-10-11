@@ -14,6 +14,17 @@ Webcam/MP4 → MediaPipe Tasks Pose Landmarker (VIDEO mode, CPU) → per-frame f
 
 ## Run
 
+Everything at once: the newest recognizer and form models from `ml/models/` load automatically, the recognizer picks the exercise, and each exercise keeps its own rep count:
+
+```bash
+.venv/bin/fitness-ml run --source live
+```
+
+- **Choosing the exercise:** keys `1`-`8` choose one (manual mode) and `a` returns to auto. Auto switches only *between sets*: the new exercise must be recognized at ≥70% for 2 s, with no rep counted in the last 5 s.
+- **Panel:** big rep count, a per-rep verdict, and the form model's held-out test F1, with "UNRELIABLE" below 0.65.
+- **Deadlift:** the first 3 reps are your baseline. A rep the no-baseline model rates ≥70% faulty is refused as baseline. After 2 refusals the screen warns that faults are judged relative to a baseline that may itself be faulty.
+- **Rules only:** `--no-models` turns the models off.
+
 Live curls with the debug window and an observation log:
 
 ```bash

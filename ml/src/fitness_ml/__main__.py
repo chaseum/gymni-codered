@@ -1,11 +1,13 @@
 """fitness-ml: live webcam / MP4 analysis, model download, count validation.
 
     fitness-ml download-model                       # pose_landmarker_lite.task -> ml/models/
-    fitness-ml run --source live --exercise curl --observations demo/logs/live.jsonl
+    fitness-ml run --source live                    # all trained models from ml/models, exercise auto-detected
+    fitness-ml run --source live --exercise curl    # start counting curls (keys 1-8 / a still work)
     fitness-ml run --source recorded --video clip.mp4 --exercise squat --post http://localhost:8000 --session demo
     fitness-ml validate --annotations demo/annotations.csv --out demo/validation.csv
 
-Window keys: q quit · p pause/resume · r replay (recorded) or reset (live) · s switch live<->recorded (needs --video)
+Window keys: 1-8 pick exercise · a auto (recognizer) · p pause/resume · r replay (recorded) or reset (live)
+             s switch live<->recorded (needs --video) · q quit
 """
 import argparse
 import json
@@ -16,12 +18,13 @@ import time
 from pathlib import Path
 
 from .analyzer import Analyzer
-from .artifacts import Artifact
+from .artifacts import Artifact, discover
 from .config import EXERCISES, Config
+from .live import ExerciseSelector, rep_verdict
 from .pipeline import process
 from .pose import VARIANTS, PoseEstimator, download_model, model_path
 from .recognition import Recognizer
-from .sources import open_source
+from .sources import CameraLost, list_cameras, open_source
 from .transport import BackendPoster, JsonlWriter
 from .types import CompletedRep, Observation
 from .validate import ClipStats, append_rows, validate_clips
@@ -34,6 +37,12 @@ def main() -> int:
         print(download_model(cfg.models_dir, args.variant))
     elif args.cmd == "config":
         print(json.dumps(cfg, default=lambda o: getattr(o, "__dict__", str(o)), indent=2))
+    elif args.cmd == "cameras":
+        cameras = list_cameras()
+        for index, description in cameras:
+            print(f"--camera {index}: {description}")
+        if not cameras:
+            print("no camera delivered a frame (macOS: allow Camera access for your terminal app)")
     elif args.cmd == "sample":
         print(json.dumps(_sample(cfg).to_dict()))
     elif args.cmd == "validate":
@@ -50,11 +59,26 @@ class Runner:
         self.args, self.cfg = args, cfg
         self.kind = args.source
         self.model = _pose_model(args.pose_model, cfg)
-        recognizer = (Recognizer(Artifact(args.recognizer), cfg.recognition_window_ms, cfg.recognition_stride_ms,
-                                 cfg.reject_below) if args.recognizer else None)
-        self.analyzer = Analyzer(args.exercise, args.session, args.source, set_id=args.set_id, variation=args.variation,
-                                 config=cfg, recognizer=recognizer,
-                                 form_model=Artifact(args.form_model) if args.form_model else None)
+        found_recognizer, form_dirs = (None, {}) if args.no_models else discover(cfg.models_dir)
+        recognizer_dir = args.recognizer or found_recognizer
+        if args.form_model:
+            form_dirs[args.exercise] = Path(args.form_model)
+        recognizer = None
+        if recognizer_dir:
+            artifact = Artifact(recognizer_dir)  # a threshold calibrated on validation beats the generic default
+            recognizer = Recognizer(artifact, artifact.meta.get("window_ms", cfg.recognition_window_ms),
+                                    cfg.recognition_stride_ms, artifact.meta.get("reject_below", cfg.reject_below))
+        auto = args.exercise == "auto"
+        if auto and recognizer is None:
+            raise SystemExit("--exercise auto needs a trained recognizer in ml/models (or pass --exercise curl etc.)")
+        first = "curl" if auto else args.exercise
+        self.analyzer = Analyzer(first, args.session, args.source, set_id=args.set_id, variation=args.variation,
+                                 config=cfg, recognizer=recognizer)
+        self.selector = ExerciseSelector(self.analyzer, form_dirs, auto)
+        self.selector.choose(first)
+        self.verdict, self.verdict_detail = None, []
+        print(f"recognizer: {recognizer_dir.name if recognizer_dir else 'none'}; form models: "
+              f"{', '.join(sorted(form_dirs)) or 'none'}; mode: {'auto' if auto else 'manual'}")
         self.observations = JsonlWriter(args.observations) if args.observations else None
         self.debug_log = JsonlWriter(args.debug_log) if args.debug_log else None
         self.poster = BackendPoster(args.post, args.session, os.environ.get("GYMAI_TOKEN")) if args.post else None
@@ -76,6 +100,9 @@ class Runner:
                     self.kind = "recorded" if self.kind == "live" else "live"
         except KeyboardInterrupt:
             pass
+        except CameraLost as e:
+            print(f"\nSTOPPED: {e}", file=sys.stderr)
+            return 1
         finally:
             self._close()
         return 0
@@ -89,6 +116,9 @@ class Runner:
                 if self.args.max_frames and self.frames_seen >= self.args.max_frames:
                     return "quit"
                 step = process(frame, estimator, self.analyzer)
+                switched = self.selector.on_frame(frame.timestamp_ms, step.result.observation.completed_rep is not None)
+                if switched:
+                    self._event(switched, frame.timestamp_ms)
                 self.frames_seen += 1
                 now = time.perf_counter()
                 instant = 1 / max(now - last, 1e-6)
@@ -105,8 +135,16 @@ class Runner:
         return "ended"
 
     def _overlay(self, step, fps: float, paused: bool):
-        from .debug import draw
-        return draw(step.frame.image, step, fps, self.analyzer.exercise_cfg.rep, self.last_event, paused)
+        from .debug import Hud, draw
+        a = self.analyzer
+        rec = a.recognizer
+        warning = ("Baseline may include faults: deadlift faults are judged relative to it. Press r and redo "
+                   "3 clean reps." if a.baseline_rejections.get(a.exercise, 0) >= 2 else None)
+        hud = Hud(exercise=a.exercise, exercises=list(EXERCISES), counts=a.rep_counts, rep=a.exercise_cfg.rep,
+                  auto=self.selector.auto, sees=(rec.label, rec.confidence) if rec else None,
+                  last_event=self.last_event, verdict=self.verdict, verdict_detail=self.verdict_detail,
+                  model_note=self.selector.model_note(a.exercise), warning=warning, paused=paused)
+        return draw(step.frame.image, step, fps, hud)
 
     def _wait_while_paused(self, step, fps: float) -> str | None:
         """Freeze on the current frame. Resuming discards any half-done rep so it can't complete after the pause."""
@@ -125,8 +163,9 @@ class Runner:
         if self.recorder and step.result.observation.source == "live":
             self.recorder.write(step.frame)
         for event in step.result.events:
-            self.last_event = event
-            print(f"[{obs.source_timestamp_ms / 1000:7.1f}s] {event}")
+            self._event(event, obs.source_timestamp_ms)
+        if obs.completed_rep or any(e.startswith(("form calibration", "baseline rep refused")) for e in step.result.events):
+            self.verdict, self.verdict_detail = rep_verdict(step.result, self.analyzer.form_model)
         if self.observations:
             self.observations.write(obs.to_dict())
         if self.poster:
@@ -139,8 +178,12 @@ class Runner:
                 "signal_deg": step.result.signal_deg, "events": step.result.events,
                 "candidates": [vars(a) for a in step.result.candidates], "features": step.result.features}))
         if obs.completed_rep:
-            print(f"          rep {step.result.local_rep_count} form checks: "
-                  f"{[(a.code, a.status, a.evidence) for a in step.result.candidates]}")
+            print(f"          {self.analyzer.exercise} {self.verdict[0]}"
+                  + "".join(f" | {d}" for d in self.verdict_detail))
+
+    def _event(self, text: str, t_ms: float) -> None:
+        self.last_event = text
+        print(f"[{t_ms / 1000:7.1f}s] {text}")
 
     def _show(self, image, wait_ms: int = 1) -> int:
         import cv2
@@ -148,6 +191,14 @@ class Runner:
         return cv2.waitKey(wait_ms) & 0xFF
 
     def _key_action(self, key: int) -> str | None:
+        exercises = list(EXERCISES)
+        if ord("1") <= key < ord("1") + len(exercises):
+            self.selector.auto = False
+            self.last_event = self.selector.choose(exercises[key - ord("1")])
+            self.verdict, self.verdict_detail = None, []
+        if key == ord("a") and self.analyzer.recognizer:
+            self.selector.auto = True
+            self.last_event = "auto: following the recognizer"
         if key == ord("q"):
             return "quit"
         if key == ord("p"):
@@ -233,13 +284,15 @@ def _parser() -> argparse.ArgumentParser:
     dl = sub.add_parser("download-model", help="fetch the official MediaPipe pose model")
     dl.add_argument("--variant", choices=VARIANTS, default="lite")
     sub.add_parser("config", help="print effective configuration")
+    sub.add_parser("cameras", help="list cameras with index and resolution (pick one with run --camera N)")
     sub.add_parser("sample", help="print one contract-shaped observation (provenance=fixture)")
 
     run = sub.add_parser("run", help="analyze webcam or MP4")
     run.add_argument("--source", choices=["live", "recorded"], required=True)
     run.add_argument("--video", help="MP4 path (required for recorded; enables 's' source switch for live)")
     run.add_argument("--camera", type=int, default=Config().camera_index)
-    run.add_argument("--exercise", choices=list(EXERCISES), required=True, help="planned exercise")
+    run.add_argument("--exercise", choices=[*EXERCISES, "auto"], default="auto",
+                     help="exercise to count; auto = follow the trained recognizer (default)")
     run.add_argument("--variation", help="e.g. standing_dumbbell_alternating, bodyweight, goblet, conventional")
     run.add_argument("--session", default=Config().session_id)
     run.add_argument("--set-id")
@@ -247,8 +300,9 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--observations", help="append contract observations (JSONL)")
     run.add_argument("--debug-log", help="append per-frame features/checks (JSONL, not a contract)")
     run.add_argument("--post", nargs="?", const=Config().backend_url, help="POST observations to the backend")
-    run.add_argument("--recognizer", help="trained recognition artifact directory")
-    run.add_argument("--form-model", help="trained form artifact directory for --exercise")
+    run.add_argument("--recognizer", help="recognition artifact dir (default: newest in ml/models)")
+    run.add_argument("--form-model", help="form artifact dir for --exercise (default: newest per exercise in ml/models)")
+    run.add_argument("--no-models", action="store_true", help="rules only: no recognizer, no form models")
     run.add_argument("--no-window", action="store_true")
     run.add_argument("--realtime", action="store_true", help="pace recorded video at its own speed")
     run.add_argument("--loop", action="store_true", help="replay recorded video when it ends")

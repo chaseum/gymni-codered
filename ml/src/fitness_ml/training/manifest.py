@@ -111,6 +111,65 @@ def multiview(root: Path) -> tuple[list[Row], list[str]]:
     return rows, skipped
 
 
+# --- Kaggle "Workout/Exercises Video" (Hasyim Abdillah, CC BY-NC-SA 4.0) ------------------------
+# https://www.kaggle.com/datasets/hasyimabdillah/workoutfitness-video  - one folder per exercise, mostly YouTube clips.
+# No person IDs are published, so each video is its own "participant": splits are video-disjoint, NOT person-disjoint
+# (two clips of the same creator can land on both sides), so its test scores are optimistic.
+KAGGLE_EXERCISE = {  # folder -> (our id, variation); everything else becomes "other" (a real reject class)
+    "deadlift": ("deadlift", "unspecified"),
+    "squat": ("squat", "unspecified"),
+    "push-up": ("push_up", "standard"),
+    "barbell biceps curl": ("curl", "standing_barbell"),
+    "hammer curl": ("curl", "hammer"),
+    "shoulder press": ("shoulder_press", "unspecified"),
+    "t bar row": ("row", "t_bar"),
+    # "romanian deadlift" starts standing (our deadlift counter starts at the floor): kept as "other" on purpose.
+}
+
+
+def kaggle_workout(root: Path) -> tuple[list[Row], list[str]]:
+    rows = []
+    for p in _videos(root):
+        folder = p.parent.name.lower()
+        exercise, variation = KAGGLE_EXERCISE.get(folder, ("other", folder.replace(" ", "_")))
+        rows.append(Row(
+            video_id=f"kaggle:{folder}/{p.name}", path=str(p), dataset="kaggle_workout",
+            participant_id=f"kaggle-video-{folder.replace(' ', '_')}-{p.stem.rsplit('_', 1)[-1]}",
+            camera_view="unknown", exercise=exercise, variation=variation, license="CC-BY-NC-SA-4.0"))
+    return rows, []
+
+
+# --- weggry/deadlift-classifier (MDPI AI 2025, doi:10.3390/ai6070148) ---------------------------
+# https://github.com/weggry/deadlift-classifier "Raw MP4 Videos": <style>_<fault>_<n>[_flipped].mp4, side view,
+# one rep per clip, 50 clips per style x fault. NO LICENSE is published: use for this non-commercial project only,
+# credit the paper, never commit or redistribute the videos. No person IDs either, so splits are per video (optimistic).
+# "_flipped" files are mirror copies of the originals: skipped, otherwise a clip and its mirror could straddle
+# train/test.
+WEGGRY_NAME = re.compile(r"^(conv|S|R)_(corr|ehe|oe|rb)_(\d+)(_flipped)?$")
+WEGGRY_STYLE = {"conv": ("deadlift", "conventional"), "S": ("deadlift", "sumo"),
+                "R": ("other", "romanian_deadlift")}  # RDL starts standing; our deadlift counter starts at the floor
+WEGGRY_FAULT = {"corr": "none", "ehe": "hips_rise_early", "oe": "back_overextension", "rb": "rounded_back"}
+
+
+def weggry_deadlift(root: Path) -> tuple[list[Row], list[str]]:
+    rows, skipped = [], []
+    for p in _videos(root):
+        m = WEGGRY_NAME.match(p.stem)
+        if not m:
+            skipped.append(str(p))
+            continue
+        style, fault, n, flipped = m.groups()
+        if flipped:
+            continue
+        exercise, variation = WEGGRY_STYLE[style]
+        rows.append(Row(
+            video_id=f"weggry:{p.name}", path=str(p), dataset="weggry_deadlift",
+            participant_id=f"weggry-video-{style}-{fault}-{n}", camera_view="side", exercise=exercise,
+            variation=variation, form_label="good" if fault == "corr" else "bad", issue_label=WEGGRY_FAULT[fault],
+            license="no license published; non-commercial project use, credited, not redistributed"))
+    return rows, skipped
+
+
 # --- Your own clips -----------------------------------------------------------------------------
 def own_csv(path: Path) -> tuple[list[Row], list[str]]:
     """Your recordings: a CSV with the manifest columns (path relative to the CSV). Consent required."""
@@ -123,4 +182,25 @@ def own_csv(path: Path) -> tuple[list[Row], list[str]]:
     return [r for r in rows if Path(r.path).is_file()], missing
 
 
-ADAPTERS = {"multiview": multiview, "csv": own_csv}
+def add_clips(manifest: Path, videos: list[Path], exercise: str, participant: str, view: str,
+              variation: str = "", form_label: str = "") -> list[Row]:
+    """Append your own recordings to `manifest` (created if missing). Re-adding a clip replaces its row."""
+    if exercise not in EXERCISES:
+        raise ValueError(f"exercise must be one of {EXERCISES}")
+    rows = {r.video_id: r for r in read(manifest)} if manifest.exists() else {}
+    if not variation and exercise in _CONFIGURED:
+        variation = _CONFIGURED[exercise].variation
+    for video in videos:
+        if not video.is_file():
+            raise FileNotFoundError(video)
+        row = Row(video_id=f"own:{participant}:{video.name}", path=str(video.resolve()), dataset="own",
+                  participant_id=f"own-{participant}", camera_view=view, exercise=exercise,
+                  variation=variation,
+                  form_label=form_label, license="own recording (consented)")
+        rows[row.video_id] = row
+    write(manifest, list(rows.values()))
+    return list(rows.values())
+
+
+ADAPTERS = {"multiview": multiview, "kaggle_workout": kaggle_workout, "weggry_deadlift": weggry_deadlift,
+            "csv": own_csv}

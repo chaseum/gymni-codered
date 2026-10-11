@@ -10,7 +10,7 @@ from ..artifacts import Artifact
 from .dataset import windows_for
 from .manifest import read
 
-REJECT_THRESHOLDS = (0.0, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+REJECT_THRESHOLDS = (0.0, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95)
 
 
 def evaluate(artifact_dir: Path, manifest: Path, cache: Path, split_name: str = "test") -> dict:
@@ -101,3 +101,23 @@ def _print(r) -> None:
         print("  reject", s)
     if "false_correction_rate" in r:
         print("false correction rate", r["false_correction_rate"])
+
+
+def calibrate_reject(artifact_dir: Path, target_accuracy: float) -> float:
+    """Store in metadata the lowest confidence threshold whose VALIDATION accuracy on accepted windows reaches
+    `target_accuracy` (the live app says "unknown" below it). Run `evaluate --split-name val` first."""
+    metrics = Path(artifact_dir) / "metrics_val.json"
+    if not metrics.exists():
+        raise FileNotFoundError(f"{metrics} missing: run `fitness-train evaluate --artifact {artifact_dir} --split-name val`")
+    sweep = json.loads(metrics.read_text())["rejection"]
+    good = [s["threshold"] for s in sweep if (s["accuracy_on_accepted_known"] or 0) >= target_accuracy]
+    threshold = min(good) if good else max(s["threshold"] for s in sweep)
+    meta_path = Path(artifact_dir) / "metadata.json"
+    meta = json.loads(meta_path.read_text())
+    meta["reject_below"] = threshold
+    meta["reject_below_rule"] = f"lowest threshold with val accuracy on accepted >= {target_accuracy}"
+    meta_path.write_text(json.dumps(meta, indent=2))
+    chosen = next(s for s in sweep if s["threshold"] == threshold)
+    print(f"reject below {threshold}: val coverage {chosen['coverage_of_known']:.0%}, "
+          f"accuracy on accepted {chosen['accuracy_on_accepted_known']:.1%}")
+    return threshold

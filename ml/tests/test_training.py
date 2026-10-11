@@ -58,3 +58,40 @@ def test_window_bounds_short_clip_is_one_window_long_clip_strides():
     assert window_bounds(np.arange(0, 1500, 33.0), 2000, 500) == [(0, 46)]
     bounds = window_bounds(np.arange(0, 5000, 50.0), 2000, 500)
     assert len(bounds) == 6 and bounds[0] == (0, 41)
+
+
+def test_add_clips_appends_own_recordings_and_replaces_on_readd(tmp_path):
+    from fitness_ml.training.manifest import add_clips, read
+    a, b = tmp_path / "dl_1.mp4", tmp_path / "dl_2.mp4"
+    a.write_bytes(b"x"), b.write_bytes(b"x")
+    manifest = tmp_path / "own.csv"
+    add_clips(manifest, [a], "deadlift", "chase", "side", variation="backpack")
+    add_clips(manifest, [a, b], "deadlift", "chase", "side", variation="backpack")
+    rows = read(manifest)
+    assert [(r.video_id, r.participant_id, r.exercise, r.camera_view, r.variation) for r in rows] == [
+        ("own:chase:dl_1.mp4", "own-chase", "deadlift", "side", "backpack"),
+        ("own:chase:dl_2.mp4", "own-chase", "deadlift", "side", "backpack")]
+
+
+def test_kaggle_workout_maps_folders_and_keeps_unknown_exercises_as_other(tmp_path):
+    from fitness_ml.training.manifest import kaggle_workout
+    for rel in ("workoutfitness/deadlift/deadlift_3.mp4", "workoutfitness/hammer curl/hammer curl_1.mp4",
+                "workoutfitness/romanian deadlift/romanian deadlift_0.mp4", "workoutfitness/lat pulldown/lat pulldown_7.mp4"):
+        touch(tmp_path, rel)
+    rows, skipped = kaggle_workout(tmp_path)
+    got = sorted((r.exercise, r.variation, r.participant_id) for r in rows)
+    assert got == [("curl", "hammer", "kaggle-video-hammer_curl-1"), ("deadlift", "unspecified", "kaggle-video-deadlift-3"),
+                   ("other", "lat_pulldown", "kaggle-video-lat_pulldown-7"),
+                   ("other", "romanian_deadlift", "kaggle-video-romanian_deadlift-0")]
+    assert skipped == []
+
+
+def test_weggry_maps_style_and_fault_and_skips_mirrored_copies(tmp_path):
+    from fitness_ml.training.manifest import weggry_deadlift
+    for name in ("conv_ehe_7.mp4", "conv_ehe_7_flipped.mp4", "S_rb_2.mp4", "R_corr_1.mp4", "README.mp4"):
+        touch(tmp_path, f"Raw MP4 Videos/{name}")
+    rows, skipped = weggry_deadlift(tmp_path)
+    got = sorted((r.exercise, r.variation, r.form_label, r.issue_label) for r in rows)
+    assert got == [("deadlift", "conventional", "bad", "hips_rise_early"), ("deadlift", "sumo", "bad", "rounded_back"),
+                   ("other", "romanian_deadlift", "good", "none")]
+    assert len(skipped) == 1 and skipped[0].endswith("README.mp4")

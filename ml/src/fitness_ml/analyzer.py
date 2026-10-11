@@ -42,12 +42,8 @@ class Analyzer:
                  recognizer: Recognizer | None = None, form_model: Artifact | None = None,
                  rep_index_start: int | None = None):
         self.config = config or Config()
-        self.exercise = exercise
-        self.exercise_cfg = self.config.exercises[exercise]
-        if variation:
-            self.exercise_cfg = replace(self.exercise_cfg, variation=variation)
         self.session_id, self.set_id = session_id, set_id
-        self.recognizer, self.form_model = recognizer, form_model
+        self.recognizer = recognizer
         self.source, self.clip_id = source, clip_id
         # rep_index must never repeat within a backend session, even if this process restarts.
         # ponytail: half-second wall-clock base; a new run starts above any index an earlier run could reach
@@ -55,20 +51,43 @@ class Analyzer:
         self._rep_index = rep_index_start if rep_index_start is not None else int(time.time() * 2)
         self._run_id = f"ml{int(time.time() * 1000)}"
         self._seq = 0
-        self.local_rep_count = 0
+        self.rep_counts: dict[str, int] = {}             # local, per exercise; the backend's count is authoritative
+        self._baselines: dict[str, list[np.ndarray]] = {}  # per exercise: rep vectors of the user's first clean reps
+        self.baseline_rejections: dict[str, int] = {}    # per exercise; >= 2 means the baseline may include faults
+        self._trace: deque[tuple[float, dict]] = deque()
+        self._side: str | None = None
+        self.set_exercise(exercise, form_model, variation)
+
+    def set_exercise(self, exercise: str, form_model: Artifact | None = None, variation: str | None = None) -> None:
+        """Switch what is being counted (keys 1-8 or the recognizer). Discards a half-done rep; per-exercise
+        counts and calibration baselines are kept; the recognizer keeps its window."""
+        self.exercise, self.form_model = exercise, form_model
+        self.exercise_cfg = self.config.exercises[exercise]
+        if variation:
+            self.exercise_cfg = replace(self.exercise_cfg, variation=variation)
         # One counter per arm/leg: whichever side actually moves counts (single-arm sets, one limb hidden),
         # and both sides finishing together (simultaneous curls, squats) is merged into one rep.
         per_side = self.exercise_cfg.rep.signal in ("elbow", "knee", "hip")
         self._counters = {s: RepCounter(self.exercise_cfg.rep) for s in (SIDES if per_side else ("body",))}
         self._last_rep_end_ms = -1e12
-        self._trace: deque[tuple[float, dict]] = deque()
-        self._side: str | None = None
+        self.rep_counts.setdefault(exercise, 0)
+
+    @property
+    def local_rep_count(self) -> int:
+        return self.rep_counts[self.exercise]
+
+    @property
+    def idle(self) -> bool:
+        """No rep in progress on any side: safe to switch exercise."""
+        return all(c.state in ("waiting", "start") for c in self._counters.values())
 
     def reset(self, source: str | None = None, clip_id: str | None = None) -> None:
         """Call on pause/resume, replay and source switch. Discards any half-finished rep; rep_index keeps rising."""
         for counter in self._counters.values():
             counter.reset()
         self._last_rep_end_ms = -1e12
+        if source:  # new camera/clip = new framing: calibrate again
+            self._baselines, self.baseline_rejections = {}, {}
         self._trace.clear()
         self._side = None
         if self.recognizer:
@@ -98,7 +117,7 @@ class Analyzer:
                 events.append(counter.event + note if key == "body" else f"{key}: {counter.event}{note}")
             if cycle and not same_rep and completed is None:
                 self._last_rep_end_ms = cycle.end_ms
-                completed, issues, candidates = self._complete_rep(cycle, side, view, measurements)
+                completed, issues, candidates = self._complete_rep(cycle, side, view, measurements, events)
 
         phase = self._phase()
         obs = Observation(
@@ -114,17 +133,18 @@ class Analyzer:
         signal = self._counters.get(self._side or "", next(iter(self._counters.values()))).signal
         return FrameResult(obs, features, self._side, view, self.local_rep_count, candidates, events, signal)
 
-    def _complete_rep(self, cycle, side: str, view: str, measurements: dict):
-        """Assign the next rep_index, review the rep's frames, and keep only reviewed or model-labelled issues."""
+    def _complete_rep(self, cycle, side: str, view: str, measurements: dict, events: list[str]):
+        """Assign the next rep_index, review the rep's frames, and keep only reviewed or model-labelled issues.
+        The frames include `form_preroll_ms` before the rep started: the setup posture matters for form."""
         self._rep_index += 1
-        self.local_rep_count += 1
-        trace = [(t, f) for t, f in self._trace if cycle.start_ms <= t <= cycle.end_ms]
+        self.rep_counts[self.exercise] += 1
+        trace = [(t, f) for t, f in self._trace if cycle.start_ms - self.config.form_preroll_ms <= t <= cycle.end_ms]
         review = review_rep(self.exercise, self.exercise_cfg, trace, side, view)
         measurements.update(review.measurements)
         issues = [Issue(a.code, {**a.evidence, "provenance": "reviewed_rules"}) for a in review.assessments
                   if a.status == "issue" and a.code in self.exercise_cfg.reviewed]
         if self.form_model:
-            issues += self._form_model_issues(trace, measurements)
+            issues += self._form_model_issues(trace, side, measurements, events)
         return CompletedRep(self._rep_index, round(cycle.duration_ms)), issues, review.assessments
 
     # --- helpers --------------------------------------------------------------------------------
@@ -187,22 +207,40 @@ class Analyzer:
         moving = [p for p in phases if p not in ("unknown", self.exercise_cfg.rep.start_phase)]
         return moving[0] if moving else phases[0]
 
-    def _form_model_issues(self, trace, measurements) -> list[Issue]:
-        """Binary good/bad becomes a measurement only. A specific issue needs a model trained on that labelled error."""
+    def _form_model_issues(self, trace, side: str, measurements: dict, events: list[str]) -> list[Issue]:
+        """Binary good/bad becomes a measurement only. A specific issue needs a model trained on that labelled error.
+        Calibrated models first collect the user's clean reps and say so; they judge nothing until then."""
         if len(trace) < 4:
             return []
-        proba = self.form_model.predict_proba(to_matrix([f for _, f in trace]), np.array([t for t, _ in trace]), side=self._side)
-        labels = self.form_model.labels
+        model = self.form_model
+        matrix, ts = to_matrix([f for _, f in trace]), np.array([t for t, _ in trace])
+        baseline = self._baselines.setdefault(self.exercise, [])
+        if len(baseline) < model.calibration_reps:
+            vector = model.rep_vector(matrix, ts, side)
+            suspect = model.baseline_fault(vector) if hasattr(model, "baseline_fault") else None
+            if suspect:
+                self.baseline_rejections[self.exercise] = self.baseline_rejections.get(self.exercise, 0) + 1
+                events.append(f"baseline rep refused: looked like {suspect[0].replace('_', ' ')} ({suspect[1]:.0%}) "
+                              f"- do a clean one")
+                return []
+            baseline.append(vector)
+            n, total = len(baseline), model.calibration_reps
+            events.append(f"form calibration {n}/{total}" + (" - keep these reps clean" if n < total else " done"))
+            return []
+        reference = np.mean(baseline, axis=0) if baseline else None
+        proba = model.predict_proba(matrix, ts, side=side, reference=reference)
+        labels = model.labels
         for label, p in zip(labels, proba):
             measurements[f"form_model_p_{label}"] = round(float(p), 3)
-        if self.form_model.meta["task"] != "form_issue" or self.exercise not in CONTRACT_EXERCISES:
+        if model.meta["task"] != "form_issue" or self.exercise not in CONTRACT_EXERCISES:
             return []  # v1 issue codes must start with curl./squat./deadlift.
         best = int(np.argmax(proba))
-        if labels[best] == "none" or proba[best] < FORM_MODEL_MIN_PROBABILITY:
+        threshold = model.fault_threshold if model.fault_threshold is not None else FORM_MODEL_MIN_PROBABILITY
+        if labels[best] == "none" or proba[best] < threshold:
             return []
+        events.append(f"form model: {labels[best]} ({proba[best]:.0%})")
         return [Issue(f"{self.exercise}.{labels[best]}", {"probability": round(float(proba[best]), 3),
-                                                          "provenance": "trained_model",
-                                                          "model_version": self.form_model.version})]
+                                                          "provenance": "trained_model", "model_version": model.version})]
 
     def _model_versions(self) -> str | None:
         versions = [m.version for m in (self.recognizer and self.recognizer.artifact, self.form_model) if m]

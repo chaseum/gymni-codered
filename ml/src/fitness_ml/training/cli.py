@@ -31,6 +31,12 @@ def main() -> int:
             raise SystemExit("duplicate video_id across manifests")
         write(Path(args.out), rows)
         print(summary(rows))
+    elif args.cmd == "add-clip":
+        from .manifest import add_clips, summary
+        rows = add_clips(Path(args.manifest), [Path(v) for v in args.videos], args.exercise, args.participant,
+                         args.view, args.variation or "", args.form or "")
+        print(summary(rows))
+        print(f"-> {args.manifest}. Retrain: ingest multiview -> merge -> extract -> split -> train (ml/training/README.md)")
     elif args.cmd == "extract":
         from ..pose import VARIANTS, model_path
         from .extract import extract
@@ -52,7 +58,22 @@ def main() -> int:
               tuple(x for x in (args.exclude_labels or "").split(",") if x))
     elif args.cmd == "deadlift-angles":
         from .deadlift_angles import train_deadlift_angles
-        train_deadlift_angles(Path(args.csv), Path(args.out_dir), args.model, args.seed)
+        train_deadlift_angles(Path(args.csv), Path(args.out_dir), args.model, args.seed, args.calibration_reps,
+                              args.max_false_correction)
+    elif args.cmd == "sweep":
+        from .sweep import ALL_TASKS, sweep
+        grid = {"window_ms": args.window_ms, "hidden": args.hidden, "layers": args.layers, "dropout": args.dropout,
+                "lr": args.lr, "batch": args.batch, "steps": args.steps}
+        tasks = ALL_TASKS if args.task == "all" else [(args.task, args.exercise)]
+        for task, exercise in tasks:
+            sweep(Path(args.manifest), Path(args.cache), Path(args.split), task, exercise, Path(args.out_dir), grid,
+                  args.seed, args.device, args.epochs, args.patience)
+    elif args.cmd == "calibrate-reject":
+        from .evaluate import calibrate_reject
+        calibrate_reject(Path(args.artifact), args.target_accuracy)
+    elif args.cmd == "export":
+        from .export import export
+        print(export(Config().models_dir, Path(args.out_dir)))
     elif args.cmd == "evaluate":
         from .evaluate import evaluate
         evaluate(Path(args.artifact), Path(args.manifest), Path(args.cache), args.split_name)
@@ -77,10 +98,20 @@ def _parser() -> argparse.ArgumentParser:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     ing = sub.add_parser("ingest", help="build a manifest CSV from a dataset folder")
-    ing.add_argument("dataset", choices=["multiview", "csv"], help="csv = your own clips (columns in manifest.Row)")
+    ing.add_argument("dataset", choices=["multiview", "kaggle_workout", "weggry_deadlift", "csv"],
+                     help="csv = your own clips (columns in manifest.Row)")
     ing.add_argument("--root", required=True, help="dataset folder (or your CSV for 'csv')")
     ing.add_argument("--out", required=True)
     ing.add_argument("--allow-skips", action="store_true")
+
+    add = sub.add_parser("add-clip", help="register your own recordings (from `fitness-ml run --record`) for training")
+    add.add_argument("videos", nargs="+")
+    add.add_argument("--exercise", required=True, choices=[*EXERCISES, "other"])
+    add.add_argument("--participant", required=True, help="who is in the clip, e.g. chase (keeps splits per person)")
+    add.add_argument("--view", required=True, choices=["front", "side", "diagonal"])
+    add.add_argument("--variation", help="e.g. backpack, broomstick, bodyweight (default: config variation)")
+    add.add_argument("--form", choices=["good", "bad"], help="whole-clip form label, if you know it")
+    add.add_argument("--manifest", default=str(DATA / "manifest_own.csv"))
 
     mrg = sub.add_parser("merge", help="concatenate manifests")
     mrg.add_argument("manifests", nargs="+")
@@ -100,8 +131,8 @@ def _parser() -> argparse.ArgumentParser:
     spl.add_argument("--manifest", default=str(DEFAULTS["manifest"]))
     spl.add_argument("--out", default=str(DEFAULTS["split"]))
     spl.add_argument("--seed", type=int, default=13)
-    spl.add_argument("--test-frac", type=float, default=0.2)
-    spl.add_argument("--val-frac", type=float, default=0.15)
+    spl.add_argument("--test-frac", type=float, default=0.15, help="share of PEOPLE held out for test (70/15/15)")
+    spl.add_argument("--val-frac", type=float, default=0.15, help="share of PEOPLE held out for validation")
     spl.add_argument("--test-participants", help="comma list pinned to test, e.g. mydeadlift-S04,mydeadlift-S07")
 
     tr = sub.add_parser("train", help="train one artifact into ml/models/<model_version>/")
@@ -116,7 +147,7 @@ def _parser() -> argparse.ArgumentParser:
     tr.add_argument("--window-ms", type=float, default=Config().recognition_window_ms)
     tr.add_argument("--stride-ms", type=float, default=Config().recognition_stride_ms)
     tr.add_argument("--seed", type=int, default=13)
-    tr.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="GRU only")
+    tr.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto", help="GRU only")
     tr.add_argument("--epochs", type=int, default=100, help="GRU only")
     tr.add_argument("--patience", type=int, default=10, help="GRU early stopping")
 
@@ -125,6 +156,34 @@ def _parser() -> argparse.ArgumentParser:
     dl.add_argument("--model", choices=["rf", "knn"], default="rf")
     dl.add_argument("--out-dir", default=str(Config().models_dir))
     dl.add_argument("--seed", type=int, default=13)
+    dl.add_argument("--calibration-reps", type=int, default=3, help="clean reps judged first (0 = no calibration)")
+    dl.add_argument("--max-false-correction", type=float, default=0.10,
+                    help="CV budget for flagging clean reps; picks the fault threshold")
+
+    sw = sub.add_parser("sweep", help="GRU grid search ranked on validation; keeps the winner, archives the rest")
+    sw.add_argument("--task", choices=["all", "recognition", "form_binary", "form_issue"], default="all",
+                    help="all = recognizer + the 8 form models")
+    sw.add_argument("--exercise", choices=list(EXERCISES), help="for a single form task")
+    for name, kind, default in (("window-ms", float, "2000,3000"), ("hidden", int, "64,128"), ("layers", int, "1,2"),
+                                ("dropout", float, "0.2"), ("lr", float, "0.001"), ("batch", int, "128"),
+                                ("steps", int, "48")):
+        sw.add_argument(f"--{name}", type=lambda text, kind=kind: [kind(v) for v in text.split(",")],
+                        default=[kind(v) for v in default.split(",")], help=f"comma list (default {default})")
+    sw.add_argument("--manifest", default=str(DEFAULTS["manifest"]))
+    sw.add_argument("--cache", default=str(DEFAULTS["cache"]))
+    sw.add_argument("--split", default=str(DEFAULTS["split"]))
+    sw.add_argument("--out-dir", default=str(Config().models_dir))
+    sw.add_argument("--seed", type=int, default=13)
+    sw.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
+    sw.add_argument("--epochs", type=int, default=100)
+    sw.add_argument("--patience", type=int, default=10)
+
+    cr = sub.add_parser("calibrate-reject", help="set a recognizer's 'unknown' threshold from its validation sweep")
+    cr.add_argument("--artifact", required=True)
+    cr.add_argument("--target-accuracy", type=float, default=0.97)
+
+    ex = sub.add_parser("export", help="zip the models `fitness-ml run` would load, for another machine (e.g. a Pi)")
+    ex.add_argument("--out-dir", default=str(Config().models_dir / "exports"))
 
     ev = sub.add_parser("evaluate", help="metrics on the artifact's held-out participants")
     ev.add_argument("--artifact", required=True)

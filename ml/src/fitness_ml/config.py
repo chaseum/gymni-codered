@@ -37,13 +37,14 @@ class ExerciseConfig:
 
 
 EXERCISES: dict[str, ExerciseConfig] = {
-    # Tuned on a real front-facing laptop-webcam session (demo/clips/me_curl.mp4, 2026-10-10): the estimated 3D
-    # elbow angle flattened every curl to ~85-90°, while the 2D angle dipped cleanly to 5-25°. Counts were stable
-    # (28-29) for turn thresholds 70-85°, so 75° sits mid-plateau.
+    # Tuned on real front-facing sessions (demo/clips/me_curl.mp4 + a water-bottle session, 2026-10-10): the
+    # estimated 3D elbow angle flattened every curl to ~85-90°, the 2D angle dipped cleanly to 5-25°. Counts on the
+    # recording are identical for turn 75° and 85°; 85° also catches the 77-84° near-misses of light, quick
+    # water-bottle curls, as does min_rep_ms 450 (400 ms started double-counting on the recording).
     "curl": ExerciseConfig(
         variation="standing_dumbbell",  # simultaneous, alternating and single-arm all work: one counter per arm
         basis="image_2d",
-        rep=RepConfig("elbow", start_phase="lowered", start_deg=140, turn_deg=75),
+        rep=RepConfig("elbow", start_phase="lowered", start_deg=140, turn_deg=85, min_rep_ms=450),
         required=("shoulder", "elbow", "wrist"),
         thresholds={"full_flexion_max_deg": 60},
     ),
@@ -99,7 +100,7 @@ class Config:
     backend_url: str = os.environ.get("GYMAI_BACKEND_URL", "http://localhost:8000")
     session_id: str = os.environ.get("GYMAI_SESSION_ID", "session-001")
     camera_index: int = int(os.environ.get("GYMAI_CAMERA", "0"))
-    models_dir: Path = REPO / "ml" / "models"
+    models_dir: Path = Path(os.environ.get("GYMAI_MODELS_DIR", REPO / "ml" / "models"))  # env: installed copies (Pi)
     min_visibility: float = 0.4         # MediaPipe per-joint visibility needed to count; jackets/dumbbells lower it
     side_switch_margin: float = 0.2     # visibility gain needed before the tracked side changes
     side_view_max_ratio: float = 0.30   # shoulder width / torso length below this = side view
@@ -107,4 +108,5 @@ class Config:
     recognition_window_ms: float = 2000
     recognition_stride_ms: float = 500
     reject_below: float = 0.6           # recognizer confidence under this -> "unknown"
+    form_preroll_ms: float = 700        # form checks also see this much before the rep starts (setup posture)
     exercises: dict[str, ExerciseConfig] = field(default_factory=lambda: dict(EXERCISES))

@@ -132,3 +132,30 @@ def test_new_exercises_travel_as_other_with_detail_and_stay_contract_valid():
     assert obs.exercise == "other" and obs.exercise_detail == "push_up"
     assert sum(1 for r in results if r.observation.completed_rep) == 1
     assert errors("observation", json.loads(json.dumps(obs.to_dict()))) == []
+
+
+class CalibratedFaultModel:
+    """A form_issue model that needs 2 calibration reps and only flags at >= 0.6."""
+    labels, version, calibration_reps, fault_threshold = ["knees_past_toes", "none"], "fake-cal", 2, 0.6
+    meta = {"task": "form_issue"}
+
+    def __init__(self):
+        self.references = []
+
+    def rep_vector(self, matrix, ts, side=None):
+        return np.array([float(len(ts))])
+
+    def predict_proba(self, matrix, ts, side=None, reference=None):
+        self.references.append(reference)
+        return np.array([0.65, 0.35])
+
+
+def test_calibrated_form_model_judges_only_after_calibration_reps():
+    model = CalibratedFaultModel()
+    results = run(Analyzer("curl", "s-1", "live", form_model=model), curl_frames(4))
+    done = [r for r in results if r.observation.completed_rep]
+    assert len(done) == 4
+    assert [r.observation.issues for r in done[:2]] == [[], []]
+    assert any("form calibration 1/2" in e for e in done[0].events)
+    assert [i.code for i in done[2].observation.issues] == ["curl.knees_past_toes"]
+    assert all(ref is not None for ref in model.references) and len(model.references) == 2

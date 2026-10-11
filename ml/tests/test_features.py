@@ -43,3 +43,43 @@ def test_recorded_timestamp_prefers_pts_and_never_goes_backwards():
     assert recorded_timestamp(533.3, 16, 30, 500) == 533.3
     assert recorded_timestamp(0.0, 16, 30, 500) == 533.3333333333334  # broken PTS -> nominal frame time
     assert recorded_timestamp(400.0, 3, 30, 500) == 501               # strictly increasing
+
+
+def test_webcam_reconnects_after_a_dropout_and_raises_a_clear_error_if_it_stays_gone(monkeypatch):
+    import pytest
+    import fitness_ml.sources as sources
+
+    class FakeCap:
+        script = []  # shared: each read() pops the next result (True = frame, False = dropout)
+
+        def __init__(self, index):
+            pass
+
+        def isOpened(self):
+            return True
+
+        def read(self):
+            ok = FakeCap.script.pop(0) if FakeCap.script else False
+            return ok, (np.zeros((4, 4, 3), np.uint8) if ok else None)
+
+        def set(self, *a):
+            pass
+
+        def release(self):
+            pass
+
+    monkeypatch.setattr(sources.cv2, "VideoCapture", FakeCap)
+    monkeypatch.setattr(sources.time, "sleep", lambda s: None)
+    cam = sources.Webcam(0)
+    cam.RECONNECT_S = 0.05
+
+    FakeCap.script = [True, True, False, True, True]  # dropout, then the camera comes back
+    frames = cam.frames()
+    got = [next(frames).index for _ in range(4)]
+    assert got == [0, 1, 2, 3]
+
+    FakeCap.script = [True]                            # one frame, then gone for good
+    frames = cam.frames()
+    next(frames)
+    with pytest.raises(sources.CameraLost, match="stopped sending frames after 1 frames"):
+        next(frames)

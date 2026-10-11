@@ -74,8 +74,11 @@ def label_of(row: Row, task: str, exercise: str | None) -> str | None:
 
 # --- windows -----------------------------------------------------------------------------------
 def windows_for(rows: list[Row], participants: set[str], cache_dir: Path, task: str, exercise: str | None,
-                window_ms: float, stride_ms: float) -> list[Window]:
-    out = []
+                window_ms: float, stride_ms: float, segment: str = "window") -> list[Window]:
+    """segment="window": fixed windows every stride (recognition, which sees rolling windows live).
+    segment="rep": one sample per rep found by the live rep counter, incl. the setup pre-roll, exactly what the
+    form models receive live; videos where the counter finds no rep fall back to fixed windows (reported)."""
+    out, no_reps, videos = [], 0, 0
     for row in rows:
         label = label_of(row, task, exercise)
         if row.participant_id not in participants or label is None:
@@ -86,12 +89,34 @@ def windows_for(rows: list[Row], participants: set[str], cache_dir: Path, task: 
         ts, poses = load_poses(path)
         if len(ts) < 2:
             continue
+        videos += 1
         matrix = to_matrix([frame_features(p) for p in poses])
-        for lo, hi in window_bounds(ts, window_ms, stride_ms):
+        bounds = rep_bounds(ts, poses, row.exercise) if segment == "rep" else []
+        if not bounds:
+            no_reps += segment == "rep"
+            bounds = window_bounds(ts, window_ms, stride_ms)
+        for lo, hi in bounds:
             m = matrix[lo:hi]
-            if (~np.isnan(m).all(axis=1)).mean() >= MIN_TRACKED_FRAC:
+            if hi - lo >= 2 and (~np.isnan(m).all(axis=1)).mean() >= MIN_TRACKED_FRAC:
                 out.append(Window(m, ts[lo:hi], label, row))
+    if segment == "rep" and videos:
+        print(f"rep segmentation: {videos - no_reps}/{videos} videos cut into reps; {no_reps} had no counted rep "
+              f"and used fixed windows")
     return out
+
+
+def rep_bounds(ts: np.ndarray, poses: list, exercise: str) -> list[tuple[int, int]]:
+    """Index ranges of the reps the live analyzer counts in this video, each starting form_preroll_ms early."""
+    from ..analyzer import Analyzer
+    analyzer = Analyzer(exercise, "training", "recorded")
+    preroll = analyzer.config.form_preroll_ms
+    bounds = []
+    for t, pose in zip(ts, poses):
+        rep = analyzer.analyze_frame(pose, t).observation.completed_rep
+        if rep:
+            start = t - (rep.duration_ms or 0) - preroll
+            bounds.append((int(np.searchsorted(ts, start)), int(np.searchsorted(ts, t, side="right"))))
+    return bounds
 
 
 def window_bounds(ts: np.ndarray, window_ms: float, stride_ms: float) -> list[tuple[int, int]]:

@@ -3,6 +3,8 @@ repo for codered orion 2026
 
 **Gym&AI**: an iPhone-first, hands-free fitness coach. The laptop webcam is the vision sensor (Python + MediaPipe), a FastAPI backend on the laptop owns the session, and the SwiftUI iPhone app (plus Watch HR, plus a Pico button/display) renders the backend's state. Plan: [`GYM_AND_AI_TEAM_BRIEF_REVISED.md`](GYM_AND_AI_TEAM_BRIEF_REVISED.md). Wire protocol: [`contracts/protocol.md`](contracts/protocol.md).
 
+Shared planner exercise data and healthy-adult prescription notes: [`contracts/exercise_catalog.json`](contracts/exercise_catalog.json) and [`docs/exercise_catalog.md`](docs/exercise_catalog.md).
+
 ## Who owns what
 
 | Path | Owner | Status |

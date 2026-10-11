@@ -27,6 +27,8 @@ struct AppRootView: View {
         #if targetEnvironment(simulator)
         workout.configureSimulatorLaunch(arguments: arguments)
         #endif
+        // Connect to the preset coach and download the workout clips now, so they're on the phone before a set.
+        if !testing { workout.configureHostedCoach(warmWorkout: true) }
         _onboarding = State(initialValue: OnboardingStore(preferences: preferences ?? .standard))
         #if DEBUG
         bypassOnboarding = (testing && !arguments.contains("--gymni-onboarding-testing")) || arguments.contains("--gymni-skip-onboarding") || workout.shouldAutoStartSimulatorSession

@@ -95,13 +95,13 @@ private func measuredRep(_ count: Int, duration: Double = 2500, issues: [[String
     let preferences = try #require(UserDefaults(suiteName: suite))
     defer { preferences.removePersistentDomain(forName: suite) }
     let old = WorkoutSession(defaultMode: .phone, preferences: preferences)
-    old.mode = .phone; old.hostedAPIAddress = "https://example.invalid"
+    old.mode = .phone; old.hostedAPIAddress = "https://example.invalid"  // never saved
     let main = WorkoutSession(preferences: preferences)
     main.useMainAppConfiguration()
     #expect(main.mode == .hub)
     #expect(!main.isPhone)
     #expect(main.repCount == 0 && main.snapshot == nil)
-    #expect(main.hostedAPIAddress == "https://example.invalid")
+    #expect(main.hostedAPIAddress == WorkoutSession.hostedAPI)
     #expect(WorkoutSession().mode == .hub)
     main.configureSimulatorLaunch(arguments: ["app", "--hosted-api-url", "http://127.0.0.1:18081"])
     #expect(main.hostedAPIAddress == "http://127.0.0.1:18081")

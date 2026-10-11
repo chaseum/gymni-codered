@@ -13,7 +13,7 @@ The main app defaults to **Camera device** mode on both Simulator and iPhone. Ol
 See [Pi + iPhone + Vercel setup](../docs/PI_IPHONE_VERCEL.md) for deployment and camera commands:
 
 1. Vercel deploys the root `main.py` FastAPI app with ElevenLabs, Gemini, and Backboard keys from `.env` in its environment.
-2. In Settings → Hosted coach, enter the HTTPS deployment URL and check the connection.
+2. Nothing to configure: the app is preset to the hosted coach (`https://gymni-coach.vercel.app`) and downloads its voice clips at launch.
 3. Start a workout. The app displays this iPhone's Wi-Fi address while waiting for the Pi.
 4. On the Pi, run `fitness-ml run --source live --exercise curl --post http://IPHONE_IP:8000 --session phone` with the trained model bundle installed. Use the exercise selected on iPhone.
 

@@ -29,16 +29,10 @@ struct SettingsView: View {
                     .accessibilityIdentifier("edit-training-profile")
                 }
                 .listRowBackground(GymTheme.surface)
-                Section("Hosted coach") {
-                    TextField("Vercel API URL", text: $session.hostedAPIAddress, prompt: Text("https://your-app.vercel.app").foregroundStyle(GymTheme.muted))
-                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .accessibilityIdentifier("hosted-api-url")
-                    SecureField("App access token (if required)", text: $session.token, prompt: Text("App access token (if required)").foregroundStyle(GymTheme.muted))
-                    Button("Check voice connection") { session.configureHostedCoach() }
-                        .frame(minHeight: 44)
+                Section("Coach voice") {
                     if let status = session.voiceStatus { Text(status).foregroundStyle(GymTheme.muted) }
-                    else { Label("Voice API connected", systemImage: "checkmark.circle").foregroundStyle(GymTheme.accentText) }
-                    Text("ElevenLabs supplies the voice. Gemini and Backboard run on the hosted API. Your workout measurements stay on this iPhone.")
+                    else { Label("ElevenLabs voice ready", systemImage: "checkmark.circle").foregroundStyle(GymTheme.accentText) }
+                    Text("Coach prompts are saved on this iPhone after the first download. Your workout measurements stay on this iPhone.")
                         .foregroundStyle(GymTheme.muted)
                 }
                 .listRowBackground(GymTheme.surface)

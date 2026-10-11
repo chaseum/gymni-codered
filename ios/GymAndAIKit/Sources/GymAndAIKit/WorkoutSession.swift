@@ -6,19 +6,14 @@ public final class WorkoutSession {
     public var display: WorkoutDisplay = .reps
     public var mode: WorkoutMode = .hub { didSet { saveConfiguration() } }
     public var exercise: Exercise = .curl { didSet { saveConfiguration() } }
-    public var hostedAPIAddress = "" {
-        didSet {
-            saveConfiguration()
-            voiceStatus = hostedAPIAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "Add the hosted API URL in Settings to enable ElevenLabs."
-                : "Check voice connection to enable ElevenLabs."
-        }
-    }
-    public var voiceStatus: String? = "Add the hosted API URL in Settings to enable ElevenLabs."
+    /// The hosted coach (ElevenLabs voice, Gemini, Backboard) is preset, so voice works out of the box.
+    public static let hostedAPI = "https://gymni-coach.vercel.app"
+    /// `--hosted-api-url` can point a simulator build at a local server; it is never saved.
+    public var hostedAPIAddress = WorkoutSession.hostedAPI
+    public var voiceStatus: String? = "Connecting to ElevenLabs…"
     public private(set) var workoutHistoryURL: URL?
     @ObservationIgnored private var hostedCoach: HostedCoachClient?
     @ObservationIgnored private var voiceWarmTask: Task<Void, Never>?
-    public var token = ""
     public var previewAddress = "" { didSet { saveConfiguration() } }
     public var audioEnabled = true { didSet { saveConfiguration() } }
     public var usesAppleWatch = true { didSet { saveConfiguration() } }
@@ -53,7 +48,6 @@ public final class WorkoutSession {
            let saved = try? JSONDecoder().decode(WorkoutConfiguration.self, from: data) {
             mode = saved.mode
             exercise = saved.exercise
-            hostedAPIAddress = saved.hostedAPIAddress ?? ""
             previewAddress = saved.previewAddress
             audioEnabled = saved.audioEnabled
             usesAppleWatch = saved.usesAppleWatch
@@ -93,7 +87,7 @@ public final class WorkoutSession {
 
     private func saveConfiguration() {
         guard !isRestoringConfiguration, let preferences else { return }
-        let settings = WorkoutConfiguration(mode: mode, exercise: exercise, hostedAPIAddress: hostedAPIAddress, previewAddress: previewAddress,
+        let settings = WorkoutConfiguration(mode: mode, exercise: exercise, previewAddress: previewAddress,
                                             audioEnabled: audioEnabled, usesAppleWatch: usesAppleWatch)
         if let data = try? JSONEncoder().encode(settings) {
             preferences.set(data, forKey: WorkoutConfiguration.preferencesKey)
@@ -236,10 +230,10 @@ public final class WorkoutSession {
         hostedCoach = nil
         guard let url = Self.networkURL(hostedAPIAddress),
               url.scheme == "https" || ["localhost", "127.0.0.1"].contains(url.host ?? "") else {
-            voiceStatus = "Add the hosted API URL in Settings to enable ElevenLabs."
+            voiceStatus = "ElevenLabs is unavailable. Saved clips and captions remain available."
             return
         }
-        let client = HostedCoachClient(baseURL: url, token: token.isEmpty ? nil : token)
+        let client = HostedCoachClient(baseURL: url)
         hostedCoach = client
         voiceStatus = "Connecting to ElevenLabs…"
         voiceWarmTask = Task { [weak self] in

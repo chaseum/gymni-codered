@@ -58,3 +58,4 @@ xcuserdata/
 
 # Vercel local project/account metadata
 .vercel/
+.env.local

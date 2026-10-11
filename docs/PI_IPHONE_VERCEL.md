@@ -14,7 +14,7 @@ Add these values from your local ignored `.env` to the Vercel project's environm
 
 Provider keys remain on Vercel. Do not put them in Swift, the Pi command, or an app configuration file. The hosted workout voice route always uses approved text and zero Gemini tokens; `GYMAI_REPHRASE_CUES` does not enable rephrasing on this route.
 
-In the iPhone app, open **Settings → Hosted coach**, enter the HTTPS deployment URL, and tap **Check voice connection**. If configured, enter the app access token too (this field is memory-only). The endpoint must expose `GET /api/coach/configuration` and `POST /api/coach/voice`; an older laptop session API alone is insufficient.
+The app is preset to `https://gymni-coach.vercel.app` (`WorkoutSession.hostedAPI`); nothing is entered on the phone. At launch it checks `GET /api/coach/configuration` and downloads the workout clips from `POST /api/coach/voice`, saving them on the iPhone. `vercel.json` pins the FastAPI preset so the root `main.py` is built. A simulator build can point elsewhere with `--hosted-api-url`.
 
 ## Pi camera
 

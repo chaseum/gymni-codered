@@ -5,7 +5,6 @@ struct WorkoutConfiguration: Codable {
 
     var mode: WorkoutMode
     var exercise: Exercise
-    var hostedAPIAddress: String? = nil
     var previewAddress: String
     var audioEnabled: Bool
     var usesAppleWatch: Bool

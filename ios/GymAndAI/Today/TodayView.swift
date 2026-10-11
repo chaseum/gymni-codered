@@ -6,6 +6,7 @@ struct TodayView: View {
     @Binding var showsPlan: Bool
     @State private var mascotState = MascotState.idle
     @AppStorage("companion") private var companion = CompanionKind.pip
+    @AppStorage("userName") private var name = ""
     @State private var celebration: Task<Void, Never>?
 
     var body: some View {
@@ -16,7 +17,7 @@ struct TodayView: View {
                         .font(.subheadline.weight(.semibold))
                         .textCase(.uppercase)
                         .foregroundStyle(GymTheme.muted)
-                    Text(session.history.isEmpty ? "Welcome" : "Welcome back")
+                    Text(greeting)
                         .font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
                 }
@@ -35,6 +36,16 @@ struct TodayView: View {
                 Text(weekText)
                     .font(.subheadline)
                     .foregroundStyle(GymTheme.muted)
+
+                if let coachLine {
+                    (Text("\(companion.name)  ").bold().foregroundStyle(GymTheme.accentText) + Text(coachLine))
+                        .font(.subheadline)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("today-coach-line")
+                }
 
                 Button { showsPlan = true } label: {
                     HStack(spacing: GymTheme.Space.related) {
@@ -77,6 +88,22 @@ struct TodayView: View {
             celebration?.cancel()
             mascotState = .idle
         }
+    }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        let part = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+        if !name.isEmpty { return "\(part), \(name)" }
+        return session.history.isEmpty ? "Welcome" : part
+    }
+
+    /// The last workout's note, or what changes today.
+    private var coachLine: String? {
+        if let note = session.history.first?.note { return note }
+        let kept = session.nextAdjustments.filter { !session.adjustmentsOff.contains($0.exercise) }
+        guard let first = kept.first else { return nil }
+        let weight = first.load.map { " · \(TrainingLoad.text($0, imperial: session.usesImperial))" } ?? ""
+        return "\(first.exercise.title): \(first.title.lowercased())\(weight)"
     }
 
     private var weekProgress: Double {

@@ -14,7 +14,7 @@ flowchart LR
 
 1. Enable Personal Hotspot on the paired iPhone.
 2. Power the tripod from its own supply and position the USB camera.
-3. Open Gym&I and start a workout. Allow Local Network access when iOS asks.
+3. Open Gym&I and start a workout. Allow Local Network access when iOS asks. Tap the camera button to view the tripod's live picture; Show Reps returns to the workout.
 4. The Pi joins the saved hotspot, discovers the phone, and follows its current exercise/set. Preview connects automatically.
 
 No IP address or website entry is required. Wi-Fi credentials are saved once during pairing. Keep Gym&I open during an active workout: iOS can suspend the local server in the background, and the app pauses workouts when backgrounded. The phone camera remains free.
@@ -43,7 +43,7 @@ journalctl -u gymni-tripod -n 50 --no-pager
 sudo systemctl restart gymni-tripod
 ```
 
-Capture is 640×480; inference resizes to 480 pixels wide and is capped at 8 FPS. Actual speed and accuracy depend on framing, visibility, movement, and model quality. A real exercise trial remains required.
+Capture is 640×480; inference resizes to 480 pixels wide and is capped at 8 FPS. The phone receives clean camera frames without the desktop debug panel or skeleton. Its full-screen preview crops to fill the display; analysis still uses the whole camera frame. Actual speed and accuracy depend on framing, visibility, movement, and model quality. A real exercise trial remains required.
 
 ## Connection and data behavior
 

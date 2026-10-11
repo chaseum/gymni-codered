@@ -8,12 +8,13 @@ struct CameraWorkoutView: View {
     let toggleAudio: () -> Void
 
     var body: some View {
-        ZStack {
-            GymTheme.background.ignoresSafeArea()
-            PiCameraPreview(url: session.previewURL)
-                .ignoresSafeArea()
-            overlay
-        }
+        overlay
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background {
+                PiCameraPreview(url: session.previewURL)
+                    .ignoresSafeArea()
+            }
+            .background(GymTheme.background.ignoresSafeArea())
     }
 
     private var overlay: some View {
@@ -78,10 +79,13 @@ struct PiCameraPreview: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             if url != nil, let image = stream.image, let frameDate = stream.frameDate, context.date.timeIntervalSince(frameDate) < 3 {
-                Image(image, scale: 1, label: Text("Live Pi camera"))
-                    .resizable().scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityIdentifier("pi-camera-frame")
+                GeometryReader { geometry in
+                    Image(image, scale: 1, label: Text("Live Pi camera"))
+                        .resizable().scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .accessibilityIdentifier("pi-camera-frame")
+                }
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "video").font(.title2)

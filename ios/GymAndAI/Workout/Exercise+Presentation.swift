@@ -19,8 +19,8 @@ extension Exercise {
 }
 
 extension WorkoutPlan.Item {
-    /// "3 × 8"
-    var prescription: String { "\(sets) × \(reps)" }
+    /// "8–12", or "5" for a fixed count.
+    var rangeText: String { range.count > 1 ? "\(range.lowerBound)–\(range.upperBound)" : "\(reps)" }
 }
 
 extension WorkoutPlan.Step {

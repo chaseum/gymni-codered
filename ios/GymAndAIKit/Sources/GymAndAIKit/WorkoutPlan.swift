@@ -16,8 +16,10 @@ public struct WorkoutPlan: Equatable, Sendable {
         public let restSeconds: Int
         /// Bottom of the rep range; nil means a fixed rep count.
         public var low: Int? = nil
-        /// A change carried over from the last workout ("Add weight", "Form focus: …").
+        /// A change carried over from the last workout ("Add weight", "Form first").
         public var note: String? = nil
+        /// Working weight in kg (last used, or the suggested change); nil until the person logs one.
+        public var weight: Double? = nil
         public var id: Exercise { exercise }
         public var range: ClosedRange<Int> { min(low ?? reps, reps)...reps }
     }
@@ -49,12 +51,13 @@ public struct WorkoutPlan: Equatable, Sendable {
     }
 
     public static func make(for profile: TrainingProfile?, history: [CompletedWorkout] = [],
-                            adjustments: [PlanAdjustment] = []) -> WorkoutPlan {
-        make(focus: profile?.focus ?? .fitness, answers: profile?.answers ?? [:], history: history, adjustments: adjustments)
+                            adjustments: [PlanAdjustment] = [], loads: [Exercise: Double] = [:]) -> WorkoutPlan {
+        make(focus: profile?.focus ?? .fitness, answers: profile?.answers ?? [:], history: history,
+             adjustments: adjustments, loads: loads)
     }
 
     public static func make(focus: TrainingFocus, answers: [String: String], history: [CompletedWorkout] = [],
-                            adjustments: [PlanAdjustment] = []) -> WorkoutPlan {
+                            adjustments: [PlanAdjustment] = [], loads: [Exercise: Double] = [:]) -> WorkoutPlan {
         let squatDay = history.count.isMultiple(of: 2)  // A/B alternation: squat day, then deadlift day
         var title: String
         var items: [Item]
@@ -99,6 +102,8 @@ public struct WorkoutPlan: Equatable, Sendable {
                                                        restSeconds: min($0.restSeconds, 120), low: $0.low) }
         }
         items = items.map { item in
+            var item = item
+            item.weight = loads[item.exercise]
             guard let change = adjustments.first(where: { $0.exercise == item.exercise }) else { return item }
             return change.applied(to: item)
         }
@@ -115,11 +120,18 @@ public struct ExerciseResult: Codable, Equatable, Sendable, Identifiable {
     public let high: Int
     /// Coaching cue → how many times it was given.
     public var corrections: [String: Int]
+    /// Weight per set in kg, parallel to `reps` (nil where none was logged; absent in older workouts).
+    public var weights: [Double?]?
     public var id: Exercise { exercise }
 
-    public init(exercise: Exercise, reps: [Int], low: Int, high: Int, corrections: [String: Int] = [:]) {
-        self.exercise = exercise; self.reps = reps; self.low = low; self.high = high; self.corrections = corrections
+    public init(exercise: Exercise, reps: [Int], low: Int, high: Int, corrections: [String: Int] = [:],
+                weights: [Double?]? = nil) {
+        self.exercise = exercise; self.reps = reps; self.low = low; self.high = high
+        self.corrections = corrections; self.weights = weights
     }
+
+    /// The weight of the last set that had one.
+    public var lastWeight: Double? { weights?.compactMap { $0 }.last }
 
     public var topCorrection: (cue: String, count: Int)? {
         corrections.max { $0.value < $1.value || ($0.value == $1.value && $0.key > $1.key) }.map { ($0.key, $0.value) }
@@ -138,4 +150,10 @@ public struct CompletedWorkout: Codable, Equatable, Sendable, Identifiable {
     /// The coach's written note about this workout.
     public var note: String? = nil
     public var id: Date { date }
+
+    public init(date: Date, title: String, sets: Int, reps: Int, durationSeconds: Int,
+                results: [ExerciseResult]? = nil, note: String? = nil) {
+        self.date = date; self.title = title; self.sets = sets; self.reps = reps
+        self.durationSeconds = durationSeconds; self.results = results; self.note = note
+    }
 }

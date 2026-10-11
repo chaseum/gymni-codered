@@ -1,19 +1,21 @@
 import SwiftUI
 import GymAndAIKit
 
-/// Welcome → About You → questions → your companion → Heart Rate → Camera.
+/// Welcome → name → About You → questions → your companion → Heart Rate → Camera.
 /// Each permission page's Continue shows the system prompt; Not Now moves on.
 struct OnboardingFlowView: View {
     @Bindable var store: OnboardingStore
     var isEditing = false
     let onComplete: () -> Void
     @AppStorage("companion") private var companion = CompanionKind.pip
+    @AppStorage("userName") private var name = ""
+    @FocusState private var nameFocused: Bool
     @FocusState private var fieldFocused: OnboardingMetric?
     @State private var phase: Phase
     @State private var savingError = false
     private let questions = OnboardingQuestion.allCases
 
-    enum Phase { case welcome, profile, heartRate, camera }
+    enum Phase { case welcome, name, profile, heartRate, camera }
 
     init(store: OnboardingStore, isEditing: Bool = false, onComplete: @escaping () -> Void) {
         self.store = store
@@ -26,12 +28,32 @@ struct OnboardingFlowView: View {
         Group {
             switch phase {
             case .welcome:
-                page(button: "Get Started", action: { phase = .profile }) {
+                page(button: "Get Started", action: { phase = .name }) {
                     CompanionStage(state: .celebrate).frame(maxWidth: 300)
                     Text("Gym&I").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                     Text("A training companion that counts every rep and helps your form.")
                         .multilineTextAlignment(.center).foregroundStyle(GymTheme.muted)
                 }
+            case .name:
+                page(button: "Continue", action: { name = name.trimmingCharacters(in: .whitespaces); phase = .profile },
+                     skip: { name = ""; phase = .profile }) {
+                    CompanionStage(state: .idle).frame(width: 170, height: 170)
+                    Text("What should I call you?").font(.largeTitle.bold())
+                        .multilineTextAlignment(.center).accessibilityAddTraits(.isHeader)
+                    TextField("First name", text: $name)
+                        .font(.title2)
+                        .multilineTextAlignment(.center)
+                        .textContentType(.givenName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .submitLabel(.continue)
+                        .focused($nameFocused)
+                        .onSubmit { phase = .profile }
+                        .padding(GymTheme.Space.inset)
+                        .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.radius))
+                        .accessibilityIdentifier("onboarding-name")
+                }
+                .onAppear { nameFocused = true }
             case .profile:
                 profile
             case .heartRate:
@@ -204,7 +226,7 @@ struct OnboardingFlowView: View {
 
     private func back() {
         fieldFocused = nil
-        if store.draft.step == 0 { phase = .welcome } else { store.draft.step -= 1 }
+        if store.draft.step == 0 { phase = .name } else { store.draft.step -= 1 }
     }
 
     private func advance() {

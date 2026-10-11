@@ -8,6 +8,9 @@ final class OnboardingTests: XCTestCase {
         XCTAssertTrue(app.buttons["Get Started"].waitForExistence(timeout: 5))
         capture(app, "Onboarding welcome")
         app.buttons["Get Started"].tap()
+        XCTAssertTrue(app.textFields["onboarding-name"].waitForExistence(timeout: 5))
+        app.textFields["onboarding-name"].typeText("Sam")
+        app.buttons["onboarding-continue"].tap()
         XCTAssertTrue(app.staticTexts["About You"].waitForExistence(timeout: 5))
         capture(app, "Onboarding measurements")
         app.textFields["onboarding-weight"].tap()
@@ -61,6 +64,7 @@ final class OnboardingTests: XCTestCase {
         app.launchArguments = ["--gymni-ui-testing", "--gymni-onboarding-testing", "--gymni-preferences-suite", "onboard-large-\(UUID().uuidString)", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL", "-PipReduceMotion"]
         app.launchPastIntro()
         app.buttons["Get Started"].tap()
+        app.buttons["Not Now"].tap()  // skip the name
         XCTAssertTrue(app.buttons["onboarding-continue"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["onboarding-continue"].isHittable)
         capture(app, "Onboarding large text measurements")

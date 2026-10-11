@@ -13,7 +13,10 @@ extension WorkoutSession {
         }
         if let feedback = store.lastFeedback,
            feedback.setId == snapshot?.setId,
-           snapshot?.activeIssues.contains(feedback.issueCode) == true { return feedback.text }
+           snapshot?.activeIssues.contains(feedback.issueCode) == true {
+            let given = results.first { $0.exercise == snapshot?.exercise }?.corrections[feedback.text] ?? 0
+            return given >= 2 ? "Again: \(feedback.text)" : feedback.text  // it keeps coming up; say so
+        }
         if let cue = store.lastCoachingCue, cue.isCurrent(in: snapshot) { return cue.text }
         return "Nice and steady."
     }

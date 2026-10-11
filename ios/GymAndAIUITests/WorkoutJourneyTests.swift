@@ -11,7 +11,7 @@ final class WorkoutJourneyTests: XCTestCase {
         capture(app, name: "Today")
         app.buttons["open-plan"].tap()
         XCTAssertTrue(app.staticTexts["Full Body"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["3 sets × 12 reps"].exists)
+        XCTAssertTrue(app.staticTexts["3 sets × 10–12 reps"].exists)
         capture(app, name: "Plan")
         app.buttons["Done"].tap()
 

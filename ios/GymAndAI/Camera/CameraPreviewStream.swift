@@ -15,9 +15,6 @@ final class CameraPreviewStream {
         image = nil
         frameDate = nil
         status = "Connecting to camera…"
-        #if DEBUG
-        UserDefaults.standard.set("Connecting to \(url.host ?? "unknown")", forKey: "gymni.previewDiagnostic")
-        #endif
         while !Task.isCancelled {
             var failed = false
             do {
@@ -37,10 +34,6 @@ final class CameraPreviewStream {
                 failed = true
                 status = "Couldn’t reach the Pi camera"
                 logger.error("Preview connection to \(url.absoluteString, privacy: .private) failed: \(error.localizedDescription, privacy: .public)")
-                #if DEBUG
-                print("Pi camera connection failed for \(url.host ?? "unknown"): \(error)")
-                UserDefaults.standard.set("\(url.host ?? "unknown"): \((error as NSError).code) \(error.localizedDescription)", forKey: "gymni.previewDiagnostic")
-                #endif
             }
             guard !Task.isCancelled else { return }
             if !failed { status = "Reconnecting to Pi camera…" }

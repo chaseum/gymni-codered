@@ -63,7 +63,11 @@ struct AppRootView: View {
         .onAppear {
             if reduceMotion { showsIntro = false }
         }
-        .onChange(of: onboarding.profile, initial: true) { session.usePlan(WorkoutPlan.make(for: onboarding.profile)) }
+        .onChange(of: onboarding.profile, initial: true) { session.usePlan(for: onboarding.profile) }
+        .onChange(of: onboarding.usesImperial, initial: true) {
+            session.usesImperial = onboarding.usesImperial
+            session.usePlan(for: onboarding.profile)
+        }
         .task {
             guard session.consumeSimulatorAutoStartRequest() else { return }
             await session.start()

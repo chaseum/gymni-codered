@@ -29,7 +29,11 @@ struct PlanView: View {
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.exercise.title).font(.headline)
-                                Text("\(item.sets) sets × \(item.reps) reps").foregroundStyle(GymTheme.muted)
+                                Text(item.weight.map { "\(item.sets) × \(item.rangeText) · \(TrainingLoad.text($0, imperial: session.usesImperial))" }
+                                     ?? "\(item.sets) sets × \(item.rangeText) reps").foregroundStyle(GymTheme.muted)
+                                if let note = item.note {
+                                    Text(note).font(.subheadline.bold()).foregroundStyle(GymTheme.accentText)
+                                }
                             }
                             Spacer()
                             Text(Duration.seconds(item.restSeconds).formatted(.units(allowed: [.minutes, .seconds], width: .narrow)))
@@ -42,6 +46,8 @@ struct PlanView: View {
                     }
                 } header: {
                     HStack { Text("Exercise"); Spacer(); Text("Rest") }
+                } footer: {
+                    Text("Rep ranges and rest follow ACSM guidance for your goal. When every set reaches the top of the range, add weight.")
                 }
                 .listRowBackground(GymTheme.surface)
             }

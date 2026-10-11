@@ -4,7 +4,7 @@ import Testing
 @testable import GymAndAIKit
 
 /// The JSON fitness-ml POSTs (extra fields included, as on the wire).
-private func observationJSON(_ id: String, rep: Int? = nil, exercise: String = "curl", tracking: String = "ready",
+func observationJSON(_ id: String, rep: Int? = nil, exercise: String = "curl", tracking: String = "ready",
                              issues: [String] = []) -> Data {
     let body: [String: Any] = [
         "schema_version": 1, "observation_id": id, "session_id": "phone", "source": "live",

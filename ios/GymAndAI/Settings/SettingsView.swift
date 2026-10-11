@@ -7,11 +7,18 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @AppStorage("companion") private var companion = CompanionKind.pip
+    @AppStorage("userName") private var name = ""
     @State private var showsProfileEditor = false
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Name") {
+                    TextField("First name", text: $name)
+                        .textContentType(.givenName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                }
                 Section("Companion") {
                     Picker("Companion", selection: $companion) {
                         ForEach(CompanionKind.allCases) { Text($0.name).tag($0) }

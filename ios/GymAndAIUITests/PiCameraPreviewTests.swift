@@ -4,7 +4,7 @@ import UIKit
 
 final class PiCameraPreviewTests: XCTestCase {
     @MainActor
-    func testLivePreviewExpandsAndReconnectsAfterStreamCloses() throws {
+    func testLivePreviewOpensAndReconnectsAfterStreamCloses() throws {
         // A JPEG transport fixture, not model observations or simulated rep counts.
         let jpeg = try XCTUnwrap(UIGraphicsImageRenderer(size: CGSize(width: 64, height: 48)).image { context in
             UIColor.cyan.setFill()
@@ -21,16 +21,17 @@ final class PiCameraPreviewTests: XCTestCase {
                                "--preview-url", "http://127.0.0.1:\(port)"]
         app.launch()
         defer { app.terminate() }
-        let preview = app.buttons["open-pi-camera"]
-        XCTAssertTrue(preview.waitForExistence(timeout: 10), app.debugDescription)
-        let reconnected = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in fixture.requests >= 2 }, object: nil)
-        wait(for: [reconnected], timeout: 10)
-        preview.tap()
+        let camera = app.buttons["show-camera"]
+        XCTAssertTrue(camera.waitForExistence(timeout: 10), app.debugDescription)
+        camera.tap()
         let back = app.buttons["camera-back-to-reps"]
         XCTAssertTrue(back.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(app.images["pi-camera-frame"].waitForExistence(timeout: 10), app.debugDescription)
+        let reconnected = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in fixture.requests >= 2 }, object: nil)
+        wait(for: [reconnected], timeout: 10)
+        XCTAssertTrue(app.images["pi-camera-frame"].waitForExistence(timeout: 10), app.debugDescription)
         back.tap()
-        XCTAssertTrue(preview.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(camera.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(app.buttons["Pause"].exists)
     }
 }
@@ -45,7 +46,11 @@ private final class PreviewFixture: @unchecked Sendable {
 
     init(jpeg: Data) throws {
         listener = try NWListener(using: .tcp, on: .any)
-        response = Data("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\nConnection: close\r\n\r\n--frame\r\nContent-Type: image/jpeg\r\nContent-Length: \(jpeg.count)\r\n\r\n".utf8) + jpeg + Data("\r\n--frame--\r\n".utf8)
+        let part = Data("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: \(jpeg.count)\r\n\r\n".utf8) + jpeg + Data("\r\n".utf8)
+        var stream = Data("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\nConnection: close\r\n\r\n".utf8)
+        for _ in 0..<20 { stream.append(part) }
+        stream.append(Data("--frame--\r\n".utf8))
+        response = stream
     }
 
     func start(ready: @escaping @Sendable () -> Void) {

@@ -151,11 +151,10 @@ class Runner:
                 self._emit(step)
                 if self.args.realtime and source.source == "recorded":
                     time.sleep(max(0.0, frame.timestamp_ms / 1000 - (now - wall_start)))
-                if self.window or self.preview:
-                    image = self._overlay(step, fps, paused=False)
-                    if self.preview:
-                        self.preview.publish(image)
+                if self.preview:
+                    self.preview.publish(frame.image)
                 if self.window:
+                    image = self._overlay(step, fps, paused=False)
                     action = self._key_action(self._show(image))
                     if action == "pause":
                         action = self._wait_while_paused(step, fps)
@@ -357,7 +356,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--form-model", help="form artifact dir for --exercise (default: newest per exercise in ml/models)")
     run.add_argument("--no-models", action="store_true", help="rules only: no recognizer, no form models")
     run.add_argument("--no-window", action="store_true")
-    run.add_argument("--preview-port", type=int, help="serve the annotated camera as MJPEG on this port (phone preview)")
+    run.add_argument("--preview-port", type=int, help="serve the clean camera as MJPEG on this port (phone preview)")
     run.add_argument("--realtime", action="store_true", help="pace recorded video at its own speed")
     run.add_argument("--loop", action="store_true", help="replay recorded video when it ends")
     run.add_argument("--max-frames", type=int)

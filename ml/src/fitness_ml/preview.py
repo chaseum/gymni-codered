@@ -1,4 +1,4 @@
-"""MJPEG feed of the annotated camera frames, so the phone can show what the laptop camera sees."""
+"""MJPEG feed of clean camera frames for the phone's live preview."""
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 

@@ -1,4 +1,4 @@
-public enum WorkoutMode: String, CaseIterable, Sendable, Identifiable {
+public enum WorkoutMode: String, Codable, CaseIterable, Sendable, Identifiable {
     case demo = "Demo"
     case phone = "iPhone"
     case backend = "Laptop"

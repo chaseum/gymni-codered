@@ -6,6 +6,9 @@ struct WorkoutFlowView: View {
     let watch: WatchConnectionController
     @State private var camera = PhoneCameraController()
     @State private var audio = CoachAudioPlayer()
+    @State private var audioRequest: Task<Void, Never>?
+    @State private var speakingFeedbackID: String?
+    @State private var speakingCoachingCue: CoachingCue?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -43,9 +46,16 @@ struct WorkoutFlowView: View {
         .background(WorkoutOrientationView(landscape: showsCamera).frame(width: 0, height: 0))
         .interactiveDismissDisabled()
         .onChange(of: session.snapshot?.state, initial: true, stateChanged)
-        .onChange(of: session.store.lastFeedback?.feedbackId, feedbackChanged)
+        .onChange(of: session.store.lastFeedback?.utteranceId ?? session.store.lastFeedback?.feedbackId, feedbackChanged)
+        .onChange(of: session.store.lastCoachingCue?.cueId, coachingCueChanged)
+        .onChange(of: session.snapshot?.repCount) {
+            if let cue = speakingCoachingCue, !cue.isCurrent(in: session.snapshot) { stopAudio() }
+        }
         .onChange(of: session.snapshot?.activeIssues, issuesChanged)
         .onChange(of: session.snapshot?.trackingStatus, trackingChanged)
+        .onChange(of: session.audioEnabled) {
+            if !session.audioEnabled { stopAudio() }
+        }
         .sensoryFeedback(.selection, trigger: session.display)
         .sensoryFeedback(.impact(weight: .light), trigger: session.snapshot?.state)
         .task(id: cameraShouldRun) {
@@ -61,13 +71,13 @@ struct WorkoutFlowView: View {
             UIApplication.shared.isIdleTimerDisabled = false
             let finalState = WorkoutLiveActivity.state(for: session)
             Task { await WorkoutLiveActivity.end(finalState) }
-            audio.stop()
+            stopAudio()
             camera.stop()
             watch.stop()
         }
         .onChange(of: scenePhase) {
             if scenePhase != .active {
-                audio.stop()
+                stopAudio()
                 if scenePhase == .background, session.isPhone, session.snapshot?.state == .active || session.snapshot?.state == .ready {
                     Task { await session.pause() }
                 }
@@ -89,29 +99,65 @@ struct WorkoutFlowView: View {
 
     private func toggleAudio() {
         session.audioEnabled.toggle()
-        if !session.audioEnabled { audio.stop() }
+        if !session.audioEnabled { stopAudio() }
     }
 
     private func stateChanged() {
-        audio.stop()
+        stopAudio()
         guard session.audioEnabled else { return }
         switch session.snapshot?.state {
-        case .paused: audio.speak("Paused. Take the time you need.")
-        case .complete: audio.speak("Workout ended. Here is your recap.")
+        case .paused: speakCoach(.paused)
+        case .complete: speakCoach(.ended)
         case .active:
             if session.isPhone { audio.speak("Camera ready. Begin when you’re ready.") }
             else if session.isDemo { audio.speak("The simulated set is starting.") }
-            else if session.snapshot?.trackingStatus == .ready { audio.speak("Let’s begin. I’ll count your reps.") }
-            else { audio.speak("Step into view so I can follow your movement.") }
-        default: audio.speak(session.isDemo ? "Demo workout. Step into view." : session.isPhone ? "Position your phone so you can see your movement." : "Waiting for camera tracking.")
+            else if session.snapshot?.trackingStatus == .ready { speakCoach(.begin) }
+            else { speakCoach(.positioning) }
+        default:
+            if session.isDemo { audio.speak("Demo workout. Step into view.") }
+            else if session.isPhone { audio.speak("Position your phone so you can see your movement.") }
+            else { speakCoach(.waiting) }
+        }
+    }
+
+    private func stopAudio() {
+        audioRequest?.cancel()
+        audioRequest = nil
+        speakingFeedbackID = nil
+        speakingCoachingCue = nil
+        audio.stop()
+    }
+
+    private func speakCoach(_ cue: CoachVoiceCue) {
+        stopAudio()
+        guard session.audioEnabled, scenePhase == .active else { return }
+        guard !session.isDemo, !session.isPhone else {
+            audio.speak(cue.text)
+            return
+        }
+        let store = session.store
+        audioRequest = Task {
+            defer { if !Task.isCancelled { audioRequest = nil } }
+            do {
+                let data = try await store.fetchCoachAudio(cue: cue)
+                guard !Task.isCancelled, session.audioEnabled, scenePhase == .active else { return }
+                if !audio.play(data) { audio.speak(cue.text) }
+            } catch {
+                guard !Task.isCancelled, session.audioEnabled, scenePhase == .active else { return }
+                audio.speak(cue.text)
+            }
         }
     }
 
     private func feedbackChanged() {
         guard session.audioEnabled, session.snapshot?.state == .active,
+              session.snapshot?.trackingStatus == .ready,
               let feedback = session.store.lastFeedback,
               feedback.setId == session.snapshot?.setId,
               session.snapshot?.activeIssues.contains(feedback.issueCode) == true else { return }
+
+        stopAudio()
+        speakingFeedbackID = feedback.feedbackId
 
         guard let cueID = feedback.cueId else {
             audio.speak(feedback.text)
@@ -119,7 +165,8 @@ struct WorkoutFlowView: View {
         }
 
         let store = session.store
-        Task {
+        audioRequest = Task {
+            defer { if !Task.isCancelled { audioRequest = nil } }
             do {
                 let audioData = try await store.fetchCueAudio(cueID: cueID)
                 guard feedbackIsStillActive(feedback) else { return }
@@ -132,13 +179,42 @@ struct WorkoutFlowView: View {
     }
 
     private func feedbackIsStillActive(_ feedback: FeedbackIssued) -> Bool {
-        session.audioEnabled && session.snapshot?.state == .active &&
+        !Task.isCancelled && scenePhase == .active && session.audioEnabled && session.snapshot?.state == .active &&
+            session.snapshot?.trackingStatus == .ready &&
             session.store.lastFeedback?.feedbackId == feedback.feedbackId &&
+            session.store.lastFeedback?.utteranceId == feedback.utteranceId &&
             session.snapshot?.setId == feedback.setId &&
             session.snapshot?.activeIssues.contains(feedback.issueCode) == true
     }
 
+    private func coachingCueChanged() {
+        guard session.audioEnabled, scenePhase == .active, !audio.isSpeaking, audioRequest == nil,
+              let cue = session.store.lastCoachingCue, cue.isCurrent(in: session.snapshot) else { return }
+        speakingCoachingCue = cue
+        let store = session.store
+        audioRequest = Task {
+            defer { if !Task.isCancelled { audioRequest = nil } }
+            do {
+                let data = try await store.fetchCoachingAudio(cue: cue)
+                guard coachingCueIsCurrent(cue) else { return }
+                if !audio.play(data) { audio.speak(cue.text) }
+            } catch {
+                guard coachingCueIsCurrent(cue) else { return }
+                audio.speak(cue.text)
+            }
+        }
+    }
+
+    private func coachingCueIsCurrent(_ cue: CoachingCue) -> Bool {
+        !Task.isCancelled && session.audioEnabled && scenePhase == .active &&
+            session.store.lastCoachingCue?.cueId == cue.cueId && cue.isCurrent(in: session.snapshot)
+    }
+
     private func issuesChanged(_ previous: [String]?, _ current: [String]?) {
+        if let feedback = session.store.lastFeedback, speakingFeedbackID == feedback.feedbackId,
+           current?.contains(feedback.issueCode) != true {
+            stopAudio()
+        }
         guard session.isDemo, session.audioEnabled, session.snapshot?.state == .active,
               previous?.isEmpty == false, current?.isEmpty == true else { return }
         audio.speak("That is steadier now. Nice work.")
@@ -146,6 +222,9 @@ struct WorkoutFlowView: View {
 
     private func trackingChanged() {
         guard !session.isDemo, !session.isPhone, session.audioEnabled, session.snapshot?.state == .active else { return }
-        audio.speak(session.snapshot?.trackingStatus == .ready ? "Tracking ready. I’m following your reps." : "Tracking interrupted. Adjust your position.")
+        // Do not interrupt a correction with the initial tracking-ready announcement.
+        if session.snapshot?.trackingStatus == .ready, speakingFeedbackID != nil,
+           audio.isSpeaking || audioRequest != nil { return }
+        speakCoach(session.snapshot?.trackingStatus == .ready ? .trackingReady : .trackingLost)
     }
 }

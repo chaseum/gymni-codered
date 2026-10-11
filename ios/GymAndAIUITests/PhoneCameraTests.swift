@@ -4,6 +4,7 @@ final class PhoneCameraTests: XCTestCase {
     @MainActor
     func testSimulatorDoesNotFakePhoneVideoOrRepCounts() {
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         app.buttons["Settings"].tap()
         app.segmentedControls.buttons["iPhone"].tap()

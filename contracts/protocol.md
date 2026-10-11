@@ -61,6 +61,26 @@ Observations while the session is not `active` are accepted and ignored (their `
 
 `WS /ws/workout?session_id=…[&token=…]`; also `GET /api/sessions/{id}/events?after=N` (debug/catch-up) and `GET /api/sessions/{id}` (snapshot).
 
+Additive v1 event `coach.cue`: `{cue_id, kind, text, set_id, rep_count}`, where
+`kind` is `count`, `pace_fast`, or `pace_slow`. The backend selects it only from
+a trusted committed rep. Counts are exact; pace is relative to opening reps,
+not a prescribed tempo. It does not add a form issue or change workout state.
+Older clients ignore this event. Clients must discard pending playback when
+the set/rep/state/tracking changes or a form correction takes priority.
+`GET /api/sessions/{id}/coaching/{cue_id}/audio` returns a cached/generated
+ElevenLabs MP3 (409 if stale). Clients cannot supply arbitrary text.
+`feedback.issued` also permits optional `utterance_id`, distinguishing spaced
+reminders of the same still-active `feedback_id`; acknowledging/resolving still
+uses `feedback_id`.
+
+`GET /api/sessions/{id}/workout` exposes the saved local JSON journal. A set has
+target/actual reps, epoch start/end, active elapsed milliseconds excluding
+pauses, and a sum of known rep durations. Each accepted rep retains its source
+timestamp/time base, duration, measurements, issues, and inference provenance.
+Unknown timing stays null; epoch and source clocks are never subtracted from
+one another. Journal files under ignored `demo/workouts/` survive restart;
+live session control remains in memory.
+
 ```json
 {"schema_version": 1, "event_id": 42, "session_id": "session-001", "timestamp_ms": 1791640800000, "type": "rep.completed", "payload": {}}
 ```

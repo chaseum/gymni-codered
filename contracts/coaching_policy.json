@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "baseline_reps": 3,
+  "fast_ratio": 0.7,
+  "slow_ratio": 1.4,
+  "consecutive_pace_reps": 2,
+  "cue_cooldown_ms": 6000,
+  "pace_fast": "Faster than your opening reps. Keep control.",
+  "pace_slow": "Your pace is slowing. Reset if needed.",
+  "count_first": "One. You're underway.",
+  "count_halfway": "{count} reps. Halfway there.",
+  "count_near_target": "{count} reps. Two to your target.",
+  "count_target": "{count} reps. Target reached. Rest when you're ready.",
+  "count_open": "{count} reps. Keep going at your own pace."
+}

@@ -23,6 +23,7 @@ extension WorkoutSession {
            feedback.setId == snapshot?.setId,
            snapshot?.activeIssues.contains(feedback.issueCode) == true { return feedback.text }
         if isDemo, repCount >= 5, exercise == .curl { return "That is steadier now. Nice work." }
+        if let cue = store.lastCoachingCue, cue.isCurrent(in: snapshot) { return cue.text }
         return isDemo ? "Follow the simulated set at your own pace." : "Keep moving. I’m following your reps."
     }
 }

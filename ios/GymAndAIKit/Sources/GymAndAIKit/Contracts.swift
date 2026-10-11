@@ -69,6 +69,7 @@ public struct CoachPayload: Codable, Sendable { public var coach: CoachState }
 public struct FeedbackIssued: Codable, Sendable {
     public var feedbackId: String; public var issueCode: String; public var cueId: String?
     public var text: String; public var setId: String; public var repCount: Int
+    public var utteranceId: String? = nil
 }
 public struct FeedbackImproved: Codable, Sendable {
     public var feedbackId: String; public var issueCode: String; public var setId: String; public var repCount: Int
@@ -84,6 +85,7 @@ public struct DeviceStatus: Codable, Sendable { public var device: String; publi
 public enum EventPayload: Sendable {
     case snapshot(Snapshot), sessionState(SessionStatePayload), exerciseChanged(ExerciseChanged)
     case tracking(TrackingPayload), repCompleted(RepCompleted), coach(CoachPayload)
+    case coachingCue(CoachingCue)
     case feedbackIssued(FeedbackIssued), feedbackImproved(FeedbackImproved), heartRate(HeartRateView)
     case userFeedbackAcknowledged(UserFeedbackAck), rest(RestView), setCompleted(SetCompleted)
     case prAchieved(PRAchieved), deviceStatus(DeviceStatus)
@@ -124,6 +126,7 @@ public struct WorkoutEvent: Decodable, Sendable {
         case "tracking.status": payload = .tracking(try p(TrackingPayload.self))
         case "rep.completed": payload = .repCompleted(try p(RepCompleted.self))
         case "coach.state": payload = .coach(try p(CoachPayload.self))
+        case "coach.cue": payload = .coachingCue(try p(CoachingCue.self))
         case "feedback.issued": payload = .feedbackIssued(try p(FeedbackIssued.self))
         case "feedback.improved": payload = .feedbackImproved(try p(FeedbackImproved.self))
         case "heart_rate.updated": payload = .heartRate(try p(HeartRateView.self))

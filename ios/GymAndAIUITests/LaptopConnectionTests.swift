@@ -2,6 +2,87 @@ import XCTest
 
 final class LaptopConnectionTests: XCTestCase {
     @MainActor
+    func testMeasuredRepCuesAndFormPriority() async throws {
+        let baseURL = try XCTUnwrap(URL(string: "http://127.0.0.1:18081"))
+        var health = URLRequest(url: baseURL.appending(path: "health"))
+        health.timeoutInterval = 1
+        let available = try? await URLSession.shared.data(for: health)
+        try XCTSkipUnless((available?.1 as? HTTPURLResponse)?.statusCode == 200, "Run a verification backend on port 18081.")
+        let sessionID = "coaching-fixture-\(UUID().uuidString)"
+        _ = try await post(baseURL.appending(path: "api/sessions"), body: ["session_id": sessionID])
+        _ = try await post(baseURL.appending(path: "api/sessions/\(sessionID)/commands"), body: [
+            "session_id": sessionID, "command_id": UUID().uuidString, "intent": "start",
+            "args": ["exercise": "curl", "source": "recorded", "target_reps": 8]
+        ])
+        let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing", "--gymni-laptop", "--backend-url", baseURL.absoluteString,
+                               "--session-id", sessionID, "--exercise", "curl"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Laptop · Recorded input"].waitForExistence(timeout: 10))
+
+        for n in 1...5 {
+            if n == 4 { try await Task.sleep(for: .seconds(6.1)) } // actual backend speech cooldown
+            let observation: [String: Any] = [
+                "schema_version": 1, "session_id": sessionID, "observation_id": UUID().uuidString,
+                "source": "recorded", "clip_id": "coaching-fixture", "time_base": "video_pts",
+                "source_timestamp_ms": n * 2500, "exercise": "curl", "tracking_status": "ready",
+                "phase": "lowered", "completed_rep": ["rep_index": n, "duration_ms": 2500],
+                "measurement_basis": "image_2d", "measurements": [:], "inference_provenance": "fixture",
+                "issues": n == 5 ? [["code": "curl.partial_range", "evidence": ["min_elbow_angle_deg": 100]]] : []
+            ]
+            _ = try await post(baseURL.appending(path: "api/sessions/\(sessionID)/observations"), body: observation)
+            if n == 4 {
+                XCTAssertTrue(app.staticTexts["4 reps. Halfway there."].waitForExistence(timeout: 5))
+                capture(app, name: "Measured rep milestone caption")
+            }
+        }
+        XCTAssertTrue(app.staticTexts["Curl a little higher, keeping the movement controlled."].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["4 reps. Halfway there."].exists)
+        app.buttons["Pause"].tap()
+        XCTAssertTrue(app.staticTexts["Take a breath."].waitForExistence(timeout: 5))
+        let (_, response) = try await URLSession.shared.data(from: baseURL.appending(path: "api/sessions/\(sessionID)/coaching/coach-set-001-4/audio"))
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 409)
+    }
+
+    @MainActor
+    func testLaptopSetupSurvivesRelaunchWithoutScriptArguments() async throws {
+        let baseURL = try XCTUnwrap(URL(string: "http://127.0.0.1:18080"))
+        let (health, response) = try await URLSession.shared.data(from: baseURL.appending(path: "health"))
+        try XCTSkipUnless((response as? HTTPURLResponse)?.statusCode == 200, "Run a verification backend on port 18080.")
+        let metadata = try JSONSerialization.jsonObject(with: health) as? [String: Any]
+        try XCTSkipUnless(metadata?["schema_version"] as? Int == 1)
+        let sessionID = "relaunch-test-\(UUID().uuidString)"
+        _ = try await post(baseURL.appending(path: "api/sessions"), body: ["session_id": sessionID])
+
+        let app = XCUIApplication()
+        let isolatedSettings = ["--gymni-ui-testing", "--gymni-preferences-suite", "relaunch-settings-\(UUID().uuidString)"]
+        app.launchArguments = isolatedSettings + ["--gymni-laptop", "--backend-url", baseURL.absoluteString,
+                                                  "--session-id", sessionID, "--exercise", "curl"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Laptop · Live input"].waitForExistence(timeout: 10))
+        app.terminate()
+
+        // Opening from Xcode or the Simulator home screen supplies no laptop arguments.
+        app.launchArguments = isolatedSettings
+        app.launch()
+        XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 5))
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.segmentedControls.buttons["Laptop"].isSelected)
+        app.buttons["Done"].tap()
+        app.buttons["Start workout"].tap()
+        XCTAssertTrue(app.staticTexts["Laptop · Live input"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Demo · Simulated data"].exists)
+        let counter = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "0 of 8 completed reps")).firstMatch
+        XCTAssertTrue(counter.exists)
+        let simulatedRep = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", "0 of 8 completed reps"), object: counter)
+        simulatedRep.isInverted = true
+        await fulfillment(of: [simulatedRep], timeout: 6)
+        capture(app, name: "Relaunched Laptop retains real backend mode")
+        app.buttons["End workout"].tap()
+        XCTAssertTrue(app.staticTexts["You showed up."].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testRealBackendCommandsAndRepEvents() async throws {
         let baseURL = try XCTUnwrap(URL(string: "http://localhost:8000"))
         var health = URLRequest(url: baseURL.appending(path: "health"))
@@ -13,8 +94,13 @@ final class LaptopConnectionTests: XCTestCase {
         try XCTSkipUnless(metadata?["schema_version"] as? Int == 1, "Port 8000 must be the Gym&AI backend.")
         let sessionId = "ios-test-\(UUID().uuidString)"
         _ = try await post(baseURL.appending(path: "api/sessions"), body: ["session_id": sessionId])
+        _ = try await post(baseURL.appending(path: "api/sessions/\(sessionId)/commands"), body: [
+            "session_id": sessionId, "command_id": UUID().uuidString, "intent": "start",
+            "args": ["exercise": "curl", "source": "recorded", "target_reps": 8]
+        ])
 
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         app.buttons["Settings"].tap()
         app.segmentedControls.buttons["Laptop"].tap()

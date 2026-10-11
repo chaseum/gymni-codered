@@ -13,11 +13,18 @@ from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from jsonschema import Draft202012Validator
 
 from .backboard_memory import add_profile_memory, delete_profile_memory, list_profile_memories
 from .gemini import send_coach_message
+from .voice_prompts import COACH_PROMPTS
+from .rep_coaching import POLICY, RepCoach
+from .workout_history import WorkoutHistory, history_path
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 SCHEMA = json.loads((Path(__file__).resolve().parents[2] / "contracts" / "gymai.schema.json").read_text())
 VALIDATORS = {k: Draft202012Validator({**SCHEMA, "$ref": f"#/$defs/{k}"})
@@ -26,12 +33,12 @@ TOKEN = os.environ.get("GYMAI_TOKEN")  # optional shared LAN secret; unset = ope
 HR_STALE_MS = 10_000
 
 # Only issue codes listed here may be spoken. cue_id points to an MP3 under assets/audio/.
-# One cue per issue per set; the backend policy selects which approved correction to voice.
+# The backend spaces approved corrections and selects one at a time.
 # With GYMAI_DYNAMIC_CUES=1 the text is the approved action that Gemini rephrases (backend/audio/dynamic_cue.py)
 # and ElevenLabs voices; a config-keyed cached MP3 is served under /audio/dynamic/.
 CUES = {
     "curl.elbow_drift": "Keep your elbows pinned to your sides.",
-    "curl.partial_range": "Let the weight come all the way down.",
+    "curl.partial_range": "Curl a little higher, keeping the movement controlled.",
     "squat.shallow_depth": "Sit a little deeper if it feels comfortable.",
     "deadlift.hips_rise_early": "Push the floor away; let your hips and chest rise together.",
     "shoulder_press.incomplete_lockout": "Press all the way up until your arms are straight overhead.",
@@ -49,13 +56,14 @@ DYNAMIC_CUE_LOCKS: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 DYNAMIC_CUE_TASKS: dict[str, asyncio.Task[str]] = {}
 
 
-async def generate_cached_cue(cache_id: str, request, output_path: Path) -> str:
+async def generate_cached_cue(cache_id: str, request, output_path: Path, *, voice_only: bool = False) -> str:
     """Share in-flight generation so concurrent workouts cannot duplicate provider calls."""
     async with DYNAMIC_CUE_LOCKS[cache_id]:
         task = DYNAMIC_CUE_TASKS.get(cache_id)
         if task is None:
-            from backend.audio.dynamic_cue import save_spoken_cue
-            task = asyncio.create_task(asyncio.to_thread(save_spoken_cue, request, output_path))
+            from backend.audio.dynamic_cue import save_spoken_cue, save_voice_clip
+            save = save_voice_clip if voice_only else save_spoken_cue
+            task = asyncio.create_task(asyncio.to_thread(save, request, output_path))
             DYNAMIC_CUE_TASKS[cache_id] = task
 
     try:
@@ -78,7 +86,15 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def coaching_clock_ms() -> float:
+    return time.monotonic() * 1000
+
+
 def check(kind: str, data: dict) -> dict:
+    try:
+        json.dumps(data, allow_nan=False)
+    except ValueError as exc:
+        raise HTTPException(422, "Measurements must be finite JSON numbers.") from exc
     errs = [f"{'/'.join(map(str, e.path)) or '<root>'}: {e.message}" for e in VALIDATORS[kind].iter_errors(data)]
     if errs:
         raise HTTPException(422, {"contract": kind, "errors": errs})
@@ -102,6 +118,12 @@ class Session:
         self.seen_hr: set[str] = set()
         self.max_rep_index = 0
         self.feedback_ids = itertools.count(1)
+        self.history = WorkoutHistory(session_id)
+        self.rep_coach = RepCoach()
+        self.coaching_cues: dict[str, dict] = {}
+        self.last_form_rep = -2
+        self.last_form_cue_ms = None
+        self.form_last_spoken: dict[str, int] = {}
 
     @property
     def set_id(self):
@@ -183,6 +205,10 @@ class Session:
 
     def _set_state(self, state: str, cid: str):
         self.state = state
+        self.history.state_changed(state, now_ms())
+        if state != "active":
+            self.pending_cues.clear()
+            self.rep_coach.reset_timing()
         self.emit("session.state", {"state": state, "command_id": cid})
 
     def _new_set(self, args: dict):
@@ -191,9 +217,15 @@ class Session:
         self.target_reps, self.load = args.get("target_reps"), args.get("load")
         self.rep_count, self.active_issues = 0, {}
         self.pending_cues.clear()  # a cue still generating for the old set is dropped
+        self.rep_coach = RepCoach()
+        self.last_form_rep = -2
+        self.last_form_cue_ms = None
+        self.form_last_spoken.clear()
+        self.history.new_set(self.set_id, self.exercise, self.source, self.target_reps, self.load, now_ms())
         self.emit("exercise.changed", {"exercise": self.exercise, "set_id": self.set_id, "target_reps": self.target_reps})
 
     def _finish_set(self):
+        self.history.finish_set(now_ms())
         if self.set_n and self.rep_count:
             self.emit("set.completed", {"set_id": self.set_id, "exercise": self.exercise,
                                         "rep_count": self.rep_count, "load": self.load})
@@ -208,24 +240,49 @@ class Session:
             if obs["completed_rep"]:
                 self.max_rep_index = max(self.max_rep_index, obs["completed_rep"]["rep_index"])
             return {"accepted": True, "duplicate": False, "ignored": "not_active"}
+        if obs["source"] != self.source or obs.get("set_id") not in (None, self.set_id):
+            if obs["completed_rep"]:
+                self.max_rep_index = max(self.max_rep_index, obs["completed_rep"]["rep_index"])
+            self.rep_coach.reset_timing()
+            return {"accepted": True, "duplicate": False, "ignored": "rep_not_trusted"}
         if obs["tracking_status"] != self.tracking:
             self.tracking = obs["tracking_status"]
+            if self.tracking != "ready":
+                self.pending_cues.clear()
+                self.rep_coach.reset_timing()
             self.emit("tracking.status", {"status": self.tracking, "source": obs["source"]})
         rep = obs["completed_rep"]
         if not rep or rep["rep_index"] <= self.max_rep_index:
             return {"accepted": True, "duplicate": False}
         self.max_rep_index = rep["rep_index"]
         if self.tracking != "ready" or obs["exercise"] != self.exercise:
+            self.rep_coach.reset_timing()
             return {"accepted": True, "duplicate": False, "ignored": "rep_not_trusted"}
         # Backend is the only place a rep is committed.
         self.rep_count += 1
         self.emit("rep.completed", {"exercise": self.exercise, "set_id": self.set_id, "rep_count": self.rep_count,
                                     "target_reps": self.target_reps, "duration_ms": rep.get("duration_ms")})
-        issues = {i["code"]: i.get("evidence", {}) for i in obs["issues"] if i["code"] in CUES}
-        for code, evidence in issues.items():
+        issues = {i["code"]: i.get("evidence", {}) for i in obs["issues"]
+                  if i["code"] in CUES and i["code"].split(".")[0] == self.exercise
+                  and (i.get("evidence", {}).get("probability") is None
+                       or (isinstance(i["evidence"]["probability"], (int, float))
+                           and 0.8 <= i["evidence"]["probability"] <= 1.0))}
+        selected_form = None
+        clock = coaching_clock_ms()
+        for code in sorted(issues, key=lambda code: self.form_last_spoken.get(code, -3)):
+            evidence = issues[code]
             if code not in self.active_issues:
                 fid = f"fb-{next(self.feedback_ids)}"
                 self.active_issues[code] = fid
+            else:
+                fid = self.active_issues[code]
+            # One correction at a time; persistent issues get a spaced reminder.
+            if (selected_form is None and self.rep_count - self.last_form_rep >= 3 and not self.pending_cues
+                    and (self.last_form_cue_ms is None or clock - self.last_form_cue_ms >= POLICY["cue_cooldown_ms"])):
+                selected_form = code
+                self.last_form_rep = self.rep_count
+                self.form_last_spoken[code] = self.rep_count
+                self.last_form_cue_ms = self.rep_coach.last_cue_ms = clock
                 if DYNAMIC_CUES:
                     self.pending_cues.add(fid)
                     asyncio.get_running_loop().create_task(self._dynamic_cue(code, evidence, fid, self.set_id, self.rep_count))
@@ -238,11 +295,20 @@ class Session:
                 continue
             self.emit("feedback.improved", {"feedback_id": fid, "issue_code": code,
                                             "set_id": self.set_id, "rep_count": self.rep_count})
+        coaching = self.rep_coach.select(obs, self.rep_count, self.target_reps, bool(obs["issues"]), clock)
+        self.history.append_rep(obs, self.rep_count, self.rep_coach.baseline_ms,
+                                {"kind": "form", "issue_code": selected_form, "text": CUES[selected_form]} if selected_form else coaching)
+        if coaching:
+            cue_id = f"coach-{self.set_id}-{self.rep_count}"
+            payload = {**coaching, "cue_id": cue_id, "set_id": self.set_id, "rep_count": self.rep_count}
+            self.coaching_cues[cue_id] = payload
+            self.emit("coach.cue", payload)
         return {"accepted": True, "duplicate": False}
 
     def _issue(self, code: str, fid: str, text: str, cue_id: str, set_id: str, rep_count: int):
         self.emit("feedback.issued", {"feedback_id": fid, "issue_code": code, "cue_id": cue_id, "text": text,
-                                      "set_id": set_id, "rep_count": rep_count})
+                                      "set_id": set_id, "rep_count": rep_count,
+                                      "utterance_id": f"{fid}-{rep_count}"})
 
     async def _dynamic_cue(self, code: str, evidence: dict, fid: str, set_id: str, rep_count: int):
         """Gemini briefly rephrases an approved action; ElevenLabs voices and caches it.
@@ -254,10 +320,10 @@ class Session:
                                  recommended_action=CUES[code], tracking_status="ready", coach_approved=True,
                                  confidence=evidence.get("probability", 1.0))  # rules are deterministic: 1.0
             cache_id = cached_cue_id(request)
-            cue_id = f"dynamic/{cache_id}"
             text = await generate_cached_cue(cache_id, request, AUDIO_DIR / "dynamic" / f"{cache_id}.mp3")
+            cue_id = f"dynamic/{cache_id}"
         except Exception as exc:  # noqa: BLE001 - a cue outage must never stop the workout
-            print(f"dynamic cue for {code} failed ({type(exc).__name__}: {exc}); using the fixed text", flush=True)
+            print(f"dynamic cue for {code} failed ({type(exc).__name__}); using the fixed text", flush=True)
         if fid in self.pending_cues:  # still active (not already improved)
             self.pending_cues.discard(fid)
             self._issue(code, fid, text, cue_id, set_id, rep_count)
@@ -278,7 +344,7 @@ class Session:
 
 app = FastAPI(title="Gym&I backend")
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR, check_dir=False), name="audio")  # cue mp3s for the phone
-sessions: dict[str, Session] = {}  # ponytail: in-memory, lost on restart; add SQLite when history/PRs land
+sessions: dict[str, Session] = {}  # active control state is in memory; workout history is saved separately
 
 
 def auth(request: Request):
@@ -294,6 +360,24 @@ class CoachMessage(BaseModel):
 
 class CoachMemory(BaseModel):
     content: str = Field(min_length=1, max_length=1000)
+
+
+@app.get("/api/coach/audio/{cue_name}", dependencies=[Depends(auth)])
+async def coach_audio(cue_name: str):
+    text = COACH_PROMPTS.get(cue_name)
+    if text is None:
+        raise HTTPException(404, "Unknown workout prompt.")
+    if not DYNAMIC_CUES:
+        raise HTTPException(503, "ElevenLabs voice is disabled.")
+    try:
+        from backend.audio.dynamic_cue import cached_voice_id
+        cache_id = cached_voice_id(text)
+        output = AUDIO_DIR / "dynamic" / f"{cache_id}.mp3"
+        await generate_cached_cue(cache_id, text, output, voice_only=True)
+        return Response(content=await asyncio.to_thread(output.read_bytes), media_type="audio/mpeg")
+    except Exception as exc:
+        print(f"workout voice unavailable ({type(exc).__name__})", flush=True)
+        raise HTTPException(502, "Workout voice is unavailable; use device speech.") from exc
 
 
 @app.post("/api/coach/messages", dependencies=[Depends(auth)])
@@ -354,6 +438,54 @@ def same_session(s: Session, body: dict):
         raise HTTPException(422, "body session_id does not match URL")
 
 
+async def save_history(s: Session):
+    try:
+        await s.history.save(now_ms())
+    except OSError as exc:
+        # A disk outage should not turn a committed rep into a failed/retried request.
+        print(f"Workout history could not be saved ({type(exc).__name__})", flush=True)
+
+
+@app.get("/api/sessions/{session_id}/workout", dependencies=[Depends(auth)])
+async def workout_history(session_id: str):
+    if session_id in sessions:
+        return sessions[session_id].history.snapshot(now_ms())
+    path = history_path(session_id)
+    if not path.is_file():
+        raise HTTPException(404, "Workout history not found.")
+    return json.loads(await asyncio.to_thread(path.read_text))
+
+
+@app.get("/api/sessions/{session_id}/coaching/{cue_id}/audio", dependencies=[Depends(auth)])
+async def coaching_audio(session_id: str, cue_id: str):
+    s = get(session_id)
+    cue = s.coaching_cues.get(cue_id)
+    if cue is None:
+        raise HTTPException(404, "Unknown coaching cue.")
+    if not DYNAMIC_CUES:
+        raise HTTPException(503, "ElevenLabs voice is disabled.")
+
+    def current():
+        return (s.state == "active" and s.tracking == "ready" and not s.active_issues
+                and s.set_id == cue["set_id"] and s.rep_count == cue["rep_count"])
+
+    if not current():
+        raise HTTPException(409, "Coaching cue is no longer current.")
+    try:
+        from backend.audio.dynamic_cue import cached_voice_id
+        cache_id = cached_voice_id(cue["text"])
+        output = AUDIO_DIR / "dynamic" / f"{cache_id}.mp3"
+        await generate_cached_cue(cache_id, cue["text"], output, voice_only=True)
+        if not current():
+            raise HTTPException(409, "Coaching cue is no longer current.")
+        return Response(content=await asyncio.to_thread(output.read_bytes), media_type="audio/mpeg")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Coaching voice unavailable ({type(exc).__name__})", flush=True)
+        raise HTTPException(502, "Coaching voice is unavailable; use device speech.") from exc
+
+
 @app.get("/health")
 async def health():
     return {"ok": True, "schema_version": 1, "sessions": len(sessions)}
@@ -382,14 +514,18 @@ async def events(session_id: str, after: int = 0):
 async def command(session_id: str, body: dict = Body(...)):
     s = get(session_id)
     same_session(s, check("command", body))
-    return s.command(body)
+    ack = s.command(body)
+    await save_history(s)
+    return ack
 
 
 @app.post("/api/sessions/{session_id}/observations", dependencies=[Depends(auth)])
 async def observation(session_id: str, body: dict = Body(...)):
     s = get(session_id)
     same_session(s, check("observation", body))
-    return s.observe(body)
+    ack = s.observe(body)
+    await save_history(s)
+    return ack
 
 
 @app.post("/api/sessions/{session_id}/heart_rate", dependencies=[Depends(auth)])

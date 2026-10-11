@@ -11,11 +11,21 @@ struct AppRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init() {
-        let workout = WorkoutSession()
+        let arguments = ProcessInfo.processInfo.arguments
         #if targetEnvironment(simulator)
-        workout.configureSimulatorLaunch(arguments: ProcessInfo.processInfo.arguments)
+        let defaultMode: WorkoutMode = .demo
         #else
-        workout.mode = .phone
+        let defaultMode: WorkoutMode = .phone
+        #endif
+        let preferences: UserDefaults?
+        if let flag = arguments.firstIndex(of: "--gymni-preferences-suite"), arguments.indices.contains(flag + 1) {
+            preferences = UserDefaults(suiteName: arguments[flag + 1])
+        } else {
+            preferences = arguments.contains("--gymni-ui-testing") ? nil : .standard
+        }
+        let workout = WorkoutSession(defaultMode: defaultMode, preferences: preferences)
+        #if targetEnvironment(simulator)
+        workout.configureSimulatorLaunch(arguments: arguments)
         #endif
         _session = State(initialValue: workout)
         _showsIntro = State(initialValue: !workout.shouldAutoStartSimulatorSession)

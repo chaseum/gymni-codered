@@ -187,9 +187,15 @@
         {"if": {"properties": {"type": {"const": "coach.state"}}}, "then": {"properties": {"payload": {
           "required": ["coach"],
           "properties": {"coach": {"enum": ["idle", "observing", "correcting", "encouraging", "resting"]}}}}}},
+        {"if": {"properties": {"type": {"const": "coach.cue"}}}, "then": {"properties": {"payload": {
+          "required": ["cue_id", "kind", "text", "set_id", "rep_count"],
+          "properties": {"cue_id": {"$ref": "#/$defs/id"}, "kind": {"enum": ["count", "pace_fast", "pace_slow"]},
+                         "text": {"type": "string", "minLength": 1, "maxLength": 140}, "set_id": {"$ref": "#/$defs/id"},
+                         "rep_count": {"type": "integer", "minimum": 1}}}}}},
         {"if": {"properties": {"type": {"const": "feedback.issued"}}}, "then": {"properties": {"payload": {
           "required": ["feedback_id", "issue_code", "cue_id", "text", "set_id", "rep_count"],
           "properties": {"feedback_id": {"type": "string"}, "issue_code": {"$ref": "#/$defs/issue_code"},
+                         "utterance_id": {"type": ["string", "null"]},
                          "cue_id": {"type": ["string", "null"]}, "text": {"type": "string"},
                          "set_id": {"type": "string"}, "rep_count": {"type": "integer"}}}}}},
         {"if": {"properties": {"type": {"const": "feedback.improved"}}}, "then": {"properties": {"payload": {

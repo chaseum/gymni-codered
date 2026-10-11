@@ -67,6 +67,62 @@ Re-running needs a new `--session` name (sessions are in memory; restart the ser
 
 Optional LAN secret: start uvicorn with `GYMAI_TOKEN=<something>` in the environment; the simulator and app then send it automatically / via settings.
 
+## ElevenLabs workout voice
+
+The Laptop workout uses the project-root `.env` for `ELEVENLABS_API_KEY`,
+`ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `GEMINI_API_KEY`, and
+`GEMINI_MODEL_ID`. Set `GYMAI_DYNAMIC_CUES=1` to enable it. Keys stay on the
+Mac backend; the iPhone only downloads generated MP3 audio.
+
+```bash
+.venv/bin/pip install -e 'backend[dynamic-cues]'
+.venv/bin/python -m gymai_backend.prepare_audio --exercise curl
+bash scripts/run_simulator_demo.sh curl 'iPhone 17 Pro'
+```
+
+The simulator script prepares and caches the voice automatically. Coaching is
+selected locally from measured reps: approved form corrections, relative pace
+feedback, and occasional actual rep counts. This uses **zero Gemini tokens** by
+default. ElevenLabs voices the selected text and start/pause/tracking messages;
+its character usage occurs only when a clip is missing from the cache. Set
+`GYMAI_REPHRASE_CUES=1` only if you want Gemini to rephrase each approved form
+correction once and cache it. No frames, metrics, or workout history are sent
+to Gemini for workout cues. Generated clips are
+cached under the ignored `assets/audio/dynamic/` directory, keyed by text,
+voice, and model so configuration changes generate fresh clips.
+
+The app remembers the selected workout mode and laptop connection across
+normal Xcode and Simulator launches. Running the script again updates it to
+the new live session. Opening the app alone does not start the laptop camera
+or backend; keep the script running for live reps and ElevenLabs audio.
+An unavailable laptop shows a connection error; it never switches to Demo.
+The script selects an already-booted matching simulator and also accepts a
+device UDID as its second argument when several devices have the same name.
+
+Demo and Phone modes keep device speech. A provider outage falls back to
+device speech without stopping the workout; muting, pausing, losing tracking,
+or leaving a workout cancels pending corrections. Allow Terminal camera
+access when macOS asks before using live laptop tracking.
+
+Each session saves an ignored JSON file under `demo/workouts/` (a hash of the
+session ID names the file). The script prints its path. Inspect the current or
+saved record through `GET /api/sessions/{session_id}/workout`. Each set contains
+`target_reps`, `actual_reps`, `active_duration_ms` (excluding pause/rest),
+`rep_work_ms` (sum of available positive rep durations), and a `reps` array
+with one object per committed rep: original rep index, duration, source clock,
+measurements, issue evidence, model provenance, and the selected coaching cue.
+History survives backend restarts; an active session must still be started again.
+
+`contracts/coaching_policy.json` controls the short phrases and pace thresholds.
+Pace compares against the median of three opening, timed reps without reported
+issues. Two consecutive reps below 70% or above 140% of that duration can trigger
+a cue, with a six-second speech cooldown. This is a relative pace comparison,
+not a prescribed ideal tempo. Missing timing, pause, tracking loss, changed input,
+or clock reset prevent use of stale timing. Slower reps prompt an optional reset,
+not pressure to speed up. Counts mark the first rep, halfway (even targets), two
+remaining, and the target; form corrections take priority. Reaching the target
+does not automatically end the workout. A new rep invalidates pending count audio.
+
 ## Gemini coach setup
 
 Gemini generates conversational coach replies directly. Backboard stores and

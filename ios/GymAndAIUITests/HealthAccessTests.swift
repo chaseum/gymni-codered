@@ -4,6 +4,7 @@ final class HealthAccessTests: XCTestCase {
     @MainActor
     func testConnectHealthCompletesWithoutClaimingReadAccess() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         app.buttons["Settings"].tap()
         let connect = app.buttons["connect-apple-health"]

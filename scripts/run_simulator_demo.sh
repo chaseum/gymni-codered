@@ -35,6 +35,14 @@ if ! command -v xcodebuild >/dev/null || ! command -v xcrun >/dev/null; then
   exit 1
 fi
 
+"$PYTHON" - <<'PY'
+import socket
+with socket.socket() as connection:
+    connection.settimeout(1)
+    if connection.connect_ex(("127.0.0.1", 8000)) == 0:
+        raise SystemExit("Port 8000 is already in use. Stop the previous demo with q or Ctrl+C, then run this script again.")
+PY
+
 mkdir -p "$LOG_DIR"
 BACKEND_LOG="$LOG_DIR/$SESSION_ID-backend.log"
 MODEL_LOG="$LOG_DIR/$SESSION_ID-model.log"
@@ -46,13 +54,16 @@ cleanup() {
   [[ -n "$TAIL_PID" ]] && kill "$TAIL_PID" 2>/dev/null || true
   [[ -n "$MODEL_PID" ]] && kill "$MODEL_PID" 2>/dev/null || true
   [[ -n "$BACKEND_PID" ]] && kill "$BACKEND_PID" 2>/dev/null || true
+  [[ -n "$BACKEND_PID" ]] && wait "$BACKEND_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
 # Keep this loopback-only Simulator demo unauthenticated; no token is passed to iOS.
 export GYMAI_TOKEN=""
 export GYMAI_DYNAMIC_CUES="1"
-"$PYTHON" -m uvicorn gymai_backend.app:app --app-dir "$REPO_ROOT/backend" --host 0.0.0.0 --port 8000 >"$BACKEND_LOG" 2>&1 &
+"$PYTHON" -m gymai_backend.prepare_audio --exercise "$EXERCISE" || \
+  echo "Continuing with device speech fallback for unavailable voice clips."
+"$PYTHON" -m uvicorn gymai_backend.app:app --app-dir "$REPO_ROOT/backend" --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 2 >"$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 
 ready=0
@@ -84,7 +95,7 @@ response = httpx.post(
 response.raise_for_status()
 PY
 
-SIMULATOR_INFO="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; requested=sys.argv[1]; matches=[d for group in devices.values() for d in group if d["isAvailable"] and (d["name"]==requested if requested else d["name"].startswith("iPhone"))]; print((matches[0]["udid"] + "\t" + matches[0]["name"]) if matches else "")' "$SIMULATOR_NAME")"
+SIMULATOR_INFO="$(xcrun simctl list devices available -j | "$PYTHON" scripts/select_simulator.py "$SIMULATOR_NAME")"
 IFS=$'\t' read -r SIMULATOR_ID SIMULATOR_NAME <<< "$SIMULATOR_INFO"
 if [[ -z "$SIMULATOR_ID" ]]; then
   echo "No matching iPhone Simulator was found${SIMULATOR_NAME:+ for '$SIMULATOR_NAME'}. Available devices:" >&2
@@ -95,7 +106,7 @@ echo "Using $SIMULATOR_NAME ($SIMULATOR_ID)."
 
 xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || true
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
-open -a Simulator
+open -a Simulator --args -CurrentDeviceUDID "$SIMULATOR_ID"
 xcodebuild \
   -project "$REPO_ROOT/ios/GymAndAI.xcodeproj" \
   -scheme GymAndAI \
@@ -110,6 +121,11 @@ xcrun simctl launch "$SIMULATOR_ID" "$BUNDLE_ID" \
   --gymni-laptop --backend-url "$BACKEND_URL" --session-id "$SESSION_ID" --exercise "$EXERCISE"
 
 echo "Simulator workout started. Live backend and model logs: $LOG_DIR"
+GYMAI_SESSION_ID="$SESSION_ID" "$PYTHON" - <<'PY'
+import os
+from gymai_backend.workout_history import history_path
+print(f"Workout JSON: {history_path(os.environ['GYMAI_SESSION_ID'])}")
+PY
 echo "Close the model camera window with q to stop the workout and laptop backend."
 "$PYTHON" -m fitness_ml run \
   --source live \

@@ -4,15 +4,15 @@ import Observation
 @MainActor @Observable
 public final class WorkoutSession {
     public var display: WorkoutDisplay = .reps
-    public var mode: WorkoutMode = .demo
-    public var exercise: Exercise = .curl
-    public var inputSource: InputSource = .live
-    public var backendAddress = "http://localhost:8000"
-    public var backendSessionId = ""
-    public var previewAddress = ""
+    public var mode: WorkoutMode = .demo { didSet { saveConfiguration() } }
+    public var exercise: Exercise = .curl { didSet { saveConfiguration() } }
+    public var inputSource: InputSource = .live { didSet { saveConfiguration() } }
+    public var backendAddress = "http://localhost:8000" { didSet { saveConfiguration() } }
+    public var backendSessionId = "" { didSet { saveConfiguration() } }
+    public var previewAddress = "" { didSet { saveConfiguration() } }
     public var token = ""
-    public var audioEnabled = true
-    public var usesAppleWatch = true
+    public var audioEnabled = true { didSet { saveConfiguration() } }
+    public var usesAppleWatch = true { didSet { saveConfiguration() } }
     public var presentsWorkout = false
     public private(set) var shouldAutoStartSimulatorSession = false
     public private(set) var store: WorkoutStore
@@ -36,9 +36,25 @@ public final class WorkoutSession {
     @ObservationIgnored private var sessionMode: WorkoutMode = .demo
     @ObservationIgnored private var hub: HubSession?
     @ObservationIgnored private var hubServer: HubServer?
+    @ObservationIgnored private let preferences: UserDefaults?
+    @ObservationIgnored private var isRestoringConfiguration = true
 
-    public init() {
+    public init(defaultMode: WorkoutMode = .demo, preferences: UserDefaults? = nil) {
+        self.preferences = preferences
         store = WorkoutStore(baseURL: URL(filePath: "/"), sessionId: "phone-demo")
+        mode = defaultMode
+        if let data = preferences?.data(forKey: WorkoutConfiguration.preferencesKey),
+           let saved = try? JSONDecoder().decode(WorkoutConfiguration.self, from: data) {
+            mode = saved.mode
+            exercise = saved.exercise
+            inputSource = saved.inputSource
+            backendAddress = saved.backendAddress
+            backendSessionId = saved.backendSessionId
+            previewAddress = saved.previewAddress
+            audioEnabled = saved.audioEnabled
+            usesAppleWatch = saved.usesAppleWatch
+        }
+        isRestoringConfiguration = false
     }
 
     public func configureSimulatorLaunch(arguments: [String]) {
@@ -54,9 +70,16 @@ public final class WorkoutSession {
         guard arguments.contains("--gymni-laptop"),
               let backendAddress = Self.argument(after: "--backend-url", in: arguments),
               let sessionID = Self.argument(after: "--session-id", in: arguments) else { return }
+        isRestoringConfiguration = true
+        defer {
+            isRestoringConfiguration = false
+            saveConfiguration()
+        }
         self.backendAddress = backendAddress
         backendSessionId = sessionID
         mode = .backend
+        inputSource = .live
+        audioEnabled = true
         if let exerciseID = Self.argument(after: "--exercise", in: arguments),
            let exercise = Exercise(rawValue: exerciseID) {
             self.exercise = exercise
@@ -83,6 +106,17 @@ public final class WorkoutSession {
     public var hasConnection: Bool { isDemo || isPhone || isHub || store.connection == .connected }
     public var canResume: Bool { !isSending && hasConnection }
     public var previewURL: URL? { Self.networkURL(previewAddress) }
+
+    private func saveConfiguration() {
+        guard !isRestoringConfiguration, let preferences else { return }
+        let settings = WorkoutConfiguration(mode: mode, exercise: exercise, inputSource: inputSource,
+                                            backendAddress: backendAddress, backendSessionId: backendSessionId,
+                                            previewAddress: previewAddress, audioEnabled: audioEnabled,
+                                            usesAppleWatch: usesAppleWatch)
+        if let data = try? JSONEncoder().encode(settings) {
+            preferences.set(data, forKey: WorkoutConfiguration.preferencesKey)
+        }
+    }
 
     public func start() async {
         guard !isSending else { return }

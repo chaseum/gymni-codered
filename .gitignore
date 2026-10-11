@@ -31,6 +31,7 @@ gymai-models-*/
 # Private clips / health data
 demo/clips/
 demo/logs/
+demo/workouts/
 assets/audio/dynamic/
 *.mp4
 *.mov

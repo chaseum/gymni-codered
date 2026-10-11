@@ -22,6 +22,7 @@ final class PipMascotTests: XCTestCase {
     @MainActor
     func testTodayLoads3DAndTapReturnsToIdle() {
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         let pip = app.buttons["celebrate-pip"]
         XCTAssertTrue(pip.waitForExistence(timeout: 10))
@@ -36,7 +37,8 @@ final class PipMascotTests: XCTestCase {
     @MainActor
     func testMissingModelUsesPreviewAndWorkoutStillStarts() {
         let app = XCUIApplication()
-        app.launchArguments = ["-PipForceFallback"]
+        app.launchArguments = ["--gymni-ui-testing"]
+        app.launchArguments += ["-PipForceFallback"]
         app.launch()
         let pip = app.buttons["celebrate-pip"]
         XCTAssertTrue(pip.waitForExistence(timeout: 10))
@@ -50,6 +52,7 @@ final class PipMascotTests: XCTestCase {
     @MainActor
     func testModelReturnsAfterBackgroundAndTabChange() {
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         waitForValue("3D", on: app.buttons["celebrate-pip"])
         XCUIDevice.shared.press(.home)
@@ -63,7 +66,8 @@ final class PipMascotTests: XCTestCase {
     @MainActor
     func testReducedMotionKeepsRestAndRecapAccessible() {
         let app = XCUIApplication()
-        app.launchArguments = ["-PipReduceMotion"]
+        app.launchArguments = ["--gymni-ui-testing"]
+        app.launchArguments += ["-PipReduceMotion"]
         app.launch()
         waitForValue("motion reduced", on: app.buttons["celebrate-pip"])
         app.buttons["Start workout"].tap()

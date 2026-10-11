@@ -4,6 +4,7 @@ final class WorkoutJourneyTests: XCTestCase {
     @MainActor
     func testCameraSwitchPauseAndExplicitResume() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         capture(app, name: "Today")
         app.buttons["View plan"].tap()
@@ -65,6 +66,7 @@ final class WorkoutJourneyTests: XCTestCase {
     @MainActor
     func testPlanAndProgressKeepSourcesHonest() {
         let app = XCUIApplication()
+        app.launchArguments = ["--gymni-ui-testing"]
         app.launch()
         app.tabBars.buttons["Progress"].tap()
         capture(app, name: "Progress empty state")
@@ -90,7 +92,8 @@ final class WorkoutJourneyTests: XCTestCase {
     @MainActor
     func testLargeTextKeepsWorkoutControlsAccessible() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launchArguments = ["--gymni-ui-testing"]
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
         XCTAssertTrue(app.buttons["Start workout"].isHittable)
         capture(app, name: "Large text Today")

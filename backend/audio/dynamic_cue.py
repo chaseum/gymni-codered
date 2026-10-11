@@ -53,12 +53,17 @@ def _check_request(request: CueRequest) -> None:
 
 def cached_cue_id(request: CueRequest) -> str:
     """Reuse one generated clip per approved action and provider configuration."""
+    rephrase = os.getenv("GYMAI_REPHRASE_CUES") == "1"
+    if not rephrase:
+        return cached_voice_id(request.recommended_action)
     identity = {
         "issue_code": request.issue_code,
         "recommended_action": request.recommended_action,
-        "gemini_model": os.getenv("GEMINI_MODEL_ID", "gemini-3.5-flash-lite"),
+        "gemini_model": os.getenv("GEMINI_MODEL_ID", "gemini-3.5-flash-lite") if rephrase else None,
         "elevenlabs_model": os.getenv("ELEVENLABS_MODEL_ID", "eleven_v4"),
         "voice_id": os.getenv("ELEVENLABS_VOICE_ID", ""),
+        "prompt_version": 3,
+        "rephrase": rephrase,
     }
     encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()[:24]
@@ -89,7 +94,7 @@ def generate_spoken_cue(request: CueRequest) -> tuple[str, bytes]:
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=SpokenCue,
-            max_output_tokens=24,
+            max_output_tokens=256,
         ),
     )
     if not response.text:
@@ -99,9 +104,26 @@ def generate_spoken_cue(request: CueRequest) -> tuple[str, bytes]:
         raise ValueError("Gemini returned a cue outside the allowed length.")
 
     print("Gemini returned a cue. Requesting audio from ElevenLabs...", flush=True)
-    elevenlabs = ElevenLabs(api_key=_required_setting("ELEVENLABS_API_KEY"))
+    audio = generate_voice_audio(cue)
+    print("ElevenLabs returned the audio.", flush=True)
+    return cue, audio
+
+
+def cached_voice_id(text: str) -> str:
+    identity = {
+        "text": text,
+        "model": os.getenv("ELEVENLABS_MODEL_ID", "eleven_v4"),
+        "voice": os.getenv("ELEVENLABS_VOICE_ID", ""),
+    }
+    encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"voice-{hashlib.sha256(encoded).hexdigest()[:24]}"
+
+
+def generate_voice_audio(text: str) -> bytes:
+    """Voice an already-approved message using the server's configured voice and model."""
+    elevenlabs = ElevenLabs(api_key=_required_setting("ELEVENLABS_API_KEY"), timeout=30)
     audio_chunks = elevenlabs.text_to_speech.convert(
-        text=cue,
+        text=text,
         voice_id=_required_setting("ELEVENLABS_VOICE_ID"),
         model_id=os.getenv("ELEVENLABS_MODEL_ID", "eleven_v4"),
         output_format="mp3_44100_128",
@@ -109,19 +131,45 @@ def generate_spoken_cue(request: CueRequest) -> tuple[str, bytes]:
     audio = b"".join(chunk for chunk in audio_chunks if chunk)
     if not audio:
         raise RuntimeError("ElevenLabs returned an empty audio response.")
-    print("ElevenLabs returned the audio.", flush=True)
-    return cue, audio
+    return audio
 
 
 def save_spoken_cue(request: CueRequest, output_path: Path) -> str:
     """Generate the cue, save its MP3, and return the spoken text."""
+    _check_request(request)
+    cached_text = _cached_text(output_path)
+    if cached_text:
+        return cached_text
+    # Selecting a different approved correction is already dynamic. Rephrasing is
+    # optional: the normal workout path sends no requests to a language model.
+    if os.getenv("GYMAI_REPHRASE_CUES") != "1":
+        return save_voice_clip(request.recommended_action, output_path)
+    spoken_text, audio = generate_spoken_cue(request)
+    _save_clip(spoken_text, audio, output_path)
+    return spoken_text
+
+
+def save_voice_clip(text: str, output_path: Path) -> str:
+    """Cache fixed workout prompts without asking Gemini to change their meaning."""
+    cached_text = _cached_text(output_path)
+    if cached_text:
+        return cached_text
+    _save_clip(text, generate_voice_audio(text), output_path)
+    return text
+
+
+def _cached_text(output_path: Path) -> str | None:
     text_path = output_path.with_suffix(".txt")
     if output_path.is_file() and output_path.stat().st_size and text_path.is_file():
         cached_text = text_path.read_text(encoding="utf-8").strip()
         if cached_text:
             return cached_text
 
-    spoken_text, audio = generate_spoken_cue(request)
+    return None
+
+
+def _save_clip(spoken_text: str, audio: bytes, output_path: Path) -> None:
+    text_path = output_path.with_suffix(".txt")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_audio = output_path.with_suffix(".mp3.tmp")
     temporary_text = text_path.with_suffix(".txt.tmp")
@@ -129,4 +177,3 @@ def save_spoken_cue(request: CueRequest, output_path: Path) -> str:
     temporary_text.write_text(spoken_text, encoding="utf-8")
     temporary_audio.replace(output_path)
     temporary_text.replace(text_path)
-    return spoken_text

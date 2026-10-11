@@ -10,8 +10,9 @@ public final class WorkoutStore {
     public private(set) var snapshot: Snapshot?
     public private(set) var coach: CoachState = .idle
     public private(set) var lastFeedback: FeedbackIssued?
+    public private(set) var lastCoachingCue: CoachingCue?
     public private(set) var lastEventId = -1
-    /// Hook for cue playback (AVAudioPlayer on assets/audio/<cueId>.m4a) and haptics.
+    /// Hook for coach playback and haptics.
     public var onEvent: ((WorkoutEvent) -> Void)?
 
     public let baseURL: URL          // e.g. http://192.168.1.20:8000 — user-configured, never hardcoded
@@ -71,19 +72,22 @@ public final class WorkoutStore {
     /// Public so previews/tests can feed fixture events.
     public func apply(_ event: WorkoutEvent) {
         if case .snapshot(let snap) = event.payload {   // snapshot always wins, then resets the dedupe cursor
-            snapshot = snap; lastEventId = event.eventId
+            snapshot = snap; lastEventId = event.eventId; lastCoachingCue = nil
             onEvent?(event); return
         }
         guard event.eventId > lastEventId else { return }  // duplicate/replayed
         lastEventId = event.eventId
         guard var s = snapshot else { return }
         switch event.payload {
-        case .sessionState(let p): s.state = p.state
-        case .exerciseChanged(let p): s.exercise = p.exercise; s.setId = p.setId; s.targetReps = p.targetReps; s.repCount = 0; s.activeIssues = []; lastFeedback = nil
-        case .tracking(let p): s.trackingStatus = p.status; s.source = p.source
-        case .repCompleted(let p): s.repCount = p.repCount
+        case .sessionState(let p): s.state = p.state; if p.state != .active { lastCoachingCue = nil }
+        case .exerciseChanged(let p): s.exercise = p.exercise; s.setId = p.setId; s.targetReps = p.targetReps; s.repCount = 0; s.activeIssues = []; lastFeedback = nil; lastCoachingCue = nil
+        case .tracking(let p): s.trackingStatus = p.status; s.source = p.source; if p.status != .ready { lastCoachingCue = nil }
+        case .repCompleted(let p): s.repCount = p.repCount; lastCoachingCue = nil
         case .coach(let p): coach = p.coach
-        case .feedbackIssued(let p): lastFeedback = p; s.activeIssues.append(p.issueCode)
+        case .coachingCue(let p): if p.isCurrent(in: s) { lastCoachingCue = p }
+        case .feedbackIssued(let p):
+            lastFeedback = p; lastCoachingCue = nil
+            if !s.activeIssues.contains(p.issueCode) { s.activeIssues.append(p.issueCode) }
         case .feedbackImproved(let p): s.activeIssues.removeAll { $0 == p.issueCode }
         case .heartRate(let hr): s.heartRate = hr
         case .rest(let r): s.rest = r.status == .resting ? r : nil
@@ -110,11 +114,27 @@ public final class WorkoutStore {
             throw URLError(.badURL, userInfo: [NSLocalizedDescriptionKey: "Invalid generated cue ID."])
         }
 
-        let audioURL = baseURL.appending(path: "audio/\(filename)")
-        var request = URLRequest(url: audioURL)
+        return try await fetchAudio(path: "audio/\(filename)")
+    }
+
+    public func fetchCoachAudio(cue: CoachVoiceCue) async throws -> Data {
+        try await fetchAudio(path: "api/coach/audio/\(cue.rawValue)")
+    }
+
+    public func fetchCoachingAudio(cue: CoachingCue) async throws -> Data {
+        guard cue.cueId.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil else {
+            throw URLError(.badURL)
+        }
+        return try await fetchAudio(path: "api/sessions/\(sessionId)/coaching/\(cue.cueId)/audio")
+    }
+
+    private func fetchAudio(path: String) async throws -> Data {
+        var request = URLRequest(url: baseURL.appending(path: path))
+        request.timeoutInterval = 9
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else {
+        guard (response as? HTTPURLResponse)?.statusCode == 200,
+              response.mimeType?.hasPrefix("audio/") == true, !data.isEmpty else {
             throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "Generated coach audio is unavailable."])
         }
         return data

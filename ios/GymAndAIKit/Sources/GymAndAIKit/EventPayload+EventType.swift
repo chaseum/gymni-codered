@@ -7,6 +7,7 @@ extension EventPayload {
         case .tracking: "tracking.status"
         case .repCompleted: "rep.completed"
         case .coach: "coach.state"
+        case .coachingCue: "coach.cue"
         case .feedbackIssued: "feedback.issued"
         case .feedbackImproved: "feedback.improved"
         case .heartRate: "heart_rate.updated"

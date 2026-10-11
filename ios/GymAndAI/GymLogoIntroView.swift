@@ -12,7 +12,10 @@ struct GymLogoIntroView: View {
 
             ZStack {
                 LinearGradient(
-                    colors: [Color(red: 0.015, green: 0.025, blue: 0.035), .black],
+                    colors: [
+                        Color(red: 0.13, green: 0.145, blue: 0.17),
+                        Color(red: 0.08, green: 0.095, blue: 0.12)
+                    ],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -32,7 +35,7 @@ struct GymLogoIntroView: View {
             .contentShape(Rectangle())
             .onTapGesture(perform: onComplete)
             .task {
-                try? await Task.sleep(for: .milliseconds(220))
+                try? await Task.sleep(for: .milliseconds(500))
                 withAnimation(.spring(response: 0.48, dampingFraction: 0.72)) {
                     liftProgress = 1
                 }

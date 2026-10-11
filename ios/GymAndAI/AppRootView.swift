@@ -5,8 +5,7 @@ struct AppRootView: View {
     @State private var onboarding: OnboardingStore
     private let bypassOnboarding: Bool
     @State private var session: WorkoutSession
-    @State private var watch = WatchConnectionController()
-    @State private var healthAccess = HealthAccessController()
+    @State private var heartRate = HeartRateMonitor()
     @State private var showsSettings = false
     @State private var showsPlan = false
     @State private var showsIntro: Bool
@@ -64,14 +63,15 @@ struct AppRootView: View {
         .onAppear {
             if reduceMotion { showsIntro = false }
         }
+        .onChange(of: onboarding.profile, initial: true) { session.usePlan(WorkoutPlan.make(for: onboarding.profile)) }
         .task {
             guard session.consumeSimulatorAutoStartRequest() else { return }
             await session.start()
         }
         .tint(GymTheme.accent)
-        .sheet(isPresented: $showsSettings) { SettingsView(session: session, healthAccess: healthAccess, watch: watch) }
+        .sheet(isPresented: $showsSettings) { SettingsView(session: session) }
         .sheet(isPresented: $showsPlan) { PlanView(session: session) }
-        .fullScreenCover(isPresented: $session.presentsWorkout) { WorkoutFlowView(session: session, watch: watch) }
+        .fullScreenCover(isPresented: $session.presentsWorkout) { WorkoutFlowView(session: session, heartRate: heartRate) }
         .alert("Couldn’t complete that action", isPresented: errorBinding) {
             Button("OK", action: session.clearError)
         } message: {
@@ -83,29 +83,20 @@ struct AppRootView: View {
     private func dashboard(session: WorkoutSession) -> some View {
         TabView {
             NavigationStack {
-                TodayView(session: session, showsPlan: $showsPlan, openSettings: openSettings)
+                TodayView(session: session, showsPlan: $showsPlan)
                     .toolbar {
-                        if #available(iOS 26, *) {
-                            ToolbarItem(placement: .topBarLeading) { BrandLogoView() }
-                                .sharedBackgroundVisibility(.hidden)
-                        } else {
-                            ToolbarItem(placement: .topBarLeading) { BrandLogoView() }
-                        }
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Settings", systemImage: "gearshape", action: openSettings)
-                                .frame(minWidth: 44, minHeight: 44)
                         }
                     }
-                    .navigationBarTitleDisplayMode(.inline)
                     .toolbarBackground(.hidden, for: .navigationBar)
             }
-            .tabItem { Label("Today", systemImage: "sun.max") }
+            .tabItem { Label("Today", systemImage: "figure.strengthtraining.traditional") }
             NavigationStack {
                 ProgressViewScreen(session: session)
                     .navigationTitle("Progress")
-                    .navigationBarTitleDisplayMode(.inline)
             }
-            .tabItem { Label("Progress", systemImage: "chart.bar") }
+            .tabItem { Label("Progress", systemImage: "chart.bar.fill") }
         }
     }
 

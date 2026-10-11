@@ -1,71 +1,109 @@
 import SwiftUI
 import GymAndAIKit
 
+/// Welcome → About You → questions → your companion → Heart Rate → Camera.
+/// Each permission page's Continue shows the system prompt; Not Now moves on.
 struct OnboardingFlowView: View {
     @Bindable var store: OnboardingStore
     var isEditing = false
     let onComplete: () -> Void
     @AppStorage("companion") private var companion = CompanionKind.pip
     @FocusState private var fieldFocused: OnboardingMetric?
+    @State private var phase: Phase
     @State private var savingError = false
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @AccessibilityFocusState private var headingFocused: Bool
     private let questions = OnboardingQuestion.allCases
-    private var isReview: Bool { store.draft.step == questions.count + 1 }
+
+    enum Phase { case welcome, profile, heartRate, camera }
+
+    init(store: OnboardingStore, isEditing: Bool = false, onComplete: @escaping () -> Void) {
+        self.store = store
+        self.isEditing = isEditing
+        self.onComplete = onComplete
+        _phase = State(initialValue: isEditing || store.draft.step > 0 ? .profile : .welcome)
+    }
+
+    var body: some View {
+        Group {
+            switch phase {
+            case .welcome:
+                page(button: "Get Started", action: { phase = .profile }) {
+                    CompanionStage(state: .celebrate).frame(maxWidth: 300)
+                    Text("Gym&I").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text("A training companion that counts every rep and helps your form.")
+                        .multilineTextAlignment(.center).foregroundStyle(GymTheme.muted)
+                }
+            case .profile:
+                profile
+            case .heartRate:
+                page(button: "Continue", action: { await Permissions.requestHeartRate(); phase = .camera },
+                     skip: { phase = .camera }) {
+                    permissionIcon("heart.fill", color: .red)
+                    Text("Heart Rate").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text("See your heart rate from Apple Watch while you train.")
+                        .multilineTextAlignment(.center).foregroundStyle(GymTheme.muted)
+                }
+            case .camera:
+                page(button: "Continue", action: { Permissions.requestLocalNetwork(); finish() }, skip: finish) {
+                    permissionIcon("video.fill", color: GymTheme.accent)
+                    Text("Gym&I Camera").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text("Gym&I finds your camera on Wi‑Fi to count reps and check your form.")
+                        .multilineTextAlignment(.center).foregroundStyle(GymTheme.muted)
+                }
+            }
+        }
+        .gymPage()
+        .tint(GymTheme.accent)
+        .sensoryFeedback(.selection, trigger: store.draft.step)
+        .alert("Couldn’t Save Your Profile", isPresented: $savingError) { Button("OK") {} }
+    }
+
+    // MARK: Profile
+
+    private var isMatch: Bool { store.draft.step == questions.count + 1 }
     private var question: OnboardingQuestion? {
         questions.indices.contains(store.draft.step - 1) ? questions[store.draft.step - 1] : nil
     }
+    private var focus: TrainingFocus { store.draft.selectedFocus ?? store.draft.recommendedFocus }
     private var canContinue: Bool {
         if store.draft.step == 0 { return store.draft.metricsAreValid }
-        if isReview { return store.draft.isComplete }
+        if isMatch { return store.draft.isComplete }
         guard let question else { return false }
         return question.choices.contains { $0.id == store.draft.answers[question.rawValue] }
     }
 
-    var body: some View {
+    private var profile: some View {
         VStack(spacing: 0) {
-            header
-            ScrollViewReader { reader in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: GymTheme.Space.section) {
-                        if store.draft.step == 0 {
-                            OnboardingMetricsView(store: store, fieldFocus: $fieldFocused)
-                        } else if let question {
-                            questionContent(question)
-                        } else {
-                            OnboardingMatchView(store: store)
-                        }
-                        if savingError { Text("Your profile could not be saved. Try again.") }
-                    }
-                    .padding(GymTheme.Space.page)
-                    .frame(maxWidth: GymTheme.contentWidth, alignment: .leading)
-                    .frame(maxWidth: .infinity)
-                    .id("onboarding-top")
+            HStack(spacing: GymTheme.Space.related) {
+                Button("Back", systemImage: "chevron.left", action: back)
+                    .labelStyle(.iconOnly)
+                    .frame(width: 44, height: 44)
+                    .disabled(store.draft.step == 0 && isEditing)
+                ProgressView(value: Double(store.draft.step), total: Double(questions.count + 1))
+                    .accessibilityLabel("Progress")
+                Button(isEditing ? "Cancel" : "Skip") {
+                    if !isEditing { store.skip() }
+                    onComplete()
                 }
-                .scrollDismissesKeyboard(.interactively)
-                .task(id: fieldFocused) {
-                    guard let metric = fieldFocused else { return }
-                    do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
-                    reader.scrollTo(metric, anchor: .center)
-                }
-                .onChange(of: store.draft.step) {
-                    reader.scrollTo("onboarding-top", anchor: .top)
-                    headingFocused = true
-                }
+                .frame(minHeight: 44)
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            GymActionDock {
-                Button(isReview ? "Start with \(currentFocus.companion.capitalized)" : "Continue", action: advance)
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(!canContinue)
-                    .accessibilityIdentifier("onboarding-continue")
+            .padding(.horizontal, GymTheme.Space.inset)
+            ScrollView {
+                VStack(alignment: .leading, spacing: GymTheme.Space.section) {
+                    if store.draft.step == 0 { metrics }
+                    else if let question { questionContent(question) }
+                    else { match }
+                }
+                .padding(GymTheme.Space.page)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollDismissesKeyboard(.interactively)
+            Button(isMatch ? "Continue with \(focus.companion.capitalized)" : "Continue", action: advance)
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(!canContinue)
+                .padding(.horizontal, GymTheme.Space.page)
+                .padding(.vertical, GymTheme.Space.related)
+                .accessibilityIdentifier("onboarding-continue")
         }
-        .background(GymTheme.background.ignoresSafeArea())
-        .foregroundStyle(GymTheme.text)
-        .tint(GymTheme.accentText)
-        .sensoryFeedback(.selection, trigger: store.draft.step)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -74,68 +112,138 @@ struct OnboardingFlowView: View {
         }
     }
 
-    private var currentFocus: TrainingFocus { store.draft.selectedFocus ?? store.draft.recommendedFocus }
-    private var header: some View {
-        VStack(spacing: GymTheme.Space.related) {
-            HStack {
-                if store.draft.step > 0 {
-                    Button("Back", systemImage: "chevron.left") { fieldFocused = nil; store.draft.step -= 1 }
-                        .labelStyle(.iconOnly)
-                        .frame(width: 44, height: 44)
-                }
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Image("GymAILogo").resizable().scaledToFit().frame(width: 100, height: 44).accessibilityLabel("Gym&I")
-                }
-                Spacer()
-                Button(isEditing ? "Cancel" : dynamicTypeSize.isAccessibilitySize ? "Later" : "Set up later") {
-                    if !isEditing { store.skip() }
-                    onComplete()
-                }
-                .font(.subheadline)
-                .frame(minHeight: 44)
+    private var metrics: some View {
+        VStack(alignment: .leading, spacing: GymTheme.Space.section) {
+            Text("About You").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+            Picker("Units", selection: $store.usesImperial) {
+                Text("Metric").tag(false)
+                Text("Imperial").tag(true)
             }
-            HStack {
-                Text(store.draft.step == 0 ? "About you" : isReview ? "Your match" : "Question \(store.draft.step) of \(questions.count)")
-                    .font(.subheadline)
-                Spacer()
-                if store.draft.step > 0, !isReview, !dynamicTypeSize.isAccessibilitySize { Text("Your training").font(.subheadline).foregroundStyle(GymTheme.muted) }
+            .pickerStyle(.segmented)
+            VStack(spacing: 0) {
+                metricField("Weight", unit: store.draft.imperial ? "lb" : "kg", value: $store.draft.weight, metric: .weight)
+                Divider().padding(.leading, GymTheme.Space.inset)
+                metricField("Height", unit: store.draft.imperial ? "in" : "cm", value: $store.draft.height, metric: .height)
+                Divider().padding(.leading, GymTheme.Space.inset)
+                HStack {
+                    Text("Sex")
+                    Spacer()
+                    Picker("Sex", selection: $store.draft.sex) {
+                    Text("Not Set").tag(String?.none)
+                    Text("Female").tag(String?("female"))
+                    Text("Male").tag(String?("male"))
+                    Text("Intersex").tag(String?("intersex"))
+                    Text("Prefer Not to Say").tag(String?("not_shared"))
+                    }
+                    .labelsHidden()
+                }
+                .padding(.leading, GymTheme.Space.inset)
+                .padding(.trailing, GymTheme.Space.small)
+                .frame(minHeight: 52)
+                .accessibilityIdentifier("onboarding-sex")
             }
-            ProgressView(value: Double(store.draft.step), total: Double(questions.count + 1))
-                .tint(GymTheme.accentText)
-                .accessibilityLabel("Profile progress")
-                .accessibilityValue(isReview ? "Ready to review" : store.draft.step == 0 ? "Personal measurements" : "Question \(store.draft.step) of eight")
+            .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.radius))
+            if !store.draft.metricsAreValid {
+                Text("Check your weight and height.")
+                    .font(.footnote).foregroundStyle(GymTheme.muted)
+                    .accessibilityIdentifier("onboarding-metrics-error")
+            }
         }
-        .padding(.horizontal, GymTheme.Space.page)
-        .padding(.vertical, GymTheme.Space.small)
-        .frame(maxWidth: GymTheme.contentWidth)
-        .frame(maxWidth: .infinity)
+    }
+
+    private func metricField(_ title: String, unit: String, value: Binding<Double?>, metric: OnboardingMetric) -> some View {
+        HStack {
+            Text(title)
+            TextField(title, value: value, format: .number.precision(.fractionLength(0...1)), prompt: Text("Optional"))
+                .multilineTextAlignment(.trailing)
+                .focused($fieldFocused, equals: metric)
+                .keyboardType(.decimalPad)
+                .accessibilityIdentifier("onboarding-\(title.lowercased())")
+            Text(unit).foregroundStyle(GymTheme.muted).accessibilityHidden(true)
+        }
+        .padding(.horizontal, GymTheme.Space.inset)
+        .frame(minHeight: 52)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(title) in \(unit)")
     }
 
     private func questionContent(_ question: OnboardingQuestion) -> some View {
         VStack(alignment: .leading, spacing: GymTheme.Space.section) {
-            Text(question.title)
-                .font(GymTheme.TypeStyle.title)
+            Text(question.title).font(.largeTitle.bold())
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
-                .accessibilityFocused($headingFocused)
-            Text(question.detail).foregroundStyle(GymTheme.muted).fixedSize(horizontal: false, vertical: true)
-            VStack(spacing: GymTheme.Space.related) {
+            VStack(spacing: GymTheme.Space.small) {
                 ForEach(question.choices) { choice in
                     OnboardingChoiceRow(choice: choice, selected: store.draft.answers[question.rawValue] == choice.id) {
                         store.choose(choice, for: question)
+                        let step = store.draft.step
+                        Task {  // a short beat to see the check, then on to the next question
+                            try? await Task.sleep(for: .milliseconds(250))
+                            if store.draft.step == step { advance() }
+                        }
                     }
                 }
             }
         }
     }
 
+    private var match: some View {
+        VStack(spacing: GymTheme.Space.section) {
+            CompanionStage(state: .celebrate, companion: CompanionKind(rawValue: focus.companion) ?? .pip)
+                .frame(maxWidth: 280)
+            Text("Meet \(focus.companion.capitalized)").font(.largeTitle.bold())
+                .accessibilityIdentifier("onboarding-match-title")
+                .accessibilityAddTraits(.isHeader)
+            Picker("Training focus", selection: Binding(get: { focus }, set: { store.draft.selectedFocus = $0 })) {
+                ForEach(TrainingFocus.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func back() {
+        fieldFocused = nil
+        if store.draft.step == 0 { phase = .welcome } else { store.draft.step -= 1 }
+    }
+
     private func advance() {
         fieldFocused = nil
-        if isReview {
-            guard store.complete() else { savingError = true; return }
-            companion = CompanionKind(rawValue: currentFocus.companion) ?? .pip
-            onComplete()
-        } else {
-            store.draft.step += 1
+        guard isMatch else { store.draft.step += 1; return }
+        if isEditing { finish() } else { phase = .heartRate }
+    }
+
+    private func finish() {
+        guard store.complete() else { savingError = true; return }
+        companion = CompanionKind(rawValue: focus.companion) ?? .pip
+        onComplete()
+    }
+
+    // MARK: Pages
+
+    private func page<Content: View>(button: String, action: @escaping () async -> Void, skip: (() -> Void)? = nil,
+                                     @ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: GymTheme.Space.section) {
+            Spacer(minLength: 0)
+            content()
+            Spacer(minLength: 0)
+            Button(button) { Task { await action() } }
+                .buttonStyle(PrimaryButtonStyle())
+                .accessibilityIdentifier("onboarding-continue")
+            if let skip {
+                Button("Not Now", action: skip).frame(minHeight: 44)
+            }
         }
+        .padding(.horizontal, GymTheme.Space.page)
+        .padding(.bottom, GymTheme.Space.small)
+    }
+
+    private func permissionIcon(_ symbol: String, color: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 56, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: 128, height: 128)
+            .background(color.opacity(0.15), in: .circle)
+            .accessibilityHidden(true)
     }
 }

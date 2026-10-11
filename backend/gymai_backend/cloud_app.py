@@ -10,6 +10,7 @@ from typing import Literal
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ValidationError
 
 from backend.audio.dynamic_cue import cached_voice_id, save_voice_clip
 from .backboard_memory import (create_profile_assistant, add_profile_memory,
@@ -18,6 +19,7 @@ from .coaching_catalog import CUES
 from .gemini import send_coach_message
 from .rep_coaching import POLICY, count_text
 from .voice_prompts import COACH_PROMPTS
+from .workout_summary import Workout
 
 app = FastAPI(title="Gym&I hosted coach")
 AUDIO_DIR = Path(os.getenv("GYMAI_CLOUD_AUDIO_DIR", "/tmp/gymai/audio"))
@@ -54,6 +56,18 @@ class VoiceRequest(BaseModel):
 @app.get("/health")
 async def health():
     return {"status": "ok", "workout_owner": "iphone", "capture_owner": "pi"}
+
+
+@app.post("/api/workouts/summary", dependencies=[Depends(auth)])
+async def workout_summary(request: Request):
+    payload = await request.body()
+    if len(payload) > 2_000_000:
+        raise HTTPException(413, "Workout is too large.")
+    try:
+        workout = Workout.model_validate_json(payload)
+    except ValidationError as exc:
+        raise HTTPException(422, "Invalid committed camera workout.") from exc
+    return workout.summary()
 
 
 @app.get("/api/coach/configuration", dependencies=[Depends(auth)])

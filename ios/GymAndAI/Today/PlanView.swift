@@ -2,71 +2,66 @@ import SwiftUI
 import GymAndAIKit
 
 struct PlanView: View {
-    @Bindable var session: WorkoutSession
+    let session: WorkoutSession
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            Form {
+            List {
                 Section {
-                    WorkoutHeaderView(context: "One exercise · One set", title: session.exercise.title,
-                                      detail: "Review your exercise and how this set will be followed.")
-                        .padding(.vertical, GymTheme.Space.small)
-                }
-                .listRowBackground(Color.clear)
-                Section("Exercise") {
-                    Picker("Exercise", selection: $session.exercise) {
-                        ForEach(Exercise.allCases, id: \.self) { Text($0.title).tag($0) }
+                    VStack(alignment: .leading, spacing: GymTheme.Space.tight) {
+                        Text(session.plan.title).font(.largeTitle.bold())
+                            .accessibilityAddTraits(.isHeader)
+                        Text("\(session.plan.items.count) exercises · About \(session.plan.minutes) min")
+                            .foregroundStyle(GymTheme.muted)
                     }
-                    LabeledContent("Equipment", value: session.exercise.equipment)
-                    LabeledContent("Target", value: target)
-                    Text(targetDetail).foregroundStyle(GymTheme.muted)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: GymTheme.Space.small, trailing: 4))
                 }
-                .listRowBackground(GymTheme.surface)
-                Section("Workout source") {
-                    Picker("Mode", selection: $session.mode) {
-                        ForEach(WorkoutMode.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-                    Text(sourceDetail).foregroundStyle(GymTheme.muted)
-                }
-                .listRowBackground(GymTheme.surface)
-                Section("Positioning guide") {
-                    Label(session.exercise.positioning, systemImage: "viewfinder")
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .listRowBackground(GymTheme.surface)
                 Section {
-                    Text("This build runs one selected set. Personalized plans are not connected yet.")
-                        .foregroundStyle(GymTheme.muted)
+                    ForEach(session.plan.items) { item in
+                        HStack(spacing: GymTheme.Space.inset) {
+                            Image(systemName: item.exercise.symbol)
+                                .font(.title3)
+                                .foregroundStyle(GymTheme.accent)
+                                .frame(width: 44, height: 44)
+                                .background(GymTheme.accent.opacity(0.15), in: .circle)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.exercise.title).font(.headline)
+                                Text("\(item.sets) sets × \(item.reps) reps").foregroundStyle(GymTheme.muted)
+                            }
+                            Spacer()
+                            Text(Duration.seconds(item.restSeconds).formatted(.units(allowed: [.minutes, .seconds], width: .narrow)))
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(GymTheme.muted)
+                                .accessibilityLabel("Rest \(Duration.seconds(item.restSeconds).formatted(.units(allowed: [.minutes, .seconds], width: .wide)))")
+                        }
+                        .padding(.vertical, GymTheme.Space.tight)
+                        .accessibilityElement(children: .combine)
+                    }
+                } header: {
+                    HStack { Text("Exercise"); Spacer(); Text("Rest") }
                 }
-                .listRowBackground(Color.clear)
+                .listRowBackground(GymTheme.surface)
             }
-            .modifier(GymFormStyle())
-            .navigationTitle("Your plan")
-            .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(GymTheme.background.ignoresSafeArea())
+            .foregroundStyle(GymTheme.text)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button(action: start) { Label("Start", systemImage: "play.fill") }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.horizontal, GymTheme.Space.page)
+                    .padding(.vertical, GymTheme.Space.related)
+                    .accessibilityLabel("Start workout")
+            }
             .toolbar { Button("Done", action: dismiss.callAsFunction) }
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
-    private var target: String {
-        switch session.mode {
-        case .phone: "Manual · Unmeasured"
-        case .hub: "8 reps"
-        }
-    }
-
-    private var targetDetail: String {
-        switch session.mode {
-        case .phone: "Start and end the set yourself. This camera does not measure reps or form yet."
-        case .hub: "Each set targets eight reps. This iPhone counts them from the camera device’s movement data."
-        }
-    }
-
-    private var sourceDetail: String {
-        switch session.mode {
-        case .phone: "Use your iPhone camera to see your position. Video stays on your phone."
-        case .hub: "The camera device tracks your movement; this iPhone counts reps and coaches. Start the camera with the address shown during the workout."
-        }
+    private func start() {
+        dismiss()
+        Task { await session.start() }
     }
 }

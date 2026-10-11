@@ -30,7 +30,9 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Gym&amp;I saves completed workouts to Apple Health.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Gym&amp;I connects to your laptop coach and webcam preview.</string>
+	<string>Gym&amp;I connects to your tripod camera and receives its movement analysis over your Personal Hotspot.</string>
+	<key>NSBonjourServices</key>
+	<array><string>_gymni._tcp</string></array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

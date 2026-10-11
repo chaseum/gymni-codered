@@ -3,8 +3,8 @@ import GymAndAIKit
 
 struct WorkoutFlowView: View {
     @Bindable var session: WorkoutSession
-    let watch: WatchConnectionController
-    @State private var camera = PhoneCameraController()
+    let heartRate: HeartRateMonitor
+    @State private var showsWatchTip = false
     @State private var audio = CoachAudioPlayer()
     @State private var audioRequest: Task<Void, Never>?
     @State private var showsFormImproved = false
@@ -15,21 +15,29 @@ struct WorkoutFlowView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if session.isPositioning { PositioningView(session: session, camera: camera, watch: watch) }
-                else {
-                    switch session.snapshot?.state {
-                    case .paused: RestViewScreen(session: session, mascotState: audio.isSpeaking ? .coaching : .rest)
-                    case .complete: RecapView(session: session, mascotState: audio.isSpeaking ? .coaching : .celebrate)
-                    default:
-                        if showsCamera { CameraWorkoutView(session: session, camera: camera, toggleAudio: toggleAudio) }
-                        else { ActiveWorkoutView(session: session, camera: camera, mascotState: activeMascotState) }
-                    }
+                switch session.snapshot?.state {
+                case .paused: RestView(session: session, mascotState: audio.isSpeaking ? .coaching : .rest)
+                case .complete: RecapView(session: session, mascotState: audio.isSpeaking ? .coaching : .celebrate)
+                default:
+                    if showsCamera { CameraWorkoutView(session: session, mascotState: activeMascotState, toggleAudio: toggleAudio) }
+                    else { SetView(session: session, mascotState: activeMascotState) }
                 }
             }
             .background(GymTheme.background)
             .foregroundStyle(GymTheme.text)
+            .alert("Start a Workout on Apple Watch", isPresented: $showsWatchTip) {
+                Button("OK") {}
+            } message: {
+                Text("Open Workout on your Apple Watch and choose Traditional Strength Training to see your heart rate here.")
+            }
             .toolbar {
-                ToolbarItem(placement: .principal) { Text("Gym&I").font(.headline) }
+                if session.snapshot?.state == .active {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Live camera", systemImage: "video.fill") { session.display = .camera }
+                            .frame(minWidth: 44, minHeight: 44)
+                            .accessibilityIdentifier("show-camera")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(session.audioEnabled ? "Mute coach" : "Unmute coach", systemImage: session.audioEnabled ? "speaker.wave.2" : "speaker.slash", action: toggleAudio)
                         .labelStyle(.iconOnly)
@@ -38,6 +46,7 @@ struct WorkoutFlowView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar(showsCamera ? .hidden : .visible, for: .navigationBar)
             .alert("Action not confirmed", isPresented: errorBinding) {
                 Button("OK", action: session.clearError)
@@ -54,45 +63,46 @@ struct WorkoutFlowView: View {
             if let cue = speakingCoachingCue, !cue.isCurrent(in: session.snapshot) { stopAudio() }
         }
         .onChange(of: session.snapshot?.activeIssues, issuesChanged)
-        .onChange(of: session.snapshot?.trackingStatus, trackingChanged)
+        .task(id: session.snapshot?.state) {
+            guard session.snapshot?.state == .active else { return }
+            while !Task.isCancelled {
+                trackingChanged()
+                do { try await Task.sleep(for: .milliseconds(250)) }
+                catch { return }
+            }
+        }
         .onChange(of: session.audioEnabled) {
             if !session.audioEnabled { stopAudio() }
         }
         .sensoryFeedback(.selection, trigger: session.display)
         .sensoryFeedback(.impact(weight: .light), trigger: session.snapshot?.state)
-        .task(id: cameraShouldRun) {
-            if cameraShouldRun { await camera.start() }
-            else { camera.stop() }
-        }
-        .task(id: session.snapshot?.state) { await watch.synchronize(session) }
         .task(id: WorkoutLiveActivity.state(for: session)) {
-            await WorkoutLiveActivity.update(WorkoutLiveActivity.state(for: session), exercise: session.exercise.rawValue.capitalized)
+            await WorkoutLiveActivity.update(WorkoutLiveActivity.state(for: session), exercise: session.exercise.title)
         }
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            heartRate.start(for: session)
+            showsWatchTip = heartRate.hasPairedWatch
+        }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             let finalState = WorkoutLiveActivity.state(for: session)
             Task { await WorkoutLiveActivity.end(finalState) }
             stopAudio()
-            camera.stop()
-            watch.stop()
+            heartRate.stop()
         }
         .onChange(of: scenePhase) {
             if scenePhase != .active {
                 stopAudio()
-                if scenePhase == .background, session.isPhone || session.isHub, session.snapshot?.state == .active || session.snapshot?.state == .ready {
+                if scenePhase == .background, session.snapshot?.state == .active || session.snapshot?.state == .ready {
                     Task { await session.pause() }
                 }
             }
         }
     }
 
-    private var cameraShouldRun: Bool {
-        session.isPhone && scenePhase != .background && (session.snapshot?.state == .ready || session.snapshot?.state == .active)
-    }
-
     private var showsCamera: Bool {
-        !session.isPositioning && session.display == .camera && session.snapshot?.state != .paused && session.snapshot?.state != .complete
+        session.display == .camera && session.snapshot?.state != .paused && session.snapshot?.state != .complete
     }
 
     private var errorBinding: Binding<Bool> {
@@ -106,6 +116,7 @@ struct WorkoutFlowView: View {
 
     private func stateChanged() {
         stopAudio()
+        session.resetTrackingCoaching()
         guard session.audioEnabled else { return }
         switch session.snapshot?.state {
         case .paused: speakCoach(.paused)
@@ -135,7 +146,11 @@ struct WorkoutFlowView: View {
             do {
                 let data = try await session.fetchHostedAudio(.prompt(cue))
                 guard !Task.isCancelled, session.audioEnabled, scenePhase == .active else { return }
-                if !audio.play(data, cue: cue.text) { session.reportVoicePlaybackFailure() }
+                let trackingCue = cue == .trackingReady || cue == .trackingLost
+                if trackingCue && !session.trackingCueIsCurrent(cue) { return }
+                if audio.play(data, cue: cue.text) {
+                    if trackingCue { session.trackingCueWasSpoken(cue) }
+                } else { session.reportVoicePlaybackFailure() }
             } catch {
                 guard !Task.isCancelled, session.audioEnabled, scenePhase == .active else { return }
             }
@@ -219,10 +234,10 @@ struct WorkoutFlowView: View {
     }
 
     private func trackingChanged() {
-        guard session.isHub, session.audioEnabled, session.snapshot?.state == .active else { return }
-        // Do not interrupt a correction with the initial tracking-ready announcement.
-        if session.snapshot?.trackingStatus == .ready, speakingFeedbackID != nil || speakingCoachingCue != nil,
-           audio.isSpeaking || audioRequest != nil { return }
-        speakCoach(session.snapshot?.trackingStatus == .ready ? .trackingReady : .trackingLost)
+        guard session.isHub, session.snapshot?.state == .active else { return }
+        let cue = session.updateTrackingCoaching()
+        guard session.audioEnabled, scenePhase == .active, !audio.isSpeaking, audioRequest == nil,
+              let cue else { return }
+        speakCoach(cue)
     }
 }

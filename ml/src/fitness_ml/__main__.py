@@ -64,7 +64,7 @@ class Runner:
         if args.form_model:
             form_dirs[args.exercise] = Path(args.form_model)
         recognizer = None
-        auto = args.exercise == "auto"
+        auto = args.exercise == "auto" and not args.discover_phone
         # Manual mode reports the planned exercise: a recognizer label there makes the backend drop the rep.
         if recognizer_dir and (auto or args.recognizer):
             artifact = Artifact(recognizer_dir)  # a threshold calibrated on validation beats the generic default
@@ -72,7 +72,7 @@ class Runner:
                                     cfg.recognition_stride_ms, artifact.meta.get("reject_below", cfg.reject_below))
         if auto and recognizer is None:
             raise SystemExit("--exercise auto needs a trained recognizer in ml/models (or pass --exercise curl etc.)")
-        first = "curl" if auto else args.exercise
+        first = "curl" if args.exercise == "auto" else args.exercise
         self.analyzer = Analyzer(first, args.session, args.source, set_id=args.set_id, variation=args.variation,
                                  config=cfg, recognizer=recognizer)
         self.selector = ExerciseSelector(self.analyzer, form_dirs, auto)
@@ -83,6 +83,12 @@ class Runner:
         self.observations = JsonlWriter(args.observations) if args.observations else None
         self.debug_log = JsonlWriter(args.debug_log) if args.debug_log else None
         self.poster = BackendPoster(args.post, args.session, os.environ.get("GYMAI_TOKEN")) if args.post else None
+        self.phone = None
+        self.phone_configuration = None
+        if args.discover_phone:
+            from .phone import PhoneLink
+            self.phone = PhoneLink()
+            self.selector.auto = False
         self.stats = ClipStats()
         self.window = not args.no_window
         self.frames_seen = 0
@@ -98,6 +104,8 @@ class Runner:
         try:
             while True:
                 source = open_source(self.kind, self.args.video, self.args.camera)
+                if self.kind == "live":
+                    source.width, source.height = self.args.capture_width, self.args.capture_height
                 self.analyzer.reset(source=source.source, clip_id=source.clip_id)
                 action = self._play(source)
                 if action == "quit" or (action == "ended" and not self.args.loop):
@@ -121,6 +129,17 @@ class Runner:
             for frame in source.frames():
                 if self.args.max_frames and self.frames_seen >= self.args.max_frames:
                     return "quit"
+                if self.args.max_fps:
+                    time.sleep(max(0, 1 / self.args.max_fps - (time.perf_counter() - last)))
+                if self.args.analysis_width and frame.image.shape[1] > self.args.analysis_width:
+                    import cv2
+                    height = round(frame.image.shape[0] * self.args.analysis_width / frame.image.shape[1])
+                    frame.image = cv2.resize(frame.image, (self.args.analysis_width, height))
+                if self.phone and not self._follow_phone():
+                    if self.preview:
+                        self.preview.publish(frame.image)
+                    last = time.perf_counter()
+                    continue
                 step = process(frame, estimator, self.analyzer)
                 switched = self.selector.on_frame(frame.timestamp_ms, step.result.observation.completed_rep is not None)
                 if switched:
@@ -143,6 +162,19 @@ class Runner:
                     if action:
                         return action
         return "ended"
+
+    def _follow_phone(self) -> bool:
+        from .phone import configuration_key
+        config = self.phone.configuration
+        key = configuration_key(config) if config else None
+        if key != self.phone_configuration:
+            self.analyzer.reset(source="live" if config and (not self.phone_configuration or
+                                config["workout_id"] != self.phone_configuration[0]) else None)
+            if config:
+                self.selector.choose(config["exercise"])
+                self.analyzer.session_id, self.analyzer.set_id = config["session_id"], config["set_id"]
+            self.phone_configuration = key
+        return bool(config and config["state"] == "active")
 
     def _overlay(self, step, fps: float, paused: bool):
         from .debug import Hud, draw
@@ -180,6 +212,8 @@ class Runner:
             self.observations.write(obs.to_dict())
         if self.poster:
             self.poster.send(obs)
+        if self.phone:
+            self.phone.send(obs, self.phone_configuration)
         if self.debug_log:
             self.debug_log.write(_json_safe({
                 "observation_id": obs.observation_id, "t_ms": obs.source_timestamp_ms, "frame": step.frame.index,
@@ -222,6 +256,8 @@ class Runner:
         return None
 
     def _close(self) -> None:
+        if self.phone:
+            self.phone.close()
         if self.preview:
             self.preview.close()
         if self.recorder:
@@ -312,6 +348,11 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--observations", help="append contract observations (JSONL)")
     run.add_argument("--debug-log", help="append per-frame features/checks (JSONL, not a contract)")
     run.add_argument("--post", nargs="?", const=Config().backend_url, help="POST observations to the backend")
+    run.add_argument("--discover-phone", action="store_true", help="discover Gym&I on the hotspot and follow its workout controls")
+    run.add_argument("--capture-width", type=int, default=640)
+    run.add_argument("--capture-height", type=int, default=480)
+    run.add_argument("--analysis-width", type=int, help="resize frames before inference (Pi: 480)")
+    run.add_argument("--max-fps", type=float, help="limit inference rate (Pi: 8)")
     run.add_argument("--recognizer", help="recognition artifact dir (default: newest in ml/models)")
     run.add_argument("--form-model", help="form artifact dir for --exercise (default: newest per exercise in ml/models)")
     run.add_argument("--no-models", action="store_true", help="rules only: no recognizer, no form models")

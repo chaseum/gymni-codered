@@ -12,12 +12,12 @@ enum WorkoutLiveActivity {
         let activeCue = session.store.lastFeedback.flatMap { feedback in
             feedback.setId == snapshot?.setId && snapshot?.activeIssues.contains(feedback.issueCode) == true ? feedback.text : nil
         }
-        let measuresForm = !session.isPhone && snapshot?.trackingStatus == .ready
+        let measuresForm = snapshot?.trackingStatus == .ready
         let status = switch snapshot?.state {
-        case .active: snapshot?.trackingStatus == .ready || session.isPhone ? "Active" : session.trackingMessage
+        case .active: snapshot?.trackingStatus == .ready ? "Active" : "Waiting for camera"
         case .paused: "Resting"
         case .complete: "Done"
-        default: "Getting ready"
+        default: "Starting"
         }
         return State(
             bpm: rate.status == .live ? rate.bpm.map { Int($0.rounded()) } : nil,

@@ -6,33 +6,40 @@ struct RecapView: View {
     var mascotState = MascotState.celebrate
 
     var body: some View {
-        GymPage {
-            WorkoutHeaderView(context: "Session recap",
-                              title: "You showed up.")
-            PipView(state: mascotState).frame(width: 120, height: 110)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            VStack(alignment: .leading, spacing: GymTheme.Space.related) {
-                Text((session.snapshot?.exercise ?? session.exercise).title)
-                    .font(GymTheme.TypeStyle.heading).accessibilityAddTraits(.isHeader)
-                if session.isPhone { UnmeasuredRepsView() }
-                else { RepCounterView(count: session.repCount, target: session.targetReps) }
-                Text(sourceDescription).font(GymTheme.TypeStyle.label).foregroundStyle(GymTheme.accentText)
+        VStack(spacing: GymTheme.Space.section) {
+            CompanionStage(state: mascotState)
+                .frame(maxWidth: 260)
+            VStack(spacing: GymTheme.Space.tight) {
+                Text("Workout Complete").font(.largeTitle.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Text(session.plan.title).foregroundStyle(GymTheme.muted)
             }
-            .padding(GymTheme.Space.page)
-            .modifier(GymSurface())
-            Text(session.isPhone ? "Your camera session ended. Reps and form were not measured." : "These reps were counted on this iPhone from your camera’s movement data.")
-                .font(.body).foregroundStyle(GymTheme.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            GymActionDock {
-                Button("Back to Today", action: session.returnToday).buttonStyle(PrimaryButtonStyle())
+            Grid(horizontalSpacing: GymTheme.Space.related) {
+                GridRow {
+                    stat("Time", session.elapsed(at: completedAt))
+                    stat("Sets", "\(session.setsDone)")
+                    stat("Reps", "\(session.totalReps)")
+                }
             }
+            Spacer(minLength: 0)
+            Button("Done", action: session.returnToday)
+                .buttonStyle(PrimaryButtonStyle())
         }
+        .padding(.horizontal, GymTheme.Space.page)
+        .padding(.bottom, GymTheme.Space.small)
+        .gymPage()
     }
 
-    private var sourceDescription: String {
-        if session.isPhone { return "iPhone camera · Unmeasured" }
-        return "Pi or laptop camera · Counted on this iPhone"
+    @State private var completedAt = Date.now
+
+    private func stat(_ label: String, _ value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.system(.title, design: .rounded).bold()).monospacedDigit()
+            Text(label).font(.subheadline).foregroundStyle(GymTheme.muted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, GymTheme.Space.inset)
+        .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.radius))
+        .accessibilityElement(children: .combine)
     }
 }

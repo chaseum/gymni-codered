@@ -1,23 +1,41 @@
+import Foundation
 import GymAndAIKit
 
 extension WorkoutSession {
-    var trackingMessage: String {
-        if isPhone { return "Rep and form analysis unavailable" }
-        switch snapshot?.trackingStatus {
-        case .ready: return "Tracking ready"
-        case .lowVisibility: return "Tracking limited · Adjust your position"
-        case .unassessable: return "This view cannot be assessed"
-        default: return isHub ? "Waiting for camera · send to \(hubAddress ?? "this iPhone, port 8000")" : "Waiting for camera tracking"
-        }
-    }
+    var cameraConnected: Bool { cameraLastSeen.map { $0.timeIntervalSinceNow > -4 } ?? false }
 
+    /// One short line from the coach, under the companion.
     var coachingMessage: String {
-        if isPhone { return "Your camera is live. Rep counting and form feedback await the trained model." }
-        guard snapshot?.trackingStatus == .ready else { return "Step into view so I can follow your movement." }
+        switch coachingTrackingReady {
+        case true: break
+        case false: return cameraConnected ? "Step into view so I can see you." : "Waiting for camera"
+        default: return "Finding your position…"
+        }
         if let feedback = store.lastFeedback,
            feedback.setId == snapshot?.setId,
            snapshot?.activeIssues.contains(feedback.issueCode) == true { return feedback.text }
         if let cue = store.lastCoachingCue, cue.isCurrent(in: snapshot) { return cue.text }
-        return "Keep moving. I’m following your reps."
+        return "Nice and steady."
+    }
+}
+
+extension WorkoutSession {
+    /// Beats per minute from a fresh Apple Watch sample, else nil.
+    func bpm(at date: Date) -> Int? {
+        let rate = heartRate
+        guard rate.source == "apple_watch", rate.status == .live, let bpm = rate.bpm, bpm.isFinite, (20...250).contains(bpm),
+              let timestamp = rate.sampleTimestampMs else { return nil }
+        let age = date.timeIntervalSince1970 - Double(timestamp) / 1_000
+        return age >= 0 && age <= HeartRateView.maxSampleAge ? Int(bpm.rounded()) : nil
+    }
+
+    func elapsed(at date: Date) -> String {
+        let seconds = startedAt.map { max(0, Int(date.timeIntervalSince($0))) } ?? 0
+        return Duration.seconds(seconds).formatted(.time(pattern: seconds >= 3600 ? .hourMinuteSecond : .minuteSecond))
+    }
+
+    var repProgress: Double {
+        guard let target = targetReps, target > 0 else { return 0 }
+        return Double(repCount) / Double(target)
     }
 }

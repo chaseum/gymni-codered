@@ -12,9 +12,17 @@ public final class WorkoutSession {
     public var hostedAPIAddress = WorkoutSession.hostedAPI
     public var voiceStatus: String? = "Connecting to ElevenLabs…"
     public private(set) var workoutHistoryURL: URL?
+    public private(set) var workoutSyncStatus: String?
+    @ObservationIgnored private var workoutRelay: HostedWorkoutRelay?
+    @ObservationIgnored private var workoutSyncTask: Task<Void, Never>?
     @ObservationIgnored private var hostedCoach: HostedCoachClient?
     @ObservationIgnored private var voiceWarmTask: Task<Void, Never>?
     public var previewAddress = "" { didSet { saveConfiguration() } }
+    public private(set) var cameraHost: String?
+    public private(set) var cameraLastSeen: Date?
+    public private(set) var coachingTrackingReady: Bool?
+    @ObservationIgnored private var trackingCoach = TrackingCoach()
+    @ObservationIgnored private var cameraRevision = 0
     public var audioEnabled = true { didSet { saveConfiguration() } }
     public var usesAppleWatch = true { didSet { saveConfiguration() } }
     public var presentsWorkout = false
@@ -30,6 +38,19 @@ public final class WorkoutSession {
     public private(set) var watchHeartRate = HeartRateView.unavailable
     /// Where the camera device posts (`--post http://<this>`) while a camera-device session runs.
     public private(set) var hubAddress: String?
+    /// Today's workout. The session walks its steps: each set ends at its target (or "next"), then rests.
+    public private(set) var plan = WorkoutPlan.make(for: nil)
+    public private(set) var stepIndex = 0
+    /// The current set is done; resuming starts the next one.
+    public private(set) var setFinished = false
+    public private(set) var startedAt: Date?
+    public private(set) var history: [CompletedWorkout] = []
+    public var hubPort = HubServer.defaultPort
+    @ObservationIgnored private var advertisesHub = true
+    /// Sets and reps finished in this workout (for the recap and history).
+    public private(set) var setsDone = 0
+    public private(set) var totalReps = 0
+    private static let historyKey = "gymni.history.v1"
 
     @ObservationIgnored private var phone = PhoneWorkoutSource()
     @ObservationIgnored private var lastWatchMessageAtMs: Int64 = 0
@@ -52,12 +73,17 @@ public final class WorkoutSession {
             audioEnabled = saved.audioEnabled
             usesAppleWatch = saved.usesAppleWatch
         }
+        if let data = preferences?.data(forKey: Self.historyKey),
+           let saved = try? JSONDecoder().decode([CompletedWorkout].self, from: data) { history = saved }
         isRestoringConfiguration = false
     }
 
     /// `--gymni-hub [--exercise curl]`: start a camera-device session that a local fitness-ml can post to.
     public func configureSimulatorLaunch(arguments: [String]) {
+        advertisesHub = !arguments.contains("--gymni-ui-testing")
         if let address = Self.argument(after: "--hosted-api-url", in: arguments) { hostedAPIAddress = address }
+        if let address = Self.argument(after: "--preview-url", in: arguments) { previewAddress = address }
+        if let port = Self.argument(after: "--hub-port", in: arguments).flatMap(UInt16.init), port > 0 { hubPort = port }
         guard arguments.contains("--gymni-hub") else { return }
         mode = .hub
         if let exerciseID = Self.argument(after: "--exercise", in: arguments),
@@ -83,7 +109,58 @@ public final class WorkoutSession {
     public var repCount: Int { snapshot?.repCount ?? 0 }
     public var targetReps: Int? { snapshot?.targetReps }
     public var canResume: Bool { !isSending }
-    public var previewURL: URL? { Self.networkURL(previewAddress) }
+    public var currentStep: WorkoutPlan.Step? { plan.steps.indices.contains(stepIndex) ? plan.steps[stepIndex] : nil }
+    public var nextStep: WorkoutPlan.Step? { plan.steps.indices.contains(stepIndex + 1) ? plan.steps[stepIndex + 1] : nil }
+
+    public func usePlan(_ plan: WorkoutPlan) {
+        guard !presentsWorkout, !plan.items.isEmpty else { return }
+        self.plan = plan
+        exercise = plan.items[0].exercise
+    }
+
+    public func workoutsThisWeek(now: Date = .now, calendar: Calendar = .current) -> Int {
+        history.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .weekOfYear) }.count
+    }
+    public var previewURL: URL? {
+        if let cameraHost { return URL(string: "http://\(cameraHost):8081") }
+        return Self.networkURL(previewAddress)
+    }
+
+    public func cameraStatus(at now: Date = .now) -> String {
+        guard let cameraLastSeen, now.timeIntervalSince(cameraLastSeen) < 4 else {
+            return "Waiting for tripod · Check Personal Hotspot and Pi power"
+        }
+        return "Tripod connected"
+    }
+
+    public func resetTrackingCoaching() {
+        trackingCoach = TrackingCoach()
+        coachingTrackingReady = nil
+    }
+
+    public func updateTrackingCoaching(at now: TimeInterval = ProcessInfo.processInfo.systemUptime) -> CoachVoiceCue? {
+        var status = snapshot?.trackingStatus
+        if let cameraLastSeen, Date.now.timeIntervalSince(cameraLastSeen) >= 4 { status = .lost }
+        let cue = trackingCoach.update(status, at: now)
+        if coachingTrackingReady != trackingCoach.isReady { coachingTrackingReady = trackingCoach.isReady }
+        return cue
+    }
+
+    public func trackingCueIsCurrent(_ cue: CoachVoiceCue) -> Bool {
+        snapshot?.state == .active && coachingTrackingReady == (cue == .trackingReady)
+    }
+
+    public func trackingCueWasSpoken(_ cue: CoachVoiceCue) {
+        trackingCoach.didSpeak(cue, at: ProcessInfo.processInfo.systemUptime)
+    }
+
+    private func cameraConfiguration() -> CameraConfiguration? {
+        guard let snapshot, let setId = snapshot.setId, let exercise = snapshot.exercise,
+              let workoutHistoryURL else { return nil }
+        return CameraConfiguration(workoutId: workoutHistoryURL.deletingPathExtension().lastPathComponent,
+                                   sessionId: store.sessionId, setId: setId, exercise: exercise,
+                                   state: snapshot.state, revision: cameraRevision)
+    }
 
     private func saveConfiguration() {
         guard !isRestoringConfiguration, let preferences else { return }
@@ -95,12 +172,18 @@ public final class WorkoutSession {
     }
 
     public func start() async {
-        guard !isSending else { return }
+        guard !isSending, !presentsWorkout else { return }  // a second tap must not restart the workout
         errorMessage = nil
         isSending = true
         defer { isSending = false }
         sessionMode = mode
         display = .reps
+        stepIndex = 0
+        setFinished = false
+        setsDone = 0
+        totalReps = 0
+        startedAt = .now
+        if let first = currentStep { exercise = first.exercise }
         completedReps = nil
         completedUnmeasuredSession = false
         completedMode = nil
@@ -128,7 +211,24 @@ public final class WorkoutSession {
         await command(.rest, args: CommandArgs(restSeconds: 60))
     }
 
-    public func resume() async { await command(.resume) }
+    /// Resumes a paused set, or after a finished set starts the next one in the plan.
+    public func resume() async {
+        if setFinished, let next = nextStep {
+            stepIndex += 1
+            setFinished = false
+            exercise = next.exercise
+            await command(.nextExercise, args: CommandArgs(exercise: next.exercise, targetReps: next.reps))
+        }
+        await command(.resume)
+    }
+
+    /// Ends the current set (target reached or skipped): rest before the next one, or finish the workout.
+    public func finishSet() async {
+        guard snapshot?.state == .active, !setFinished else { return }
+        guard let step = currentStep, nextStep != nil else { return await end() }
+        setFinished = true
+        await command(.rest, args: CommandArgs(restSeconds: step.restSeconds))
+    }
 
     public func extendRest() async {
         await command(.extendRest, args: CommandArgs(restSeconds: 30))
@@ -142,6 +242,11 @@ public final class WorkoutSession {
         completedUnmeasuredSession = isPhone
         completedMode = sessionMode
         completedExercise = snapshot?.exercise ?? exercise
+        if totalReps > 0, let startedAt {
+            history.insert(CompletedWorkout(date: startedAt, title: plan.title, sets: setsDone, reps: totalReps,
+                                            durationSeconds: Int(Date.now.timeIntervalSince(startedAt))), at: 0)
+            if let data = try? JSONEncoder().encode(history) { preferences?.set(data, forKey: Self.historyKey) }
+        }
         stopHub()
         presentsWorkout = false
     }
@@ -207,15 +312,19 @@ public final class WorkoutSession {
         hub.onHistoryFailure = { [weak self] in self?.errorMessage = "Workout history could not be saved on this iPhone." }
 
         store = WorkoutStore(sessionId: hub.sessionId)
-        hub.onEvent = { [weak self] event in self?.store.apply(event) }
+        hub.onEvent = { [weak self] event in self?.received(event) }
         store.apply(hub.snapshot())
-        hubServer = try HubServer { [weak hub] observation in
+        hubServer = try HubServer(port: hubPort, advertises: advertisesHub, configuration: { [weak self] in
+            await self?.cameraConfiguration()
+        }, cameraConnected: { [weak self] host in
+            await self?.cameraDidConnect(host)
+        }) { [weak hub] observation in
             await MainActor.run { hub?.observe(observation) } ?? IngestAck(accepted: false, duplicate: false, ignored: "no_session")
         }
         self.hub = hub
         configureHostedCoach(warmWorkout: true)
         hubAddress = HubServer.wifiAddress().map { "\($0):\(HubServer.defaultPort)" }
-        hub.command(.start, args: CommandArgs(exercise: exercise, targetReps: 8, source: .live))
+        hub.command(.start, args: CommandArgs(exercise: exercise, targetReps: currentStep?.reps ?? 8, source: .live))
         isPositioning = false
         presentsWorkout = true
     }
@@ -235,13 +344,15 @@ public final class WorkoutSession {
         }
         let client = HostedCoachClient(baseURL: url)
         hostedCoach = client
+        if workoutRelay == nil { workoutRelay = HostedWorkoutRelay(baseURL: url) }
+        syncWorkouts()
         voiceStatus = "Connecting to ElevenLabs…"
         voiceWarmTask = Task { [weak self] in
             do {
                 try await client.prepare()
                 guard !Task.isCancelled, let self else { return }
                 voiceStatus = nil
-                if warmWorkout { await client.warm(exercise: exercise, target: 8) }
+                if warmWorkout { await client.warm(exercise: exercise, target: currentStep?.reps ?? 8) }
             } catch {
                 guard !Task.isCancelled else { return }
                 self?.voiceStatus = "ElevenLabs is unavailable. Saved clips and captions remain available."
@@ -270,6 +381,26 @@ public final class WorkoutSession {
         hubServer = nil
         hub = nil
         hubAddress = nil
+        cameraHost = nil
+        cameraLastSeen = nil
+    }
+
+    private func received(_ event: WorkoutEvent) {
+        store.apply(event)
+        if case .setCompleted(let set) = event.payload { setsDone += 1; totalReps += set.repCount }
+        // Reaching the set's target rests (or finishes the workout) on its own.
+        if case .repCompleted(let rep) = event.payload, let target = rep.targetReps, rep.repCount >= target {
+            Task { await finishSet() }
+        }
+    }
+
+    /// Stays with one camera until it has been quiet for 4 s, so a second camera on the network can't make the
+    /// preview flip between them. The camera calls ~15 times a second; "last seen" only needs 1 s resolution.
+    func cameraDidConnect(_ host: String, now: Date = .now) {
+        let quiet = cameraLastSeen.map { now.timeIntervalSince($0) > 4 } ?? true
+        guard host == cameraHost || cameraHost == nil || quiet else { return }
+        if host != cameraHost { cameraHost = host; cameraLastSeen = now; return }
+        if cameraLastSeen.map({ now.timeIntervalSince($0) >= 1 }) ?? true { cameraLastSeen = now }
     }
 
     private func command(_ intent: Intent, args: CommandArgs? = nil) async {
@@ -282,7 +413,30 @@ public final class WorkoutSession {
         } else if let error = hub?.command(intent, args: args) {
             errorMessage = "The coach could not accept that action (\(error))."
         }
-        if intent == .end { await hub?.flushHistory() }
+        if errorMessage == nil { cameraRevision += 1 }
+        if intent == .end {
+            await hub?.flushHistory()
+            if sessionMode == .hub { syncWorkouts() }
+        }
+    }
+
+    private func syncWorkouts() {
+        guard let workoutRelay else { return }
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appending(path: "GymAndAI/Workouts")
+        guard FileManager.default.fileExists(atPath: directory.path) else { return }
+        workoutSyncTask?.cancel()
+        workoutSyncStatus = "Sending measured workout data…"
+        workoutSyncTask = Task { [weak self] in
+            do {
+                try await workoutRelay.sync(directory: directory)
+                guard !Task.isCancelled else { return }
+                self?.workoutSyncStatus = "Workout data synced"
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.workoutSyncStatus = "Saved on iPhone · Will retry when the coach reconnects"
+            }
+        }
     }
 
     private func applyPhoneCommand(_ intent: Intent, args: CommandArgs?) {

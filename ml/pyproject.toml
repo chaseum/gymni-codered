@@ -13,6 +13,7 @@ dependencies = [
 train = ["scikit-learn==1.9.1", "joblib==1.6.0"]
 gru = ["torch>=2.4"]                     # on CUDA hosts install the matching wheel from pytorch.org first
 dev = ["pytest>=8"]
+pi = ["zeroconf>=0.132,<1"]
 
 [project.scripts]
 fitness-ml = "fitness_ml.__main__:main"

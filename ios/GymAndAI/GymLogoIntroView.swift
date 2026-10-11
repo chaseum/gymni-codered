@@ -14,7 +14,7 @@ struct GymLogoIntroView: View {
             ZStack {
                 GymTheme.background.ignoresSafeArea()
 
-                Image("GymLogo")
+                Image("GymLogoLight")
                     .resizable()
                     .scaledToFit()
                     .frame(width: logoSize, height: logoSize)

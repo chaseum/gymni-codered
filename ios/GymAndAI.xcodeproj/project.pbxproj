@@ -7,21 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C00000000000000000000022 /* GymAndAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = C00000000000000000000021 /* GymAndAIKit */; };
-		C00000000000000000000023 /* GymAndAILiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* GymAndAILiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A00000000000000000000022 /* GymAndAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = A00000000000000000000021 /* GymAndAIKit */; };
 		B00000000000000000000022 /* GymAndAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000021 /* GymAndAIKit */; };
 		B00000000000000000000023 /* GymAndAIWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* GymAndAIWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C00000000000000000000022 /* GymAndAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = C00000000000000000000021 /* GymAndAIKit */; };
+		C00000000000000000000023 /* GymAndAILiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C00000000000000000000007 /* GymAndAILiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		C00000000000000000000041 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A00000000000000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = C00000000000000000000002;
-			remoteInfo = GymAndAILiveActivity;
-		};
 		A00000000000000000000041 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A00000000000000000000001 /* Project object */;
@@ -36,9 +29,27 @@
 			remoteGlobalIDString = B00000000000000000000002;
 			remoteInfo = GymAndAIWatch;
 		};
+		C00000000000000000000041 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C00000000000000000000002;
+			remoteInfo = GymAndAILiveActivity;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		B00000000000000000000036 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B00000000000000000000023 /* GymAndAIWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C00000000000000000000036 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -50,70 +61,53 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B00000000000000000000036 /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				B00000000000000000000023 /* GymAndAIWatch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		C00000000000000000000007 /* GymAndAILiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GymAndAILiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000007 /* GymAndAI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GymAndAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000009 /* GymAndAIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GymAndAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B00000000000000000000007 /* GymAndAIWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GymAndAIWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000007 /* GymAndAILiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GymAndAILiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		C00000000000000000000006 /* GymAndAILiveActivity */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = GymAndAILiveActivity;
-			sourceTree = "<group>";
-		};
-		A00000000000000000000006 /* GymAndAI */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = GymAndAI;
-			sourceTree = "<group>";
-		};
-		A00000000000000000000008 /* GymAndAIUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = GymAndAIUITests;
-			sourceTree = "<group>";
-		};
-		B00000000000000000000006 /* GymAndAIWatch */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = GymAndAIWatch;
-			sourceTree = "<group>";
-		};
+		A00000000000000000000006 /* GymAndAI */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = GymAndAI; sourceTree = "<group>"; };
+		A00000000000000000000008 /* GymAndAIUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = GymAndAIUITests; sourceTree = "<group>"; };
+		B00000000000000000000006 /* GymAndAIWatch */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = GymAndAIWatch; sourceTree = "<group>"; };
+		C00000000000000000000006 /* GymAndAILiveActivity */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = GymAndAILiveActivity; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		C00000000000000000000031 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
-				C00000000000000000000022 /* GymAndAIKit in Frameworks */,
-			);
-		};
 		A00000000000000000000031 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000022 /* GymAndAIKit in Frameworks */,
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A00000000000000000000034 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B00000000000000000000031 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 				B00000000000000000000022 /* GymAndAIKit in Frameworks */,
 			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C00000000000000000000031 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C00000000000000000000022 /* GymAndAIKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -143,27 +137,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C00000000000000000000002 /* GymAndAILiveActivity */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = C00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAILiveActivity" */;
-			buildPhases = (
-				C00000000000000000000030 /* Sources */,
-				C00000000000000000000031 /* Frameworks */,
-				C00000000000000000000032 /* Resources */,
-			);
-			buildRules = (
-			);
-			fileSystemSynchronizedGroups = (
-				C00000000000000000000006 /* GymAndAILiveActivity */,
-			);
-			name = GymAndAILiveActivity;
-			packageProductDependencies = (
-				C00000000000000000000021 /* GymAndAIKit */,
-			);
-			productName = GymAndAILiveActivity;
-			productReference = C00000000000000000000007 /* GymAndAILiveActivity.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		A00000000000000000000002 /* GymAndAI */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAI" */;
@@ -222,6 +195,8 @@
 			);
 			buildRules = (
 			);
+			dependencies = (
+			);
 			fileSystemSynchronizedGroups = (
 				B00000000000000000000006 /* GymAndAIWatch */,
 			);
@@ -232,6 +207,29 @@
 			productName = GymAndAIWatch;
 			productReference = B00000000000000000000007 /* GymAndAIWatch.app */;
 			productType = "com.apple.product-type.application";
+		};
+		C00000000000000000000002 /* GymAndAILiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAILiveActivity" */;
+			buildPhases = (
+				C00000000000000000000030 /* Sources */,
+				C00000000000000000000031 /* Frameworks */,
+				C00000000000000000000032 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C00000000000000000000006 /* GymAndAILiveActivity */,
+			);
+			name = GymAndAILiveActivity;
+			packageProductDependencies = (
+				C00000000000000000000021 /* GymAndAIKit */,
+			);
+			productName = GymAndAILiveActivity;
+			productReference = C00000000000000000000007 /* GymAndAILiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -252,6 +250,7 @@
 				};
 			};
 			buildConfigurationList = A00000000000000000000010 /* Build configuration list for PBXProject "GymAndAI" */;
+			compatibilityVersion = "Xcode 16.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -262,7 +261,6 @@
 			packageReferences = (
 				A00000000000000000000020 /* XCLocalSwiftPackageReference "GymAndAIKit" */,
 			);
-			preferredProjectObjectVersion = 71;
 			productRefGroup = A00000000000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -276,57 +274,68 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		C00000000000000000000032 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			files = (
-			);
-		};
 		A00000000000000000000032 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A00000000000000000000035 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B00000000000000000000032 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C00000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C00000000000000000000030 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			files = (
-			);
-		};
 		A00000000000000000000030 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A00000000000000000000033 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		B00000000000000000000030 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C00000000000000000000030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		C00000000000000000000040 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = C00000000000000000000002 /* GymAndAILiveActivity */;
-			targetProxy = C00000000000000000000041 /* PBXContainerItemProxy */;
-		};
 		A00000000000000000000040 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = A00000000000000000000002 /* GymAndAI */;
@@ -337,54 +346,15 @@
 			target = B00000000000000000000002 /* GymAndAIWatch */;
 			targetProxy = B00000000000000000000041 /* PBXContainerItemProxy */;
 		};
+		C00000000000000000000040 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C00000000000000000000002 /* GymAndAILiveActivity */;
+			targetProxy = C00000000000000000000041 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		C00000000000000000000052 /* Debug configuration for PBXNativeTarget "GymAndAILiveActivity" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8UHY8RA4R6;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "GymAndAILiveActivity-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chasebeeler.gymandai.LiveActivity;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		C00000000000000000000053 /* Release configuration for PBXNativeTarget "GymAndAILiveActivity" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 8UHY8RA4R6;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "GymAndAILiveActivity-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chasebeeler.gymandai.LiveActivity;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		A00000000000000000000050 /* Debug configuration for PBXProject "GymAndAI" */ = {
+		A00000000000000000000050 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
@@ -427,7 +397,7 @@
 			};
 			name = Debug;
 		};
-		A00000000000000000000051 /* Release configuration for PBXProject "GymAndAI" */ = {
+		A00000000000000000000051 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
@@ -467,7 +437,7 @@
 			};
 			name = Release;
 		};
-		A00000000000000000000052 /* Debug configuration for PBXNativeTarget "GymAndAI" */ = {
+		A00000000000000000000052 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -486,7 +456,7 @@
 			};
 			name = Debug;
 		};
-		A00000000000000000000053 /* Release configuration for PBXNativeTarget "GymAndAI" */ = {
+		A00000000000000000000053 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -505,7 +475,7 @@
 			};
 			name = Release;
 		};
-		A00000000000000000000054 /* Debug configuration for PBXNativeTarget "GymAndAIUITests" */ = {
+		A00000000000000000000054 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -518,7 +488,7 @@
 			};
 			name = Debug;
 		};
-		A00000000000000000000055 /* Release configuration for PBXNativeTarget "GymAndAIUITests" */ = {
+		A00000000000000000000055 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -531,7 +501,7 @@
 			};
 			name = Release;
 		};
-		B00000000000000000000052 /* Debug configuration for PBXNativeTarget "GymAndAIWatch" */ = {
+		B00000000000000000000052 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -558,7 +528,7 @@
 			};
 			name = Debug;
 		};
-		B00000000000000000000053 /* Release configuration for PBXNativeTarget "GymAndAIWatch" */ = {
+		B00000000000000000000053 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -582,50 +552,99 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 10.6.2;
+			};
+			name = Release;
+		};
+		C00000000000000000000052 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8UHY8RA4R6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "GymAndAILiveActivity-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chasebeeler.gymandai.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C00000000000000000000053 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8UHY8RA4R6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "GymAndAILiveActivity-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chasebeeler.gymandai.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAILiveActivity" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				C00000000000000000000052 /* Debug configuration for PBXNativeTarget "GymAndAILiveActivity" */,
-				C00000000000000000000053 /* Release configuration for PBXNativeTarget "GymAndAILiveActivity" */,
-			);
-			defaultConfigurationName = Release;
-		};
 		A00000000000000000000010 /* Build configuration list for PBXProject "GymAndAI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A00000000000000000000050 /* Debug configuration for PBXProject "GymAndAI" */,
-				A00000000000000000000051 /* Release configuration for PBXProject "GymAndAI" */,
+				A00000000000000000000050 /* Debug */,
+				A00000000000000000000051 /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		A00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A00000000000000000000052 /* Debug configuration for PBXNativeTarget "GymAndAI" */,
-				A00000000000000000000053 /* Release configuration for PBXNativeTarget "GymAndAI" */,
+				A00000000000000000000052 /* Debug */,
+				A00000000000000000000053 /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		A00000000000000000000012 /* Build configuration list for PBXNativeTarget "GymAndAIUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A00000000000000000000054 /* Debug configuration for PBXNativeTarget "GymAndAIUITests" */,
-				A00000000000000000000055 /* Release configuration for PBXNativeTarget "GymAndAIUITests" */,
+				A00000000000000000000054 /* Debug */,
+				A00000000000000000000055 /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		B00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAIWatch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B00000000000000000000052 /* Debug configuration for PBXNativeTarget "GymAndAIWatch" */,
-				B00000000000000000000053 /* Release configuration for PBXNativeTarget "GymAndAIWatch" */,
+				B00000000000000000000052 /* Debug */,
+				B00000000000000000000053 /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C00000000000000000000011 /* Build configuration list for PBXNativeTarget "GymAndAILiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C00000000000000000000052 /* Debug */,
+				C00000000000000000000053 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
@@ -638,17 +657,17 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		C00000000000000000000021 /* GymAndAIKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A00000000000000000000020 /* XCLocalSwiftPackageReference "GymAndAIKit" */;
-			productName = GymAndAIKit;
-		};
 		A00000000000000000000021 /* GymAndAIKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A00000000000000000000020 /* XCLocalSwiftPackageReference "GymAndAIKit" */;
 			productName = GymAndAIKit;
 		};
 		B00000000000000000000021 /* GymAndAIKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A00000000000000000000020 /* XCLocalSwiftPackageReference "GymAndAIKit" */;
+			productName = GymAndAIKit;
+		};
+		C00000000000000000000021 /* GymAndAIKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A00000000000000000000020 /* XCLocalSwiftPackageReference "GymAndAIKit" */;
 			productName = GymAndAIKit;

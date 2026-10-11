@@ -16,7 +16,7 @@ struct WorkoutLiveActivityWidget: Widget {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Gym&AI · \(context.attributes.exercise)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(context.attributes.exercise).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Spacer()
                     StatusText(state: context.state).font(.caption.weight(.semibold))
                 }

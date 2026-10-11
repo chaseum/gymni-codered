@@ -8,16 +8,16 @@ First launch opens personal measurements and eight training questions after the 
 
 ## Main workout setup
 
-The main app defaults to **Camera device** mode on both Simulator and iPhone. Old saved demo, phone-only, and laptop choices migrate to this mode on normal launch. Settings contains the Pi preview, hosted API URL, audio, companion, Health, and Watch controls. Product settings offer no demo/laptop mode selector.
+The main app defaults to **Camera device** mode on both Simulator and iPhone. Old saved demo, phone-only, and laptop choices migrate to this mode on normal launch. The Pi connection and hosted API are automatic; no addresses are entered in Settings. Product settings offer no demo/laptop mode selector.
 
 See [Pi + iPhone + Vercel setup](../docs/PI_IPHONE_VERCEL.md) for deployment and camera commands:
 
 1. Vercel deploys the root `main.py` FastAPI app with ElevenLabs, Gemini, and Backboard keys from `.env` in its environment.
 2. Nothing to configure: the app is preset to the hosted coach (`https://gymni-coach.vercel.app`) and downloads its voice clips at launch.
-3. Start a workout. The app displays this iPhone's Wi-Fi address while waiting for the Pi.
-4. On the Pi, run `fitness-ml run --source live --exercise curl --post http://IPHONE_IP:8000 --session phone` with the trained model bundle installed. Use the exercise selected on iPhone.
+3. Enable the paired iPhone’s Personal Hotspot and power on the tripod.
+4. Start a workout. The Pi discovers the phone and follows its exercise/set/pause controls. Preview connects automatically; see [tripod setup](../pi/README.md).
 
-The Pi and iPhone must share a network. Allow Local Network access and keep the app open. Backgrounding an active workout pauses it. Only ready, recognized, trusted observations commit reps. No timer simulates movement and no connection failure starts a demo.
+The Pi joins the iPhone’s saved hotspot automatically. Allow Local Network access and keep the app open. Backgrounding an active workout pauses it. Only ready, recognized, trusted observations commit reps. No timer simulates movement and no connection failure starts a demo.
 
 ## Voice and local storage
 

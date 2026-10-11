@@ -3,6 +3,7 @@
 .env*
 ios
 ml
+pi
 blender
 blockbench
 demo

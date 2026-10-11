@@ -3,25 +3,26 @@ import GymAndAIKit
 extension Exercise {
     var title: String {
         switch self {
-        case .curl: "Biceps curl"
+        case .curl: "Biceps Curl"
         case .squat: "Squat"
         case .deadlift: "Deadlift"
         }
     }
 
-    var equipment: String {
+    var symbol: String {
         switch self {
-        case .curl: "Dumbbell"
-        case .squat: "Bodyweight"
-        case .deadlift: "Barbell"
+        case .curl: "dumbbell.fill"
+        case .squat: "figure.strengthtraining.functional"
+        case .deadlift: "figure.strengthtraining.traditional"
         }
     }
+}
 
-    var positioning: String {
-        switch self {
-        case .curl: "Keep your working shoulder, elbow, and wrist in view."
-        case .squat: "Use the tested side view with your shoulders, hips, knees, and feet visible."
-        case .deadlift: "Use the tested side view with your shoulders, hips, knees, and feet visible."
-        }
-    }
+extension WorkoutPlan.Item {
+    /// "3 × 8"
+    var prescription: String { "\(sets) × \(reps)" }
+}
+
+extension WorkoutPlan.Step {
+    var label: String { "\(exercise.title) · Set \(set) of \(sets)" }
 }

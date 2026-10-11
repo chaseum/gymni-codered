@@ -9,8 +9,8 @@ struct OnboardingChoiceRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: GymTheme.Space.inset) {
-                VStack(alignment: .leading, spacing: GymTheme.Space.tight) {
-                    Text(choice.title).font(.headline).foregroundStyle(GymTheme.text)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(choice.title).font(.headline)
                     if !choice.detail.isEmpty {
                         Text(choice.detail).font(.subheadline).foregroundStyle(GymTheme.muted)
                     }
@@ -19,16 +19,13 @@ struct OnboardingChoiceRow: View {
                 .fixedSize(horizontal: false, vertical: true)
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(selected ? GymTheme.accentText : GymTheme.muted)
+                    .foregroundStyle(selected ? GymTheme.accent : GymTheme.muted)
                     .accessibilityHidden(true)
             }
             .padding(GymTheme.Space.inset)
-            .frame(minHeight: 64)
-            .background(GymTheme.surface, in: .rect(cornerRadius: GymTheme.controlRadius))
-            .overlay {
-                RoundedRectangle(cornerRadius: GymTheme.controlRadius)
-                    .strokeBorder(selected ? GymTheme.accentText : GymTheme.divider, lineWidth: 1)
-            }
+            .frame(minHeight: 60)
+            .background(selected ? GymTheme.accent.opacity(0.16) : GymTheme.surface, in: .rect(cornerRadius: GymTheme.radius))
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])

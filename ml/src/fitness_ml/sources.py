@@ -50,6 +50,7 @@ class Webcam:
 
     def _open(self):
         cap = cv2.VideoCapture(self.index)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         if self.width:
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         if self.height:

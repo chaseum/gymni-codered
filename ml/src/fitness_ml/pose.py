@@ -11,9 +11,14 @@ import numpy as np
 MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
              "pose_landmarker_{v}/float16/latest/pose_landmarker_{v}.task")
 VARIANTS = ("lite", "full", "heavy")
-LANDMARKS = [p.name.lower() for p in mp.tasks.vision.PoseLandmark]  # 33 names, index-aligned
+_landmarks = getattr(mp.tasks.vision, "PoseLandmark", None)
+if _landmarks is None:  # Pi 4's verified 0.10.18 runtime uses the older constants.
+    _landmarks = mp.solutions.pose.PoseLandmark
+LANDMARKS = [p.name.lower() for p in _landmarks]  # 33 names, index-aligned
 INDEX = {name: i for i, name in enumerate(LANDMARKS)}
-CONNECTIONS = [(c.start, c.end) for c in mp.tasks.vision.PoseLandmarksConnections.POSE_LANDMARKS]
+_connections = getattr(mp.tasks.vision, "PoseLandmarksConnections", None)
+CONNECTIONS = ([(c.start, c.end) for c in _connections.POSE_LANDMARKS] if _connections
+               else list(mp.solutions.pose.POSE_CONNECTIONS))
 
 
 @dataclass

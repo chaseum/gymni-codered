@@ -5,12 +5,11 @@ final class PipMascotTests: XCTestCase {
     func testAllCompanionsLoadAfterSelection() {
         let app = XCUIApplication()
         app.launchPastIntro()
-        for (name, focus) in [("Atlas", "Get stronger"), ("Flex", "Build muscle"), ("Pip", "Feel fitter")] {
-            app.buttons["Workout setup"].tap()
-            let choice = app.descendants(matching: .any)["companion-choice"].firstMatch
+        for name in ["Atlas", "Flex", "Pip"] {
+            app.buttons["Settings"].tap()
+            let choice = app.buttons[name]
             XCTAssertTrue(choice.waitForExistence(timeout: 5))
             choice.tap()
-            app.staticTexts["\(name) · \(focus)"].tap()
             app.buttons["Done"].tap()
             let mascot = app.buttons["celebrate-pip"]
             waitForValue("3D", on: mascot)
@@ -45,7 +44,7 @@ final class PipMascotTests: XCTestCase {
         waitForValue("Static preview", on: pip)
         capture(app, name: "Pip static fallback")
         app.buttons["Start workout"].tap()
-        XCTAssertTrue(app.segmentedControls["workout-view-picker"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["Pause"].isHittable)
     }
 
@@ -71,7 +70,7 @@ final class PipMascotTests: XCTestCase {
         app.launchPastIntro()
         waitForValue("motion reduced", on: app.buttons["celebrate-pip"])
         app.buttons["Start workout"].tap()
-        XCTAssertTrue(app.segmentedControls["workout-view-picker"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].waitForExistence(timeout: 8))
         app.buttons["Mute coach"].tap()
         let pip = app.descendants(matching: .any)["pip-mascot"].firstMatch
         waitForValue("Ready", on: pip)
@@ -79,9 +78,9 @@ final class PipMascotTests: XCTestCase {
         waitForValue("Resting", on: pip)
         waitForValue("3D", on: pip)
         capture(app, name: "Pip rest reduced motion")
-        app.buttons["End workout"].tap()
+        app.buttons["End Workout"].tap()
         waitForValue("Celebrating", on: pip)
-        app.buttons["Back to Today"].tap()
+        app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["celebrate-pip"].waitForExistence(timeout: 5))
     }
 

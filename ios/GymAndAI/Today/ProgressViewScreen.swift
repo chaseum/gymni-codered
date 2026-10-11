@@ -5,45 +5,56 @@ struct ProgressViewScreen: View {
     let session: WorkoutSession
 
     var body: some View {
-        GymPage {
-            if session.completedReps != nil || session.completedUnmeasuredSession {
-                WorkoutHeaderView(context: "Last session", title: session.completedExercise?.title ?? "Your last session",
-                                  detail: "Retained during this app session.")
-                VStack(alignment: .leading, spacing: GymTheme.Space.related) {
-                    Label(sourceTitle, systemImage: session.completedUnmeasuredSession ? "camera" : "checkmark.circle")
-                        .font(GymTheme.TypeStyle.label).foregroundStyle(GymTheme.accentText)
-                    if let reps = session.completedReps {
-                        RepCounterView(count: reps, target: nil)
-                    } else {
-                        Text("You completed a camera session").font(GymTheme.TypeStyle.heading)
-                        UnmeasuredRepsView()
+        List {
+            Section {
+                HStack(spacing: GymTheme.Space.page) {
+                    ZStack {
+                        Circle().stroke(GymTheme.ringTrack, lineWidth: 12)
+                        Circle()
+                            .trim(from: 0, to: min(Double(done) / Double(goal), 1))
+                            .stroke(GymTheme.accent, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
                     }
+                    .frame(width: 76, height: 76)
+                    .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("This Week").font(.subheadline).foregroundStyle(GymTheme.muted)
+                        Text("\(done)/\(goal)").font(.system(.largeTitle, design: .rounded).bold()).monospacedDigit()
+                        Text("workouts").font(.subheadline).foregroundStyle(GymTheme.muted)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("This week, \(done) of \(goal) workouts")
                 }
-                .padding(GymTheme.Space.page)
-                .modifier(GymSurface())
-                Text(sourceDetail).foregroundStyle(GymTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("A new workout replaces this recap. Workout history isn’t saved yet.")
-                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
-            } else {
-                WorkoutHeaderView(context: "Session recaps", title: "Your progress starts here")
-                PipView().frame(width: 104, height: 100)
-                ContentUnavailableView("One set is a start", systemImage: "figure.strengthtraining.traditional",
-                                       description: Text("Complete a workout, then return to Today to see your last session here."))
-                Text("Sets counted from your Pi or laptop camera and unmeasured iPhone sessions are labeled by source.")
-                    .font(GymTheme.TypeStyle.detail).foregroundStyle(GymTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, GymTheme.Space.small)
             }
+            .listRowBackground(GymTheme.surface)
+
+            Section("History") {
+                if session.history.isEmpty {
+                    Text("Finished workouts appear here.").foregroundStyle(GymTheme.muted)
+                }
+                ForEach(session.history) { workout in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(workout.title).font(.headline)
+                            Spacer()
+                            Text(workout.date, format: .dateTime.month(.abbreviated).day())
+                                .font(.subheadline).foregroundStyle(GymTheme.muted)
+                        }
+                        Text("\(workout.sets) sets · \(workout.reps) reps · \(Duration.seconds(workout.durationSeconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+                            .font(.subheadline).foregroundStyle(GymTheme.muted)
+                    }
+                    .padding(.vertical, 2)
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .listRowBackground(GymTheme.surface)
         }
+        .scrollContentBackground(.hidden)
+        .background(GymTheme.background.ignoresSafeArea())
+        .foregroundStyle(GymTheme.text)
     }
 
-    private var sourceTitle: String {
-        if session.completedUnmeasuredSession { return "iPhone camera · Unmeasured" }
-        return "Pi or laptop camera · Counted on this iPhone"
-    }
-
-    private var sourceDetail: String {
-        if session.completedUnmeasuredSession { return "Reps and form were not measured during this camera session." }
-        return "These reps were counted on this iPhone from your Pi or laptop camera."
-    }
+    private var done: Int { session.workoutsThisWeek() }
+    private var goal: Int { session.plan.weeklyGoal }
 }
